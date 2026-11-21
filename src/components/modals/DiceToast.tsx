@@ -4,21 +4,30 @@ import { useGameStore } from '../../store/useGameStore';
 
 export function DiceToast() {
   const dice = useGameStore((s) => s.roomState.diceBroadcast);
+  const diceId = dice?.id ?? null;
   const [visibleId, setVisibleId] = useState<string | null>(null);
-  const lastSeenRef = useRef<string | null>(dice?.id ?? null);
+  const lastSeenRef = useRef<string | null>(diceId);
+  const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!dice?.id) return;
-    if (dice.id === lastSeenRef.current) return;
+    return () => {
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    };
+  }, []);
 
-    lastSeenRef.current = dice.id;
-    setVisibleId(dice.id);
+  useEffect(() => {
+    if (!diceId) return;
+    if (diceId === lastSeenRef.current) return;
 
-    const timer = setTimeout(() => {
-      setVisibleId((cur) => (cur === dice.id ? null : cur));
+    lastSeenRef.current = diceId;
+    setVisibleId(diceId);
+
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => {
+      setVisibleId((cur) => (cur === diceId ? null : cur));
+      timerRef.current = null;
     }, 6500);
-    return () => clearTimeout(timer);
-  }, [dice]);
+  }, [diceId]);
 
   if (!dice || visibleId !== dice.id) return null;
 

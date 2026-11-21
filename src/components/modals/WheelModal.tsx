@@ -49,33 +49,51 @@ export function WheelModal() {
   const [rotationDeg, setRotationDeg] = useState(0);
   const [revealedBroadcastId, setRevealedBroadcastId] = useState<string | null>(null);
   const lastSeenIdRef = useRef<string | null>(broadcast?.id ?? null);
+  const spinTimerRef = useRef<number | null>(null);
 
-  // Auto-open modal and play synced 3.2s spin animation across all 3 screens when a new spin arrives
+  const broadcastId = broadcast?.id ?? null;
+  const broadcastType = broadcast?.wheelType ?? null;
+  const broadcastSpinning = broadcast?.isSpinning ?? false;
+
+  // Clean up timer only on component unmount
   useEffect(() => {
-    if (!broadcast?.id) return;
-    if (broadcast.id === lastSeenIdRef.current) return;
+    return () => {
+      if (spinTimerRef.current !== null) {
+        window.clearTimeout(spinTimerRef.current);
+      }
+    };
+  }, []);
 
-    lastSeenIdRef.current = broadcast.id;
-    setSelectedMode(broadcast.wheelType);
+  // Auto-open modal and play synced 3.2s spin animation across all 3 screens when a new spin ID arrives
+  useEffect(() => {
+    if (!broadcastId || !broadcastType) return;
+    if (broadcastId === lastSeenIdRef.current) return;
+
+    lastSeenIdRef.current = broadcastId;
+    setSelectedMode(broadcastType);
     setWheelOpen(true);
 
-    if (broadcast.isSpinning) {
+    if (spinTimerRef.current !== null) {
+      window.clearTimeout(spinTimerRef.current);
+      spinTimerRef.current = null;
+    }
+
+    if (broadcastSpinning) {
       setAnimating(true);
       setRevealedBroadcastId(null);
-      // Spin 5 full turns + deterministic offset from broadcast.id
-      const hash = broadcast.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+      const hash = broadcastId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
       setRotationDeg((prev) => prev + 1800 + (hash % 360));
 
-      const timer = setTimeout(() => {
+      spinTimerRef.current = window.setTimeout(() => {
         setAnimating(false);
-        setRevealedBroadcastId(broadcast.id);
+        setRevealedBroadcastId(broadcastId);
+        spinTimerRef.current = null;
       }, 3200);
-      return () => clearTimeout(timer);
     } else {
       setAnimating(false);
-      setRevealedBroadcastId(broadcast.id);
+      setRevealedBroadcastId(broadcastId);
     }
-  }, [broadcast, setWheelOpen]);
+  }, [broadcastId, broadcastType, broadcastSpinning, setWheelOpen]);
 
   const activePoolLabels = useMemo(() => {
     if (selectedMode === 'servant_draft') {
