@@ -1,0 +1,187 @@
+import { useState } from 'react';
+import {
+  CloudFog,
+  Crown,
+  FastForward,
+  Footprints,
+  Hand,
+  Undo2,
+} from 'lucide-react';
+import { useGameStore } from '../../store/useGameStore';
+import type { TurnPhase } from '../../types/game';
+
+const PHASES: { id: TurnPhase; label: string }[] = [
+  { id: 'draft', label: 'Draft' },
+  { id: 'event', label: 'Event' },
+  { id: 'planning', label: 'Planning' },
+  { id: 'resolution', label: 'Resolve' },
+];
+
+export function RulerControlStrip() {
+  const previewRole = useGameStore((s) => s.previewRole);
+  const roomState = useGameStore((s) => s.roomState);
+  const rulerSecret = useGameStore((s) => s.rulerSecret);
+  const historyLength = useGameStore((s) => s.historyStack.length);
+  const freeDragEnabled = useGameStore((s) => s.freeDragEnabled);
+  const showMoveHelper = useGameStore((s) => s.showMoveHelper);
+
+  const setPhase = useGameStore((s) => s.setPhase);
+  const endTurnAndNext = useGameStore((s) => s.endTurnAndNext);
+  const setSecretGrailTurn = useGameStore((s) => s.setSecretGrailTurn);
+  const toggleFogOfWar = useGameStore((s) => s.toggleFogOfWar);
+  const toggleGrailManifested = useGameStore((s) => s.toggleGrailManifested);
+  const setFreeDragEnabled = useGameStore((s) => s.setFreeDragEnabled);
+  const setShowMoveHelper = useGameStore((s) => s.setShowMoveHelper);
+  const undo = useGameStore((s) => s.undo);
+
+  const [skipMana, setSkipMana] = useState(false);
+
+  if (previewRole !== 'ruler') return null;
+
+  return (
+    <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[#C8A253]/25 bg-[#0D121D] px-3 py-1 text-[11px] text-slate-200">
+      {/* Left: Phase Stepper + End Turn */}
+      <div className="flex items-center gap-1.5">
+        <span className="font-display text-[10px] font-bold tracking-widest text-[#C8A253]">
+          RULER GOD-MODE
+        </span>
+
+        <div className="flex items-center rounded-[2px] border border-slate-800 bg-[#090B10] p-0.5">
+          {PHASES.map((p) => {
+            const active = roomState.phase === p.id;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setPhase(p.id)}
+                className={`rounded-[2px] px-2 py-0.5 font-display text-[10px] font-bold tracking-wide transition ${
+                  active
+                    ? 'bg-[#C8A253] text-[#090B10]'
+                    : 'text-slate-400 hover:bg-[#111622] hover:text-slate-200'
+                }`}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => endTurnAndNext(skipMana)}
+          className="flex items-center gap-1 rounded-[2px] border border-[#C8A253]/50 bg-[#B91C1C] px-2.5 py-0.5 font-display text-[10px] font-bold tracking-wider text-slate-100 transition hover:bg-red-700"
+        >
+          <FastForward className="h-3 w-3" />
+          <span>End Turn → T{roomState.turn + 1}</span>
+        </button>
+
+        <label
+          title="ติ๊กเพื่อไม่แจก +2 Mana ประจำเทิร์น (เช่น ติด Event Mana Drought)"
+          className="flex cursor-pointer items-center gap-1 text-[10px] text-slate-400 hover:text-slate-200"
+        >
+          <input
+            type="checkbox"
+            checked={skipMana}
+            onChange={(e) => setSkipMana(e.target.checked)}
+            className="h-3 w-3 accent-[#C8A253]"
+          />
+          <span>งด +2M</span>
+        </label>
+      </div>
+
+      {/* Center: Secret Grail Turn & Manifest Switch */}
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 rounded-[2px] border border-[#C8A253]/25 bg-[#090B10] px-1.5 py-0.5">
+          <span className="text-[10px] font-semibold text-slate-400">Secret Turn:</span>
+          {([10, 11, 12] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setSecretGrailTurn(t)}
+              className={`rounded-[2px] px-1.5 py-px font-display text-[10px] font-bold transition ${
+                rulerSecret.secretGrailTurn === t
+                  ? 'bg-[#C8A253] text-[#090B10]'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              T{t}
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={toggleGrailManifested}
+          className={`flex items-center gap-1 rounded-[2px] border px-2 py-0.5 text-[10px] font-bold transition ${
+            roomState.grailManifested
+              ? 'border-[#C8A253] bg-[#C8A253]/20 text-[#E5C983]'
+              : 'border-slate-700 bg-[#090B10] text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Crown className="h-3 w-3" />
+          <span>{roomState.grailManifested ? 'Grail: ACTIVE' : 'Grail: Sealed'}</span>
+        </button>
+      </div>
+
+      {/* Right: Mode Toggles + Undo */}
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => setFreeDragEnabled(!freeDragEnabled)}
+          title="เปิด-ปิดการลากตัวหมากอิสระ (God-Mode)"
+          className={`flex items-center gap-1 rounded-[2px] border px-2 py-0.5 text-[10px] font-bold transition ${
+            freeDragEnabled
+              ? 'border-emerald-700/80 bg-emerald-950/50 text-emerald-300'
+              : 'border-slate-700 bg-[#090B10] text-slate-500'
+          }`}
+        >
+          <Hand className="h-3 w-3" />
+          <span>Free Drag</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowMoveHelper(!showMoveHelper)}
+          title="แสดงไฮไลต์ระยะเดิน MOV (Weighted BFS + โบนัสถนน + ZoC)"
+          className={`flex items-center gap-1 rounded-[2px] border px-2 py-0.5 text-[10px] font-bold transition ${
+            showMoveHelper
+              ? 'border-sky-700/80 bg-sky-950/50 text-sky-300'
+              : 'border-slate-700 bg-[#090B10] text-slate-500'
+          }`}
+        >
+          <Footprints className="h-3 w-3" />
+          <span>MOV/ZoC</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={toggleFogOfWar}
+          title="เปิด-ปิด Fog of War"
+          className={`flex items-center gap-1 rounded-[2px] border px-2 py-0.5 text-[10px] font-bold transition ${
+            roomState.fogConfig.enabled
+              ? 'border-[#C8A253]/70 bg-[#C8A253]/15 text-[#E5C983]'
+              : 'border-slate-700 bg-[#090B10] text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <CloudFog className="h-3 w-3" />
+          <span>Fog: {roomState.fogConfig.enabled ? 'ON' : 'OFF'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={undo}
+          disabled={historyLength === 0}
+          title="ย้อนกลับสถานะกระดานก่อนหน้า (เก็บสูงสุด 15 ขั้น)"
+          className={`flex items-center gap-1 rounded-[2px] border px-2 py-0.5 text-[10px] font-bold transition ${
+            historyLength > 0
+              ? 'border-[#C8A253]/60 bg-[#111622] text-[#E5C983] hover:bg-[#C8A253]/20'
+              : 'cursor-not-allowed border-slate-800 bg-[#090B10] text-slate-600'
+          }`}
+        >
+          <Undo2 className="h-3 w-3" />
+          <span>Undo ({historyLength})</span>
+        </button>
+      </div>
+    </div>
+  );
+}

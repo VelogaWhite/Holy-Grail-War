@@ -1,3 +1,4 @@
+import { useDroppable } from '@dnd-kit/core';
 import {
   ArrowLeft,
   ArrowRight,
@@ -25,6 +26,8 @@ import type {
   TileOverride,
   ZoneId,
 } from '../../types/game';
+import { getTileKey } from '../../utils/assetHelper';
+import type { ReachableTileInfo } from '../../utils/gridMath';
 import { UnitToken } from './UnitToken';
 
 interface GridTileProps {
@@ -37,14 +40,17 @@ interface GridTileProps {
   unit?: BoardUnit;
   isSelectedUnit: boolean;
   isLockedTile: boolean;
+  canDragUnit: boolean;
+  reachableInfo?: ReachableTileInfo;
+  isSpawnMode: boolean;
   onSelectUnit: (unitId: string) => void;
   onGateJump: (targetZone: ZoneId) => void;
   onHover: () => void;
   onClickTile: () => void;
+  onRightClickTile: (clientX: number, clientY: number) => void;
 }
 
 function TerrainSubtleGlyph({ terrainId }: { terrainId: TerrainId }) {
-  // 'open' stays completely clean without any icon; 'road' relies on continuous paved texture
   switch (terrainId) {
     case 'building':
       return <Building2 className="h-4 w-4 text-slate-300/20" />;
@@ -69,11 +75,21 @@ export function GridTile({
   unit,
   isSelectedUnit,
   isLockedTile,
+  canDragUnit,
+  reachableInfo,
+  isSpawnMode,
   onSelectUnit,
   onGateJump,
   onHover,
   onClickTile,
+  onRightClickTile,
 }: GridTileProps) {
+  const tileKey = getTileKey(zone, x, y);
+  const { setNodeRef, isOver } = useDroppable({
+    id: tileKey,
+    data: { zone, x, y },
+  });
+
   const isCleared = tileOverride?.cleared ?? false;
   const customNote = tileOverride?.customNote;
 
@@ -126,7 +142,7 @@ export function GridTile({
         return (
           <div className="pointer-events-none flex flex-col items-center text-[#C8A253]">
             <Crown className="h-5 w-5" />
-            <span className="mt-0.5 font-display text-[8px] font-bold tracking-wider uppercase leading-none">
+            <span className="mt-0.5 font-display text-[8px] font-bold uppercase tracking-wider leading-none">
               Grail
             </span>
           </div>
@@ -185,18 +201,46 @@ export function GridTile({
 
   return (
     <div
+      ref={setNodeRef}
       onMouseEnter={onHover}
       onClick={onClickTile}
-      className={`terrain-${terrainId} relative flex cursor-pointer items-center justify-center border border-slate-800/70 transition hover:z-10 hover:ring-1 hover:ring-[#C8A253]/70 ${
-        isLockedTile ? 'z-10 ring-2 ring-[#C8A253]' : ''
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onRightClickTile(e.clientX, e.clientY);
+      }}
+      className={`terrain-${terrainId} relative flex items-center justify-center border border-slate-800/70 transition hover:z-10 hover:ring-1 hover:ring-[#C8A253]/70 ${
+        isSpawnMode ? 'cursor-crosshair' : 'cursor-pointer'
+      } ${isOver ? 'z-20 ring-2 ring-[#E5C983] bg-[#C8A253]/25' : ''} ${
+        isLockedTile && !isOver ? 'z-10 ring-2 ring-[#C8A253]' : ''
+      } ${isGateRight ? 'border-r-[3px] border-r-teal-500/80' : ''} ${
+        isGateLeft ? 'border-l-[3px] border-l-teal-500/80' : ''
       } ${
-        isGateRight ? 'border-r-[3px] border-r-teal-500/80' : ''
-      } ${isGateLeft ? 'border-l-[3px] border-l-teal-500/80' : ''} ${
         specialTile?.type === 'grail_site'
           ? 'ring-inset ring-1 ring-[#C8A253]/80'
           : ''
       }`}
     >
+      {/* Movement & ZoC Visual Helper Overlay (non-blocking) */}
+      {reachableInfo && !unit && (
+        <div
+          className={`pointer-events-none absolute inset-0.5 rounded-[2px] border ${
+            reachableInfo.isZocRetreat
+              ? 'border-amber-500/90 bg-amber-500/18'
+              : 'border-emerald-400/75 bg-emerald-500/15'
+          }`}
+        >
+          <span
+            className={`absolute top-0.5 left-0.5 rounded-[2px] px-1 py-px font-mono text-[7.5px] font-bold leading-none ${
+              reachableInfo.isZocRetreat
+                ? 'bg-amber-600 text-slate-950'
+                : 'bg-emerald-950/90 text-emerald-300'
+            }`}
+          >
+            {reachableInfo.isZocRetreat ? `ZoC` : `${reachableInfo.cost}`}
+          </span>
+        </div>
+      )}
+
       {/* Layer 1: Subtle Terrain Glyph ONLY for non-open, non-road empty tiles */}
       {!specialTile && !unit && (
         <div className="pointer-events-none">
@@ -239,7 +283,7 @@ export function GridTile({
         </button>
       )}
 
-      {/* Layer 2: Special Feature Marker (hidden underneath unit when occupied) */}
+      {/* Layer 2: Special Feature Marker */}
       <div className={unit ? 'opacity-10' : 'opacity-95'}>{renderSpecialMarker()}</div>
 
       {/* Cleared Overlay */}
@@ -257,14 +301,13 @@ export function GridTile({
           <UnitToken
             unit={unit}
             isSelected={isSelectedUnit}
+            canDrag={canDragUnit}
             onSelect={() => onSelectUnit(unit.id)}
           />
         </div>
       )}
 
-      <span className="sr-only">
-        {zone}-{x}-{y}
-      </span>
+      <span className="sr-only">{tileKey}</span>
     </div>
   );
 }

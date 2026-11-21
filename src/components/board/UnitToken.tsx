@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDraggable } from '@dnd-kit/core';
 import { Eye, Sparkles } from 'lucide-react';
 import type { BoardUnit } from '../../types/game';
 import {
@@ -11,12 +12,18 @@ import {
 interface UnitTokenProps {
   unit: BoardUnit;
   isSelected: boolean;
+  canDrag: boolean;
   onSelect: () => void;
 }
 
-export function UnitToken({ unit, isSelected, onSelect }: UnitTokenProps) {
+export function UnitToken({ unit, isSelected, canDrag, onSelect }: UnitTokenProps) {
   const [imgError, setImgError] = useState(false);
   const [classIconError, setClassIconError] = useState(false);
+
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: unit.id,
+    disabled: !canDrag,
+  });
 
   const faction = getFactionStyle(unit.owner);
   const imageUrl = resolveAssetUrl(unit.image);
@@ -30,20 +37,32 @@ export function UnitToken({ unit, isSelected, onSelect }: UnitTokenProps) {
         ? 'border-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.65)]'
         : 'border-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.55)]';
 
+  const dragStyle = transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+    : undefined;
+
   return (
     <button
+      ref={setNodeRef}
       type="button"
+      style={dragStyle}
+      {...listeners}
+      {...attributes}
       onClick={(e) => {
         e.stopPropagation();
         onSelect();
       }}
       className={`group relative flex h-[92%] w-[92%] flex-col items-center justify-center rounded-[3px] border-2 bg-[#090B10] transition ${teamFrameGlow} ${
-        isSelected
-          ? 'z-20 scale-[1.05] ring-2 ring-[#C8A253] ring-offset-1 ring-offset-[#090B10]'
-          : 'hover:z-20 hover:scale-[1.04]'
+        canDrag ? 'cursor-grab active:cursor-grabbing touch-none' : 'cursor-pointer'
+      } ${
+        isDragging
+          ? 'z-50 scale-105 opacity-90 shadow-2xl'
+          : isSelected
+            ? 'z-20 scale-[1.05] ring-2 ring-[#C8A253] ring-offset-1 ring-offset-[#090B10]'
+            : 'hover:z-20 hover:scale-[1.04]'
       }`}
     >
-      {/* Full-Bleed Portrait (unobstructed — no name overlay on face) */}
+      {/* Full-Bleed Portrait */}
       <div className="relative h-full w-full overflow-hidden rounded-[2px]">
         {imageUrl && !imgError ? (
           <img
@@ -118,32 +137,34 @@ export function UnitToken({ unit, isSelected, onSelect }: UnitTokenProps) {
         )}
       </div>
 
-      {/* Hover Tactical Tooltip (Full Name, Stats, Tags) */}
-      <div className="pointer-events-none absolute bottom-full left-1/2 z-40 mb-2 hidden w-44 -translate-x-1/2 rounded-[2px] border border-[#C8A253]/40 bg-[#111622] p-2 text-left text-[11px] text-slate-100 shadow-xl group-hover:block">
-        <div className="font-display font-bold leading-tight text-[#E5C983]">{unit.name}</div>
-        <div className="mt-0.5 text-[10px] font-medium text-slate-400">
-          {unit.unitType === 'servant'
-            ? `${unit.servantClass}${unit.subClass ? ` • ${unit.subClass}` : ''}`
-            : 'Neutral PvE Monster'}
-        </div>
-        <div className="mt-1.5 grid grid-cols-3 gap-1 rounded-[2px] bg-[#090B10] px-1.5 py-1 text-center text-[10px] font-bold text-slate-200">
-          <span>ATK {unit.atk}</span>
-          <span>MOV {unit.mov}</span>
-          <span>RNG {unit.range ?? 1}</span>
-        </div>
-        {unit.tags.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {unit.tags.map((t) => (
-              <span
-                key={t}
-                className="rounded-[2px] border border-[#C8A253]/30 bg-[#090B10] px-1 py-0.5 text-[9px] font-semibold text-[#C8A253]"
-              >
-                {t}
-              </span>
-            ))}
+      {/* Hover Tactical Tooltip (hidden while dragging) */}
+      {!isDragging && (
+        <div className="pointer-events-none absolute bottom-full left-1/2 z-40 mb-2 hidden w-44 -translate-x-1/2 rounded-[2px] border border-[#C8A253]/40 bg-[#111622] p-2 text-left text-[11px] text-slate-100 shadow-xl group-hover:block">
+          <div className="font-display font-bold leading-tight text-[#E5C983]">{unit.name}</div>
+          <div className="mt-0.5 text-[10px] font-medium text-slate-400">
+            {unit.unitType === 'servant'
+              ? `${unit.servantClass}${unit.subClass ? ` • ${unit.subClass}` : ''}`
+              : 'Neutral PvE Monster'}
           </div>
-        )}
-      </div>
+          <div className="mt-1.5 grid grid-cols-3 gap-1 rounded-[2px] bg-[#090B10] px-1.5 py-1 text-center text-[10px] font-bold text-slate-200">
+            <span>ATK {unit.atk}</span>
+            <span>MOV {unit.mov}</span>
+            <span>RNG {unit.range ?? 1}</span>
+          </div>
+          {unit.tags.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {unit.tags.map((t) => (
+                <span
+                  key={t}
+                  className="rounded-[2px] border border-[#C8A253]/30 bg-[#090B10] px-1 py-0.5 text-[9px] font-semibold text-[#C8A253]"
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </button>
   );
 }
