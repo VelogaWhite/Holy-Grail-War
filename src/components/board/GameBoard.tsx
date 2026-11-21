@@ -89,7 +89,9 @@ export function GameBoard() {
   }
 
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveDragId(String(event.active.id));
+    const unitId = String(event.active.id);
+    setActiveDragId(unitId);
+    selectUnit(unitId);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
