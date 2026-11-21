@@ -9,6 +9,7 @@ import {
   Eye,
   EyeOff,
   Flame,
+  LogOut,
   ScrollText,
   Sparkles,
   Swords,
@@ -17,10 +18,12 @@ import {
 import { useGameStore } from '../../store/useGameStore';
 
 export function TopBarHud() {
+  const sessionMode = useGameStore((s) => s.sessionMode);
   const roomState = useGameStore((s) => s.roomState);
   const rulerSecret = useGameStore((s) => s.rulerSecret);
   const previewRole = useGameStore((s) => s.previewRole);
   const setPreviewRole = useGameStore((s) => s.setPreviewRole);
+  const leaveRoom = useGameStore((s) => s.leaveRoom);
   const setCatalogOpen = useGameStore((s) => s.setCatalogOpen);
   const triggerSampleGrailBanner = useGameStore((s) => s.triggerSampleGrailBanner);
   const [copied, setCopied] = useState(false);
@@ -28,6 +31,20 @@ export function TopBarHud() {
 
   const { team_a, team_b } = roomState.teams;
   const isRulerView = previewRole === 'ruler';
+
+  const cycleSandboxRole = () => {
+    if (sessionMode === 'online') return;
+    if (previewRole === 'ruler') setPreviewRole('master_a');
+    else if (previewRole === 'master_a') setPreviewRole('master_b');
+    else setPreviewRole('ruler');
+  };
+
+  const roleLabel =
+    previewRole === 'ruler'
+      ? 'Ruler'
+      : previewRole === 'master_a'
+        ? 'Master A'
+        : 'Master B';
 
   const handleCopyRoom = () => {
     navigator.clipboard?.writeText(roomState.roomId).catch(() => {});
@@ -39,11 +56,16 @@ export function TopBarHud() {
     <header className="shrink-0 border-b border-[#C8A253]/30 bg-[#111622] text-slate-100">
       {/* Main HUD Row */}
       <div className="flex h-14 items-center justify-between gap-2 px-3">
-        {/* Left: Room + Turn + Phase + Role Preview */}
+        {/* Left: Lobby + Room + Turn + Phase + Role */}
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[2px] border border-[#C8A253]/40 bg-[#B91C1C]/20 text-[#C8A253]">
-            <Flame className="h-4 w-4 text-[#B91C1C]" />
-          </div>
+          <button
+            type="button"
+            onClick={leaveRoom}
+            title="กลับหน้า Lobby"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[2px] border border-[#C8A253]/40 bg-[#090B10] text-slate-300 transition hover:border-[#C8A253] hover:text-[#E5C983]"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+          </button>
 
           <button
             type="button"
@@ -51,6 +73,7 @@ export function TopBarHud() {
             title="คลิกเพื่อคัดลอกรหัสห้อง"
             className="flex items-center gap-1 rounded-[2px] border border-[#C8A253]/25 bg-[#090B10] px-2 py-1 text-xs font-semibold text-slate-200 transition hover:border-[#C8A253]/60 hover:text-[#C8A253]"
           >
+            <Flame className="h-3 w-3 text-[#B91C1C]" />
             <span className="font-display tracking-wider">{roomState.roomId}</span>
             {copied ? (
               <Check className="h-3 w-3 text-emerald-400" />
@@ -60,28 +83,32 @@ export function TopBarHud() {
           </button>
 
           <div className="flex items-center gap-1.5 rounded-[2px] border border-[#C8A253]/30 bg-[#090B10] px-2.5 py-1 text-xs font-bold">
-            <span className="font-display text-slate-100">TURN {roomState.turn}</span>
+            <span className="font-display text-slate-100">T{roomState.turn}</span>
             <span className="text-slate-600">|</span>
             <span className="font-display uppercase tracking-widest text-[#C8A253]">
               {roomState.phase}
             </span>
           </div>
 
-          {/* Preview Role Switch */}
+          {/* Role Badge (clickable cycle in Local Sandbox; locked seat badge in Online mode) */}
           <button
             type="button"
-            onClick={() => setPreviewRole(isRulerView ? 'master_a' : 'ruler')}
-            title="สลับมุมมองทดสอบ Ruler / Master (เช็ก Secret Grail Turn)"
+            onClick={cycleSandboxRole}
+            title={
+              sessionMode === 'online'
+                ? `ที่นั่งของคุณ: ${roleLabel} (Online Sync)`
+                : 'คลิกเพื่อสลับมุมมองทดสอบ Ruler / Master A / Master B'
+            }
             className={`flex items-center gap-1 rounded-[2px] border px-2 py-1 text-[10px] font-semibold transition ${
               isRulerView
                 ? 'border-[#C8A253]/40 bg-[#090B10] text-[#C8A253]'
-                : 'border-[#B91C1C]/70 bg-[#B91C1C]/20 text-red-200'
-            }`}
+                : previewRole === 'master_a'
+                  ? 'border-[#B91C1C]/70 bg-[#B91C1C]/20 text-red-200'
+                  : 'border-sky-600/70 bg-sky-950/40 text-sky-200'
+            } ${sessionMode === 'online' ? 'cursor-default' : 'cursor-pointer hover:opacity-90'}`}
           >
             {isRulerView ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-            <span className="font-display tracking-wide">
-              {isRulerView ? 'Ruler' : 'Master'}
-            </span>
+            <span className="font-display tracking-wide">{roleLabel}</span>
           </button>
         </div>
 

@@ -5,6 +5,7 @@ import {
   FastForward,
   Footprints,
   Hand,
+  Navigation,
   Undo2,
 } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
@@ -24,6 +25,7 @@ export function RulerControlStrip() {
   const historyLength = useGameStore((s) => s.historyStack.length);
   const freeDragEnabled = useGameStore((s) => s.freeDragEnabled);
   const showMoveHelper = useGameStore((s) => s.showMoveHelper);
+  const showCommandArrows = useGameStore((s) => s.showCommandArrows);
 
   const setPhase = useGameStore((s) => s.setPhase);
   const endTurnAndNext = useGameStore((s) => s.endTurnAndNext);
@@ -32,6 +34,7 @@ export function RulerControlStrip() {
   const toggleGrailManifested = useGameStore((s) => s.toggleGrailManifested);
   const setFreeDragEnabled = useGameStore((s) => s.setFreeDragEnabled);
   const setShowMoveHelper = useGameStore((s) => s.setShowMoveHelper);
+  const setShowCommandArrows = useGameStore((s) => s.setShowCommandArrows);
   const undo = useGameStore((s) => s.undo);
 
   const [skipMana, setSkipMana] = useState(false);
@@ -151,6 +154,20 @@ export function RulerControlStrip() {
         >
           <Footprints className="h-3 w-3" />
           <span>MOV/ZoC</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowCommandArrows(!showCommandArrows)}
+          title="แสดง/ซ่อนเส้นลูกศรคำสั่งลับของทั้งสองฝ่ายบนกระดาน"
+          className={`flex items-center gap-1 rounded-[2px] border px-2 py-0.5 text-[10px] font-bold transition ${
+            showCommandArrows
+              ? 'border-[#C8A253]/70 bg-[#C8A253]/15 text-[#E5C983]'
+              : 'border-slate-700 bg-[#090B10] text-slate-500'
+          }`}
+        >
+          <Navigation className="h-3 w-3" />
+          <span>Arrows</span>
         </button>
 
         <button

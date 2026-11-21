@@ -16,6 +16,7 @@ import { ITEMS, ITEMS_BY_ID, MONSTERS } from '../../data';
 import { useGameStore } from '../../store/useGameStore';
 import type { TeamId } from '../../types/game';
 import { LeftRosterSidebar } from '../layout/LeftRosterSidebar';
+import { MasterRosterSidebar } from '../master/MasterRosterSidebar';
 
 function ResourceCounterRow({
   label,
@@ -170,11 +171,12 @@ export function RulerToolsSidebar() {
   const setPendingSpawnMonsterId = useGameStore((s) => s.setPendingSpawnMonsterId);
   const spawnGreaterGrail = useGameStore((s) => s.spawnGreaterGrail);
   const resetAllClearedTiles = useGameStore((s) => s.resetAllClearedTiles);
+  const resetSeat = useGameStore((s) => s.resetSeat);
   const [tab, setTab] = useState<'roster' | 'tools'>('roster');
 
-  // Master view gets pure Roster sidebar
+  // Master view gets MasterRosterSidebar (Active / Reserve / Inventory)
   if (previewRole !== 'ruler') {
-    return <LeftRosterSidebar />;
+    return <MasterRosterSidebar />;
   }
 
   return (
@@ -287,6 +289,25 @@ export function RulerToolsSidebar() {
               <RotateCcw className="h-3.5 w-3.5" />
               <span>Reset All Cleared Tiles</span>
             </button>
+
+            <div className="grid grid-cols-2 gap-1 pt-1">
+              <button
+                type="button"
+                onClick={() => resetSeat('master_a')}
+                title="ล้างที่นั่ง Master A เผื่อเพื่อนเปลี่ยนเครื่อง/หลุด"
+                className="rounded-[2px] border border-red-900/60 bg-[#111622] py-1 text-[10px] font-semibold text-red-300 hover:bg-red-950/50"
+              >
+                Reset Seat A
+              </button>
+              <button
+                type="button"
+                onClick={() => resetSeat('master_b')}
+                title="ล้างที่นั่ง Master B เผื่อเพื่อนเปลี่ยนเครื่อง/หลุด"
+                className="rounded-[2px] border border-sky-900/60 bg-[#111622] py-1 text-[10px] font-semibold text-sky-300 hover:bg-sky-950/50"
+              >
+                Reset Seat B
+              </button>
+            </div>
           </div>
         </aside>
       )}

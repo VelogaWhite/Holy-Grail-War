@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Award,
+  ClipboardList,
   Eye,
   Flame,
   Heart,
@@ -25,6 +26,8 @@ import {
   resolveAssetUrl,
 } from '../../utils/assetHelper';
 import { TileInspector } from '../board/TileInspector';
+import { SecretCommandPanel } from '../master/SecretCommandPanel';
+import { SecretOrdersViewer } from './SecretOrdersViewer';
 
 const QUICK_TAGS = [
   'Guard',
@@ -92,7 +95,8 @@ function StatAdjuster({
 
 export function UnitInspectorPanel() {
   const previewRole = useGameStore((s) => s.previewRole);
-  const units = useGameStore((s) => s.roomState.units);
+  const roomState = useGameStore((s) => s.roomState);
+  const units = roomState.units;
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
   const updateUnit = useGameStore((s) => s.updateUnit);
   const removeUnit = useGameStore((s) => s.removeUnit);
@@ -102,14 +106,23 @@ export function UnitInspectorPanel() {
 
   const [imgErr, setImgErr] = useState(false);
   const [customTagInput, setCustomTagInput] = useState('');
+  const [rightTab, setRightTab] = useState<'inspector' | 'orders'>('inspector');
 
   const isRuler = previewRole === 'ruler';
   const unit = selectedUnitId ? units[selectedUnitId] : null;
+  const lockedCount =
+    (roomState.teams.team_a.readyLocked ? 1 : 0) +
+    (roomState.teams.team_b.readyLocked ? 1 : 0);
 
   useEffect(() => {
     setImgErr(false);
     setCustomTagInput('');
   }, [selectedUnitId]);
+
+  // Master View gets the Secret Command Queue Panel (+ TileInspector inside it)
+  if (!isRuler) {
+    return <SecretCommandPanel />;
+  }
 
   const faction = unit ? getFactionStyle(unit.owner) : null;
   const imgUrl = unit ? resolveAssetUrl(unit.image) : null;
@@ -127,7 +140,51 @@ export function UnitInspectorPanel() {
   };
 
   return (
-    <aside className="flex w-[320px] shrink-0 flex-col overflow-y-auto border-l border-[#C8A253]/25 bg-[#111622] p-3 text-slate-100">
+    <aside className="flex w-[320px] shrink-0 flex-col overflow-hidden border-l border-[#C8A253]/25 bg-[#111622] text-slate-100">
+      {/* Ruler 2-Tab Switcher (Unit Inspector | Secret Orders) */}
+      <div className="grid shrink-0 grid-cols-2 border-b border-[#C8A253]/25 bg-[#090B10]">
+        <button
+          type="button"
+          onClick={() => setRightTab('inspector')}
+          className={`flex items-center justify-center gap-1.5 border-b-2 py-2 font-display text-[11px] font-bold tracking-wider transition ${
+            rightTab === 'inspector'
+              ? 'border-[#C8A253] bg-[#111622] text-[#E5C983]'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Target className="h-3.5 w-3.5" />
+          <span>Inspector</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setRightTab('orders')}
+          className={`flex items-center justify-center gap-1.5 border-b-2 py-2 font-display text-[11px] font-bold tracking-wider transition ${
+            rightTab === 'orders'
+              ? 'border-[#C8A253] bg-[#111622] text-[#E5C983]'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <ClipboardList className="h-3.5 w-3.5" />
+          <span>Orders</span>
+          <span
+            className={`rounded-[2px] px-1 py-px text-[9px] font-bold ${
+              lockedCount === 2
+                ? 'bg-emerald-600 text-white'
+                : lockedCount === 1
+                  ? 'bg-[#C8A253] text-[#090B10]'
+                  : 'bg-slate-800 text-slate-400'
+            }`}
+          >
+            {lockedCount}/2
+          </span>
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3">
+      {rightTab === 'orders' ? (
+        <SecretOrdersViewer />
+      ) : (
+      <>
       {/* Header */}
       <div className="mb-2 flex items-center justify-between border-b border-[#C8A253]/25 pb-1.5">
         <h2 className="font-display text-xs font-bold uppercase tracking-widest text-[#C8A253]">
@@ -454,14 +511,17 @@ export function UnitInspectorPanel() {
 
       {/* Tile Inspector (Scene Banner + Layer 1 & 2) */}
       <TileInspector />
+      </>
+      )}
 
-      {/* Compact Phase 2 Status Pill */}
+      {/* Compact Phase 3 Status Pill */}
       <div className="mt-3 flex items-center justify-between rounded-[2px] border border-[#C8A253]/20 bg-[#090B10]/80 px-2.5 py-1.5 text-[10px] text-slate-400">
         <span className="flex items-center gap-1.5">
           <Shield className="h-3 w-3 text-[#C8A253]" />
-          <strong className="text-slate-300">Phase 2</strong> · Ruler God-Mode
+          <strong className="text-slate-300">Phase 3</strong> · WEGO Real-time
         </span>
-        <span className="text-slate-500">Local Sandbox</span>
+        <span className="text-slate-500">Spark Ready</span>
+      </div>
       </div>
     </aside>
   );

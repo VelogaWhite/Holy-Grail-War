@@ -1,13 +1,24 @@
 import { create } from 'zustand';
 import { MAP_DATA, MONSTERS_BY_ID, SERVANTS, SERVANTS_BY_ID } from '../data';
+import {
+  clearAllSecretOrders,
+  resetRoomSeat,
+  submitMasterSecretOrders,
+  syncRoomStateToFirestore,
+  unlockMasterSecretOrders,
+  updateRulerSecretDoc,
+} from '../services/roomService';
 import type {
   BoardUnit,
+  CommandActionType,
+  CommandOrder,
   Coordinates,
   GrailBannerBroadcast,
   OwnerId,
   Role,
   RoomState,
   RulerSecretDoc,
+  SecretCommandsDoc,
   TeamId,
   TurnPhase,
   ZoneId,
@@ -15,6 +26,8 @@ import type {
 import { getTileKey } from '../utils/assetHelper';
 
 const MAX_UNDO_HISTORY = 15;
+
+export type SessionMode = 'lobby' | 'online' | 'sandbox';
 
 function cloneRoomState(state: RoomState): RoomState {
   return JSON.parse(JSON.stringify(state)) as RoomState;
@@ -98,7 +111,7 @@ function createMonsterUnit(
   };
 }
 
-function randomSecretGrailTurn(): 10 | 11 | 12 {
+export function randomSecretGrailTurn(): 10 | 11 | 12 {
   const choices: (10 | 11 | 12)[] = [10, 11, 12];
   return choices[Math.floor(Math.random() * choices.length)];
 }
@@ -113,7 +126,6 @@ function findOpenTileInZone(
       occupied.add(`${u.position.x}_${u.position.y}`);
     }
   }
-  // Prefer center-ish rows first
   const preferredY = [3, 1, 5, 2, 4, 0, 6];
   const preferredX =
     zone === 'base_a'
@@ -132,7 +144,10 @@ function findOpenTileInZone(
   return { zone, x: 0, y: 0 };
 }
 
-function createPhase1MockRoom(): RoomState {
+export function createDemoRoomState(
+  teamAName = 'Team A (Mount Enzo)',
+  teamBName = 'Team B (Shinto City)'
+): RoomState {
   const teamAServants = [
     'artoria',
     'melusine',
@@ -152,7 +167,6 @@ function createPhase1MockRoom(): RoomState {
   const drafted = new Set([...teamAServants, ...teamBServants]);
 
   const unitsList: BoardUnit[] = [
-    // Team A — Active (3)
     createServantUnit('unit_a_1', 'artoria', 'team_a', 'active', { zone: 'central', x: 3, y: 3 }, {
       hp: 12,
       npReady: true,
@@ -166,12 +180,10 @@ function createPhase1MockRoom(): RoomState {
       hp: 12,
       tags: ['Leyline'],
     }),
-    // Team A — Reserve (3)
     createServantUnit('unit_a_4', 'gilgamesh', 'team_a', 'reserve', null),
     createServantUnit('unit_a_5', 'cu_chulainn', 'team_a', 'reserve', null),
     createServantUnit('unit_a_6', 'king_hassan', 'team_a', 'reserve', null),
 
-    // Team B — Active (3)
     createServantUnit('unit_b_1', 'jeanne_darc_alter', 'team_b', 'active', { zone: 'central', x: 6, y: 3 }, {
       hp: 10,
       npReady: true,
@@ -185,12 +197,10 @@ function createPhase1MockRoom(): RoomState {
       hp: 14,
       tags: ['Invincible 2x'],
     }),
-    // Team B — Reserve (3)
     createServantUnit('unit_b_4', 'emiya', 'team_b', 'reserve', null),
     createServantUnit('unit_b_5', 'heracles', 'team_b', 'reserve', null),
     createServantUnit('unit_b_6', 'bb', 'team_b', 'reserve', null),
 
-    // PvE Monsters (matching maps.json nests)
     createMonsterUnit('mon_skel_a', 'skeleton', { zone: 'base_a', x: 6, y: 2 }),
     createMonsterUnit('mon_wyvern_c', 'wyvern', { zone: 'central', x: 2, y: 2 }, { hp: 5 }),
     createMonsterUnit('mon_chimera_c', 'chimera', { zone: 'central', x: 7, y: 4 }),
@@ -216,16 +226,16 @@ function createPhase1MockRoom(): RoomState {
     draftPoolRemaining: SERVANTS.filter((s) => !drafted.has(s.id)).map((s) => s.id),
     teams: {
       team_a: {
-        name: 'Team A (Mount Enzo)',
+        name: teamAName,
         mana: 7,
         qp: 5,
         commandSpells: 3,
         inventory: ['dragon_vein_crystal', 'golden_apple'],
         defeatedCount: 1,
-        readyLocked: true,
+        readyLocked: false,
       },
       team_b: {
-        name: 'Team B (Shinto City)',
+        name: teamBName,
         mana: 6,
         qp: 4,
         commandSpells: 2,
@@ -247,7 +257,7 @@ function createPhase1MockRoom(): RoomState {
       },
     },
     fogConfig: {
-      enabled: false,
+      enabled: true,
       revealBaseZoneToOwnerOnly: true,
       showCentralToAll: true,
       hideUnitsInForest: true,
@@ -275,6 +285,83 @@ function createPhase1MockRoom(): RoomState {
   };
 }
 
+export function createFreshDraftRoomState(
+  teamAName = 'Team A (Mount Enzo)',
+  teamBName = 'Team B (Shinto City)'
+): RoomState {
+  const unitsList: BoardUnit[] = [
+    createMonsterUnit('mon_skel_a', 'skeleton', { zone: 'base_a', x: 6, y: 2 }),
+    createMonsterUnit('mon_homunc_a', 'homunculus', { zone: 'base_a', x: 6, y: 4 }),
+    createMonsterUnit('mon_wyvern_c', 'wyvern', { zone: 'central', x: 2, y: 2 }),
+    createMonsterUnit('mon_chimera_c', 'chimera', { zone: 'central', x: 7, y: 4 }),
+    createMonsterUnit('mon_fafnir_c', 'fafnir', { zone: 'central', x: 4, y: 0 }),
+    createMonsterUnit('mon_skel_b', 'skeleton', { zone: 'base_b', x: 3, y: 2 }),
+    createMonsterUnit('mon_homunc_b', 'homunculus', { zone: 'base_b', x: 3, y: 4 }),
+  ];
+
+  const units: Record<string, BoardUnit> = {};
+  for (const u of unitsList) {
+    units[u.id] = u;
+  }
+
+  return {
+    roomId: 'FGO-000',
+    createdAt: Date.now(),
+    turn: 1,
+    phase: 'draft',
+    seats: {
+      rulerUid: null,
+      masterAUid: null,
+      masterBUid: null,
+    },
+    draftPoolRemaining: SERVANTS.map((s) => s.id),
+    teams: {
+      team_a: {
+        name: teamAName,
+        mana: 4,
+        qp: 2,
+        commandSpells: 3,
+        inventory: [],
+        defeatedCount: 0,
+        readyLocked: false,
+      },
+      team_b: {
+        name: teamBName,
+        mana: 4,
+        qp: 2,
+        commandSpells: 3,
+        inventory: [],
+        defeatedCount: 0,
+        readyLocked: false,
+      },
+    },
+    units,
+    tileOverrides: {},
+    fogConfig: {
+      enabled: true,
+      revealBaseZoneToOwnerOnly: true,
+      showCentralToAll: true,
+      hideUnitsInForest: true,
+    },
+    activeMapEvent: null,
+    wheelBroadcast: null,
+    diceBroadcast: null,
+    grailAbsorbedCount: 0,
+    grailAbsorbedNames: [],
+    grailManifested: false,
+    grailBannerBroadcast: null,
+    logs: [
+      {
+        id: 'log-init',
+        turn: 1,
+        timestamp: Date.now(),
+        actor: 'system',
+        message: 'สร้างห้องสงครามจอกศักดิ์สิทธิ์ใหม่เรียบร้อย — เข้าสู่เฟส Draft',
+      },
+    ],
+  };
+}
+
 export interface TilePopoverState {
   coords: Coordinates;
   clientX: number;
@@ -282,10 +369,24 @@ export interface TilePopoverState {
 }
 
 interface GameStoreState {
+  // Session / Online Sync State
+  sessionMode: SessionMode;
+  authUid: string | null;
+  activeRoomId: string | null;
+  previewRole: Role; // Active role (in online mode = real claimed seat; in sandbox = switchable)
+
+  // Game Data
   roomState: RoomState;
   rulerSecret: RulerSecretDoc;
+  masterAOrders: SecretCommandsDoc | null;
+  masterBOrders: SecretCommandsDoc | null;
   historyStack: RoomState[];
-  previewRole: Role;
+
+  // Master Local Secret Command Drafts
+  draftOrders: Record<string, CommandOrder>;
+  pickingOrderForUnitId: string | null;
+
+  // Board / UI State
   activeZone: ZoneId;
   selectedUnitId: string | null;
   hoveredTile: Coordinates | null;
@@ -294,9 +395,25 @@ interface GameStoreState {
   pendingSpawnMonsterId: string | null;
   freeDragEnabled: boolean;
   showMoveHelper: boolean;
+  showCommandArrows: boolean;
+  checkedOrderIds: Record<string, boolean>;
   isCatalogOpen: boolean;
 
-  // Navigation & UI selection
+  // Session Lifecycle Actions
+  setAuthUid: (uid: string | null) => void;
+  enterOnlineRoom: (roomId: string, role: Role, initialRoom?: RoomState) => void;
+  enterLocalSandbox: () => void;
+  leaveRoom: () => void;
+
+  // Remote Sync Receivers (Pure local setters — NEVER trigger writes!)
+  applyRemoteRoomState: (room: RoomState) => void;
+  applyRemoteSecretOrders: (
+    masterKey: 'master_a' | 'master_b',
+    docData: SecretCommandsDoc
+  ) => void;
+  applyRemoteRulerSecret: (docData: RulerSecretDoc) => void;
+
+  // Navigation & UI Selection
   setActiveZone: (zone: ZoneId) => void;
   selectUnit: (unitId: string | null) => void;
   locateUnit: (unitId: string) => void;
@@ -307,16 +424,30 @@ interface GameStoreState {
   setPendingSpawnMonsterId: (monsterId: string | null) => void;
   setFreeDragEnabled: (enabled: boolean) => void;
   setShowMoveHelper: (enabled: boolean) => void;
+  setShowCommandArrows: (enabled: boolean) => void;
+  toggleCheckedOrder: (key: string) => void;
   setCatalogOpen: (open: boolean) => void;
   setPreviewRole: (role: Role) => void;
 
-  // Phase 2: Ruler God-Mode Actions (all push to local 15-step historyStack)
+  // Master Secret Command Queue Actions
+  setDraftOrder: (
+    unitId: string,
+    patch: Partial<CommandOrder> & { actionType?: CommandActionType }
+  ) => void;
+  clearDraftOrderTarget: (unitId: string) => void;
+  setPickingOrderForUnitId: (unitId: string | null) => void;
+  applyPickedTarget: (targetPosition: Coordinates, targetUnitId?: string) => void;
+  lockMasterTurn: () => Promise<void>;
+
+  // Ruler God-Mode Actions (sync to Firestore once per explicit user action)
   undo: () => void;
   setPhase: (phase: TurnPhase) => void;
   endTurnAndNext: (skipManaUpkeep?: boolean) => void;
   setSecretGrailTurn: (turn: 10 | 11 | 12) => void;
   toggleFogOfWar: () => void;
   toggleGrailManifested: () => void;
+  unlockMasterOrders: (masterKey: 'master_a' | 'master_b') => Promise<void>;
+  resetSeat: (masterKey: 'master_a' | 'master_b') => Promise<void>;
 
   moveUnit: (unitId: string, target: Coordinates) => void;
   updateUnit: (unitId: string, patch: Partial<BoardUnit>) => void;
@@ -344,6 +475,15 @@ interface GameStoreState {
 }
 
 export const useGameStore = create<GameStoreState>((set, get) => {
+  const pushToFirestoreIfOnline = (nextState: RoomState) => {
+    const { sessionMode, activeRoomId, previewRole } = get();
+    if (sessionMode === 'online' && activeRoomId && previewRole === 'ruler') {
+      syncRoomStateToFirestore(activeRoomId, nextState).catch((err) => {
+        console.error('Failed to sync RoomState:', err);
+      });
+    }
+  };
+
   const commitRoomMutation = (mutator: (draft: RoomState) => void) => {
     const current = get().roomState;
     const snapshot = cloneRoomState(current);
@@ -351,15 +491,26 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     mutator(next);
     const nextHistory = [...get().historyStack, snapshot].slice(-MAX_UNDO_HISTORY);
     set({ roomState: next, historyStack: nextHistory });
+    pushToFirestoreIfOnline(next);
   };
 
   return {
-    roomState: createPhase1MockRoom(),
+    sessionMode: 'lobby',
+    authUid: null,
+    activeRoomId: null,
+    previewRole: 'ruler',
+
+    roomState: createDemoRoomState(),
     rulerSecret: {
       secretGrailTurn: randomSecretGrailTurn(),
     },
+    masterAOrders: null,
+    masterBOrders: null,
     historyStack: [],
-    previewRole: 'ruler',
+
+    draftOrders: {},
+    pickingOrderForUnitId: null,
+
     activeZone: 'central',
     selectedUnitId: 'unit_a_1',
     hoveredTile: null,
@@ -368,7 +519,88 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     pendingSpawnMonsterId: null,
     freeDragEnabled: true,
     showMoveHelper: true,
+    showCommandArrows: true,
+    checkedOrderIds: {},
     isCatalogOpen: false,
+
+    setAuthUid: (uid) => set({ authUid: uid }),
+
+    enterOnlineRoom: (roomId, role, initialRoom) =>
+      set((state) => ({
+        sessionMode: 'online',
+        activeRoomId: roomId,
+        previewRole: role,
+        roomState: initialRoom ?? state.roomState,
+        activeZone: role === 'master_a' ? 'base_a' : role === 'master_b' ? 'base_b' : 'central',
+        historyStack: [],
+        masterAOrders: null,
+        masterBOrders: null,
+        draftOrders: {},
+        pickingOrderForUnitId: null,
+        checkedOrderIds: {},
+      })),
+
+    enterLocalSandbox: () =>
+      set({
+        sessionMode: 'sandbox',
+        activeRoomId: null,
+        previewRole: 'ruler',
+        roomState: createDemoRoomState(),
+        rulerSecret: { secretGrailTurn: randomSecretGrailTurn() },
+        activeZone: 'central',
+        selectedUnitId: 'unit_a_1',
+        historyStack: [],
+        masterAOrders: null,
+        masterBOrders: null,
+        draftOrders: {},
+        pickingOrderForUnitId: null,
+        checkedOrderIds: {},
+      }),
+
+    leaveRoom: () =>
+      set({
+        sessionMode: 'lobby',
+        activeRoomId: null,
+        masterAOrders: null,
+        masterBOrders: null,
+        draftOrders: {},
+        pickingOrderForUnitId: null,
+        tilePopover: null,
+        pendingSpawnMonsterId: null,
+        historyStack: [],
+      }),
+
+    applyRemoteRoomState: (room) =>
+      set((state) => {
+        // Clear local draft orders when turn advances
+        const turnChanged = room.turn !== state.roomState.turn;
+        return {
+          roomState: room,
+          ...(turnChanged
+            ? { draftOrders: {}, pickingOrderForUnitId: null, checkedOrderIds: {} }
+            : {}),
+        };
+      }),
+
+    applyRemoteSecretOrders: (masterKey, docData) =>
+      set((state) => {
+        const next: Partial<GameStoreState> =
+          masterKey === 'master_a'
+            ? { masterAOrders: docData }
+            : { masterBOrders: docData };
+
+        // Sync own saved orders into draftOrders when rejoining/reloading as Master
+        if (state.previewRole === masterKey && docData.orders.length > 0) {
+          const map: Record<string, CommandOrder> = {};
+          for (const ord of docData.orders) {
+            map[ord.unitId] = ord;
+          }
+          next.draftOrders = map;
+        }
+        return next;
+      }),
+
+    applyRemoteRulerSecret: (docData) => set({ rulerSecret: docData }),
 
     setActiveZone: (zone) => set({ activeZone: zone, hoveredTile: null, tilePopover: null }),
     selectUnit: (unitId) => set({ selectedUnitId: unitId }),
@@ -400,9 +632,138 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     setPendingSpawnMonsterId: (monsterId) => set({ pendingSpawnMonsterId: monsterId }),
     setFreeDragEnabled: (enabled) => set({ freeDragEnabled: enabled }),
     setShowMoveHelper: (enabled) => set({ showMoveHelper: enabled }),
+    setShowCommandArrows: (enabled) => set({ showCommandArrows: enabled }),
+    toggleCheckedOrder: (key) =>
+      set((state) => ({
+        checkedOrderIds: {
+          ...state.checkedOrderIds,
+          [key]: !state.checkedOrderIds[key],
+        },
+      })),
     setCatalogOpen: (open) => set({ isCatalogOpen: open }),
-    setPreviewRole: (role) => set({ previewRole: role, tilePopover: null, pendingSpawnMonsterId: null }),
+    setPreviewRole: (role) => {
+      if (get().sessionMode === 'online') return; // Role is locked to seat in online mode
+      set({
+        previewRole: role,
+        tilePopover: null,
+        pendingSpawnMonsterId: null,
+        pickingOrderForUnitId: null,
+      });
+    },
 
+    // --- Master Secret Command Queue ---
+    setDraftOrder: (unitId, patch) =>
+      set((state) => {
+        const existing: CommandOrder = state.draftOrders[unitId] ?? {
+          unitId,
+          actionType: 'move',
+          note: '',
+        };
+        return {
+          draftOrders: {
+            ...state.draftOrders,
+            [unitId]: { ...existing, ...patch, unitId },
+          },
+        };
+      }),
+
+    clearDraftOrderTarget: (unitId) =>
+      set((state) => {
+        const existing = state.draftOrders[unitId];
+        if (!existing) return state;
+        return {
+          draftOrders: {
+            ...state.draftOrders,
+            [unitId]: {
+              ...existing,
+              targetPosition: undefined,
+              targetUnitId: undefined,
+            },
+          },
+        };
+      }),
+
+    setPickingOrderForUnitId: (unitId) => set({ pickingOrderForUnitId: unitId }),
+
+    applyPickedTarget: (targetPosition, targetUnitId) =>
+      set((state) => {
+        const unitId = state.pickingOrderForUnitId;
+        if (!unitId) return state;
+        const existing: CommandOrder = state.draftOrders[unitId] ?? {
+          unitId,
+          actionType: targetUnitId ? 'attack' : 'move',
+          note: '',
+        };
+        return {
+          pickingOrderForUnitId: null,
+          draftOrders: {
+            ...state.draftOrders,
+            [unitId]: {
+              ...existing,
+              targetPosition,
+              targetUnitId,
+            },
+          },
+        };
+      }),
+
+    lockMasterTurn: async () => {
+      const state = get();
+      const role = state.previewRole;
+      if (role !== 'master_a' && role !== 'master_b') return;
+
+      const teamId: TeamId = role === 'master_a' ? 'team_a' : 'team_b';
+      const activeServants = Object.values(state.roomState.units).filter(
+        (u) => u.unitType === 'servant' && u.owner === teamId && u.status === 'active'
+      );
+
+      const orders: CommandOrder[] = activeServants.slice(0, 3).map((u) => {
+        const draft = state.draftOrders[u.id];
+        return (
+          draft ?? {
+            unitId: u.id,
+            actionType: 'guard',
+            note: '',
+          }
+        );
+      });
+
+      const docPayload: SecretCommandsDoc = {
+        turn: state.roomState.turn,
+        locked: true,
+        updatedAt: Date.now(),
+        orders,
+      };
+
+      if (state.sessionMode === 'online' && state.activeRoomId) {
+        await submitMasterSecretOrders({
+          roomId: state.activeRoomId,
+          masterKey: role,
+          ordersDoc: docPayload,
+          currentTeams: state.roomState.teams,
+        });
+      } else {
+        // Local Sandbox simulation
+        set((s) => ({
+          ...(role === 'master_a'
+            ? { masterAOrders: docPayload }
+            : { masterBOrders: docPayload }),
+          roomState: {
+            ...s.roomState,
+            teams: {
+              ...s.roomState.teams,
+              [teamId]: {
+                ...s.roomState.teams[teamId],
+                readyLocked: true,
+              },
+            },
+          },
+        }));
+      }
+      set({ pickingOrderForUnitId: null });
+    },
+
+    // --- Ruler God-Mode Actions ---
     undo: () => {
       const stack = get().historyStack;
       if (stack.length === 0) return;
@@ -412,6 +773,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         historyStack: stack.slice(0, -1),
         tilePopover: null,
       });
+      pushToFirestoreIfOnline(previous);
     },
 
     setPhase: (phase) =>
@@ -421,7 +783,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       }),
 
     endTurnAndNext: (skipManaUpkeep = false) => {
-      const secretTurn = get().rulerSecret.secretGrailTurn;
+      const { rulerSecret, sessionMode, activeRoomId } = get();
+      const secretTurn = rulerSecret.secretGrailTurn;
+      const nextTurnNumber = get().roomState.turn + 1;
+
       commitRoomMutation((draft) => {
         draft.turn += 1;
         draft.phase = 'event';
@@ -437,7 +802,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           `เริ่มเทิร์น ${draft.turn}${skipManaUpkeep ? ' (งดแจก Mana)' : ' (+2 Mana ทั้งสองฝ่าย)'}`
         );
 
-        // Secret Grail Turn Manifestation Check
         if (!draft.grailManifested && draft.turn >= secretTurn) {
           draft.grailManifested = true;
           draft.grailBannerBroadcast = {
@@ -454,12 +818,34 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           );
         }
       });
+
+      set({
+        masterAOrders: null,
+        masterBOrders: null,
+        draftOrders: {},
+        checkedOrderIds: {},
+      });
+
+      if (sessionMode === 'online' && activeRoomId) {
+        clearAllSecretOrders(activeRoomId, nextTurnNumber).catch((err) =>
+          console.error('Failed to clear secret orders:', err)
+        );
+      }
     },
 
-    setSecretGrailTurn: (turn) =>
-      set((state) => ({
-        rulerSecret: { ...state.rulerSecret, secretGrailTurn: turn },
-      })),
+    setSecretGrailTurn: (turn) => {
+      const nextSecret: RulerSecretDoc = {
+        ...get().rulerSecret,
+        secretGrailTurn: turn,
+      };
+      set({ rulerSecret: nextSecret });
+      const { sessionMode, activeRoomId, previewRole } = get();
+      if (sessionMode === 'online' && activeRoomId && previewRole === 'ruler') {
+        updateRulerSecretDoc(activeRoomId, nextSecret).catch((err) =>
+          console.error('Failed to update secretGrailTurn:', err)
+        );
+      }
+    },
 
     toggleFogOfWar: () =>
       commitRoomMutation((draft) => {
@@ -487,6 +873,54 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         }
       }),
 
+    unlockMasterOrders: async (masterKey) => {
+      const state = get();
+      const teamKey: TeamId = masterKey === 'master_a' ? 'team_a' : 'team_b';
+      const currentOrders =
+        masterKey === 'master_a' ? state.masterAOrders : state.masterBOrders;
+
+      if (state.sessionMode === 'online' && state.activeRoomId) {
+        await unlockMasterSecretOrders({
+          roomId: state.activeRoomId,
+          masterKey,
+          currentOrders,
+          currentTeams: state.roomState.teams,
+          turn: state.roomState.turn,
+        });
+      } else {
+        set((s) => ({
+          ...(masterKey === 'master_a' && s.masterAOrders
+            ? { masterAOrders: { ...s.masterAOrders, locked: false } }
+            : {}),
+          ...(masterKey === 'master_b' && s.masterBOrders
+            ? { masterBOrders: { ...s.masterBOrders, locked: false } }
+            : {}),
+          roomState: {
+            ...s.roomState,
+            teams: {
+              ...s.roomState.teams,
+              [teamKey]: {
+                ...s.roomState.teams[teamKey],
+                readyLocked: false,
+              },
+            },
+          },
+        }));
+      }
+    },
+
+    resetSeat: async (masterKey) => {
+      const state = get();
+      if (state.sessionMode === 'online' && state.activeRoomId) {
+        await resetRoomSeat(state.activeRoomId, masterKey, state.roomState.seats);
+      } else {
+        commitRoomMutation((draft) => {
+          if (masterKey === 'master_a') draft.seats.masterAUid = null;
+          else draft.seats.masterBUid = null;
+        });
+      }
+    },
+
     moveUnit: (unitId, target) =>
       commitRoomMutation((draft) => {
         const unit = draft.units[unitId];
@@ -502,7 +936,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         const oldPos = unit.position ? { ...unit.position } : null;
         unit.position = { ...target };
         unit.status = 'active';
-        // If another unit is already on target tile, swap positions cleanly in God-Mode
         if (occupant && oldPos) {
           occupant.position = oldPos;
         }
@@ -519,7 +952,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         if (unit.maxHp < 1) unit.maxHp = 1;
         if (unit.hp > unit.maxHp) unit.hp = unit.maxHp;
 
-        // If moved from reserve/defeated to active with no position, place on open tile in owner's base or central
         if (unit.status === 'active' && !unit.position) {
           const targetZone: ZoneId =
             unit.owner === 'team_a'
@@ -532,7 +964,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           unit.position = null;
         }
 
-        // Servant Defeated -> Grail Vessel Absorption (X/5) + Wipeout Kill Count (X/6)
         if (
           unit.unitType === 'servant' &&
           prevStatus !== 'defeated' &&
@@ -544,7 +975,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             draft.grailAbsorbedNames.push(unit.name);
           }
 
-          // Credit opposing team's Wipeout kill counter
           if (unit.owner === 'team_a') {
             draft.teams.team_b.defeatedCount = Math.min(6, draft.teams.team_b.defeatedCount + 1);
           } else if (unit.owner === 'team_b') {
@@ -744,12 +1174,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       });
     },
 
-    dismissGrailBanner: () =>
-      set((state) => ({
-        roomState: {
-          ...state.roomState,
-          grailBannerBroadcast: null,
-        },
-      })),
+    dismissGrailBanner: () => {
+      const next = cloneRoomState(get().roomState);
+      next.grailBannerBroadcast = null;
+      set({ roomState: next });
+      pushToFirestoreIfOnline(next);
+    },
   };
 });
