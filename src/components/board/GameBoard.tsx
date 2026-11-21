@@ -1,10 +1,12 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core';
 import { AlertTriangle, Footprints, Skull } from 'lucide-react';
 import { MAP_DATA, MONSTERS_BY_ID } from '../../data';
@@ -13,6 +15,7 @@ import type { BoardUnit, Coordinates, SpecialTile } from '../../types/game';
 import { getTileKey } from '../../utils/assetHelper';
 import { computeMovementAnalysis } from '../../utils/gridMath';
 import { GridTile } from './GridTile';
+import { UnitToken } from './UnitToken';
 import { ZoneTabs } from './ZoneTabs';
 
 const COL_HEADERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
@@ -37,6 +40,8 @@ export function GameBoard() {
 
   const isRuler = previewRole === 'ruler';
   const canDrag = isRuler && freeDragEnabled;
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const activeDragUnit = activeDragId ? roomState.units[activeDragId] ?? null : null;
 
   // Require 6px movement before drag starts so regular click selects unit cleanly
   const sensors = useSensors(
@@ -83,7 +88,12 @@ export function GameBoard() {
     }
   }
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(String(event.active.id));
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
+    setActiveDragId(null);
     if (!canDrag) return;
     const { active, over } = event;
     if (!over?.data?.current) return;
@@ -163,7 +173,12 @@ export function GameBoard() {
       >
         <ZoneTabs />
 
-        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setActiveDragId(null)}
+        >
           <div
             className="flex w-full flex-col rounded-b-[2px] border border-[#C8A253]/35 bg-[#111622] p-1 shadow-2xl"
             onMouseLeave={() => setHoveredTile(null)}
@@ -242,6 +257,20 @@ export function GameBoard() {
               </div>
             </div>
           </div>
+
+          <DragOverlay dropAnimation={null} zIndex={100}>
+            {activeDragUnit ? (
+              <div className="h-16 w-16 pointer-events-none">
+                <UnitToken
+                  unit={activeDragUnit}
+                  isSelected={false}
+                  canDrag={false}
+                  isOverlay
+                  onSelect={() => {}}
+                />
+              </div>
+            ) : null}
+          </DragOverlay>
         </DndContext>
       </div>
     </main>

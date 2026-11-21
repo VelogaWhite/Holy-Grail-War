@@ -13,16 +13,23 @@ interface UnitTokenProps {
   unit: BoardUnit;
   isSelected: boolean;
   canDrag: boolean;
+  isOverlay?: boolean;
   onSelect: () => void;
 }
 
-export function UnitToken({ unit, isSelected, canDrag, onSelect }: UnitTokenProps) {
+export function UnitToken({
+  unit,
+  isSelected,
+  canDrag,
+  isOverlay = false,
+  onSelect,
+}: UnitTokenProps) {
   const [imgError, setImgError] = useState(false);
   const [classIconError, setClassIconError] = useState(false);
 
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: unit.id,
-    disabled: !canDrag,
+    disabled: !canDrag || isOverlay,
   });
 
   const faction = getFactionStyle(unit.owner);
@@ -37,29 +44,30 @@ export function UnitToken({ unit, isSelected, canDrag, onSelect }: UnitTokenProp
         ? 'border-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.65)]'
         : 'border-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.55)]';
 
-  const dragStyle = transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
-    : undefined;
-
   return (
     <button
-      ref={setNodeRef}
+      ref={isOverlay ? undefined : setNodeRef}
       type="button"
-      style={dragStyle}
-      {...listeners}
-      {...attributes}
+      {...(isOverlay ? {} : listeners)}
+      {...(isOverlay ? {} : attributes)}
       onClick={(e) => {
         e.stopPropagation();
-        onSelect();
+        if (!isOverlay) onSelect();
       }}
       className={`group relative flex h-[92%] w-[92%] flex-col items-center justify-center rounded-[3px] border-2 bg-[#090B10] transition ${teamFrameGlow} ${
-        canDrag ? 'cursor-grab active:cursor-grabbing touch-none' : 'cursor-pointer'
+        isOverlay
+          ? 'h-full w-full cursor-grabbing scale-105 shadow-2xl ring-2 ring-[#C8A253]'
+          : canDrag
+            ? 'cursor-grab active:cursor-grabbing touch-none'
+            : 'cursor-pointer'
       } ${
         isDragging
-          ? 'z-50 scale-105 opacity-90 shadow-2xl'
-          : isSelected
+          ? 'opacity-25'
+          : !isOverlay && isSelected
             ? 'z-20 scale-[1.05] ring-2 ring-[#C8A253] ring-offset-1 ring-offset-[#090B10]'
-            : 'hover:z-20 hover:scale-[1.04]'
+            : !isOverlay
+              ? 'hover:z-20 hover:scale-[1.04]'
+              : ''
       }`}
     >
       {/* Full-Bleed Portrait */}
@@ -137,8 +145,8 @@ export function UnitToken({ unit, isSelected, canDrag, onSelect }: UnitTokenProp
         )}
       </div>
 
-      {/* Hover Tactical Tooltip (hidden while dragging) */}
-      {!isDragging && (
+      {/* Hover Tactical Tooltip (hidden while dragging or inside DragOverlay) */}
+      {!isDragging && !isOverlay && (
         <div className="pointer-events-none absolute bottom-full left-1/2 z-40 mb-2 hidden w-44 -translate-x-1/2 rounded-[2px] border border-[#C8A253]/40 bg-[#111622] p-2 text-left text-[11px] text-slate-100 shadow-xl group-hover:block">
           <div className="font-display font-bold leading-tight text-[#E5C983]">{unit.name}</div>
           <div className="mt-0.5 text-[10px] font-medium text-slate-400">
