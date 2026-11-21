@@ -18,6 +18,10 @@ export interface RoomDocWithPin extends RoomState {
   rulerPin?: string | null;
 }
 
+function stripUndefined<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj)) as T;
+}
+
 export function generateRoomCode(): string {
   const digits = Math.floor(100 + Math.random() * 900);
   return `FGO-${digits}`;
@@ -41,7 +45,7 @@ export async function createOnlineRoom(params: {
   const roomId = generateRoomCode();
   const roomRef = doc(db, 'rooms', roomId);
 
-  const payload: RoomDocWithPin = {
+  const payload: RoomDocWithPin = stripUndefined({
     ...params.initialState,
     roomId,
     createdAt: Date.now(),
@@ -51,7 +55,7 @@ export async function createOnlineRoom(params: {
       masterBUid: null,
     },
     rulerPin: params.rulerPin?.trim() ? params.rulerPin.trim() : null,
-  };
+  });
 
   await setDoc(roomRef, payload);
 
@@ -212,8 +216,7 @@ export async function syncRoomStateToFirestore(
   roomId: string,
   state: RoomState
 ): Promise<void> {
-  // Strip undefined values cleanly for Firestore
-  const clean = JSON.parse(JSON.stringify(state)) as RoomState;
+  const clean = stripUndefined(state);
   await setDoc(doc(db, 'rooms', roomId), clean, { merge: true });
 }
 
@@ -221,7 +224,9 @@ export async function updateRulerSecretDoc(
   roomId: string,
   secret: RulerSecretDoc
 ): Promise<void> {
-  await setDoc(doc(db, 'rooms', roomId, 'secrets', 'ruler'), secret, { merge: true });
+  await setDoc(doc(db, 'rooms', roomId, 'secrets', 'ruler'), stripUndefined(secret), {
+    merge: true,
+  });
 }
 
 export async function submitMasterSecretOrders(params: {
