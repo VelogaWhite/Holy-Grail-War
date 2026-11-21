@@ -6,8 +6,8 @@ service cloud.firestore {
       allow create: if request.auth != null;
       allow update: if request.auth != null && (
         resource.data.seats.rulerUid == request.auth.uid ||
-        // Allow Master to claim an open seat or update readyLocked on teams
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seats', 'teams'])
+        // Allow Master to claim seat, lock turn (teams), or broadcast 1d6 dice roll + log
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seats', 'teams', 'diceBroadcast', 'logs'])
       );
 
       match /secrets/master_a {

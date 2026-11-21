@@ -3,7 +3,11 @@ import { GameBoard } from './components/board/GameBoard';
 import { TopBarHud } from './components/layout/TopBarHud';
 import { LobbyView } from './components/lobby/LobbyView';
 import { CatalogModal } from './components/modals/CatalogModal';
+import { DiceModal } from './components/modals/DiceModal';
+import { DiceToast } from './components/modals/DiceToast';
+import { GameLogDrawer } from './components/modals/GameLogDrawer';
 import { GrailAbsorptionBanner } from './components/modals/GrailAbsorptionBanner';
+import { WheelModal } from './components/modals/WheelModal';
 import { RulerControlStrip } from './components/ruler/RulerControlStrip';
 import { RulerToolsSidebar } from './components/ruler/RulerToolsSidebar';
 import { TilePopover } from './components/ruler/TilePopover';
@@ -93,6 +97,10 @@ export function App() {
         <UnitInspectorPanel />
       </div>
       <CatalogModal />
+      <WheelModal />
+      <DiceModal />
+      <DiceToast />
+      <GameLogDrawer />
       <GrailAbsorptionBanner />
       <TilePopover />
     </div>

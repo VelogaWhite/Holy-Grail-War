@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { MAP_DATA, MONSTERS_BY_ID, SERVANTS, SERVANTS_BY_ID } from '../data';
+import { EVENTS, MAP_DATA, MONSTERS_BY_ID, SERVANTS, SERVANTS_BY_ID } from '../data';
 import {
+  broadcastDiceRoll,
   clearAllSecretOrders,
   resetRoomSeat,
   submitMasterSecretOrders,
@@ -13,6 +14,7 @@ import type {
   CommandActionType,
   CommandOrder,
   Coordinates,
+  DiceBroadcast,
   GrailBannerBroadcast,
   OwnerId,
   Role,
@@ -21,6 +23,7 @@ import type {
   SecretCommandsDoc,
   TeamId,
   TurnPhase,
+  WheelBroadcast,
   ZoneId,
 } from '../types/game';
 import { getTileKey } from '../utils/assetHelper';
@@ -398,6 +401,9 @@ interface GameStoreState {
   showCommandArrows: boolean;
   checkedOrderIds: Record<string, boolean>;
   isCatalogOpen: boolean;
+  isWheelOpen: boolean;
+  isDiceOpen: boolean;
+  isLogsOpen: boolean;
 
   // Session Lifecycle Actions
   setAuthUid: (uid: string | null) => void;
@@ -427,7 +433,18 @@ interface GameStoreState {
   setShowCommandArrows: (enabled: boolean) => void;
   toggleCheckedOrder: (key: string) => void;
   setCatalogOpen: (open: boolean) => void;
+  setWheelOpen: (open: boolean) => void;
+  setDiceOpen: (open: boolean) => void;
+  setLogsOpen: (open: boolean) => void;
   setPreviewRole: (role: Role) => void;
+
+  // Phase 4: Shared Wheels & 1d6 Dice
+  spinWheel: (wheelType: WheelBroadcast['wheelType']) => void;
+  assignDraftedServant: (servantId: string, teamId: TeamId) => void;
+  spawnStrayBossFromWheel: (servantId: string) => void;
+  applyMapEventFromWheel: (eventId: string) => void;
+  recordPersonalEventLog: (title: string, description: string) => void;
+  rollDice1d6: (label: string) => Promise<void>;
 
   // Master Secret Command Queue Actions
   setDraftOrder: (
@@ -522,6 +539,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     showCommandArrows: true,
     checkedOrderIds: {},
     isCatalogOpen: false,
+    isWheelOpen: false,
+    isDiceOpen: false,
+    isLogsOpen: false,
 
     setAuthUid: (uid) => set({ authUid: uid }),
 
@@ -641,6 +661,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         },
       })),
     setCatalogOpen: (open) => set({ isCatalogOpen: open }),
+    setWheelOpen: (open) => set({ isWheelOpen: open }),
+    setDiceOpen: (open) => set({ isDiceOpen: open }),
+    setLogsOpen: (open) => set({ isLogsOpen: open }),
     setPreviewRole: (role) => {
       if (get().sessionMode === 'online') return; // Role is locked to seat in online mode
       set({
@@ -1179,6 +1202,193 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       next.grailBannerBroadcast = null;
       set({ roomState: next });
       pushToFirestoreIfOnline(next);
+    },
+
+    // --- Phase 4: Shared Wheels & 1d6 Dice ---
+    spinWheel: (wheelType) => {
+      commitRoomMutation((draft) => {
+        if (wheelType === 'servant_draft') {
+          const pool = draft.draftPoolRemaining;
+          if (pool.length === 0) return;
+          const pickedId = pool[Math.floor(Math.random() * pool.length)];
+          const tpl = SERVANTS_BY_ID[pickedId];
+          draft.wheelBroadcast = {
+            id: `wheel-${Date.now()}`,
+            wheelType,
+            isSpinning: true,
+            poolIds: [...pool],
+            resultId: pickedId,
+            resultLabel: tpl?.name ?? pickedId,
+            resultDescription: tpl
+              ? `${tpl.servantClass}${tpl.subClass ? ` (${tpl.subClass})` : ''} · HP ${tpl.hp} · ATK ${tpl.atk} · MOV ${tpl.mov} · NP: ${tpl.npName}`
+              : null,
+          };
+          return;
+        }
+
+        const list =
+          wheelType === 'map_event' ? EVENTS.mapEvents : EVENTS.personalEvents;
+        const weightedIds: string[] = [];
+        for (const ev of list) {
+          for (let i = 0; i < Math.max(1, ev.weight); i++) {
+            weightedIds.push(ev.id);
+          }
+        }
+        const pickedId =
+          weightedIds[Math.floor(Math.random() * weightedIds.length)];
+        const picked = list.find((e) => e.id === pickedId) ?? list[0];
+
+        draft.wheelBroadcast = {
+          id: `wheel-${Date.now()}`,
+          wheelType,
+          isSpinning: true,
+          poolIds: list.map((e) => e.id),
+          resultId: picked.id,
+          resultLabel: picked.title,
+          resultDescription: picked.description,
+        };
+      });
+    },
+
+    assignDraftedServant: (servantId, teamId) => {
+      const tpl = SERVANTS_BY_ID[servantId];
+      if (!tpl) return;
+      const newId = `unit_${teamId === 'team_a' ? 'a' : 'b'}_${Date.now().toString(36).slice(-4)}`;
+      commitRoomMutation((draft) => {
+        draft.draftPoolRemaining = draft.draftPoolRemaining.filter(
+          (id) => id !== servantId
+        );
+        draft.units[newId] = createServantUnit(
+          newId,
+          servantId,
+          teamId,
+          'reserve',
+          null
+        );
+        if (draft.wheelBroadcast) {
+          draft.wheelBroadcast.isSpinning = false;
+          draft.wheelBroadcast.targetTeam = teamId;
+        }
+        draft.logs = appendLog(
+          draft,
+          'ruler',
+          `Draft: ${tpl.name} (${tpl.servantClass}) เข้าสู่ทีม ${draft.teams[teamId].name}`
+        );
+      });
+    },
+
+    spawnStrayBossFromWheel: (servantId) => {
+      const tpl = SERVANTS_BY_ID[servantId];
+      if (!tpl) return;
+      const newId = `stray_${servantId}_${Date.now().toString(36).slice(-4)}`;
+      commitRoomMutation((draft) => {
+        draft.draftPoolRemaining = draft.draftPoolRemaining.filter(
+          (id) => id !== servantId
+        );
+        const pos = findOpenTileInZone(draft.units, 'central');
+        draft.units[newId] = createServantUnit(
+          newId,
+          servantId,
+          'neutral',
+          'active',
+          pos,
+          {
+            hp: 12,
+            maxHp: 12,
+            atk: 4,
+            tags: ['Stray Boss'],
+            isRevealedToEnemy: true,
+          }
+        );
+        if (draft.wheelBroadcast) {
+          draft.wheelBroadcast.isSpinning = false;
+        }
+        draft.logs = appendLog(
+          draft,
+          'system',
+          `Stray Servant! ${tpl.name} ปรากฏตัวเป็นบอสกลางโซน Central (HP 12, ATK 4)`
+        );
+      });
+      set({ activeZone: 'central', selectedUnitId: newId });
+    },
+
+    applyMapEventFromWheel: (eventId) => {
+      const ev = EVENTS.mapEvents.find((e) => e.id === eventId);
+      if (!ev) return;
+      commitRoomMutation((draft) => {
+        draft.activeMapEvent = {
+          id: ev.id,
+          title: ev.title,
+          description: ev.description,
+        };
+        if (draft.wheelBroadcast) {
+          draft.wheelBroadcast.isSpinning = false;
+        }
+        draft.logs = appendLog(
+          draft,
+          'ruler',
+          `Map Event ประจำเทิร์น ${draft.turn}: ${ev.title} — ${ev.description}`
+        );
+      });
+    },
+
+    recordPersonalEventLog: (title, description) => {
+      commitRoomMutation((draft) => {
+        if (draft.wheelBroadcast) {
+          draft.wheelBroadcast.isSpinning = false;
+        }
+        draft.logs = appendLog(
+          draft,
+          'ruler',
+          `Personal Event: ${title} — ${description}`
+        );
+      });
+    },
+
+    rollDice1d6: async (label) => {
+      const state = get();
+      const result = Math.floor(Math.random() * 6) + 1;
+      const bonusText =
+        result <= 2 ? '+0' : result <= 4 ? '+1' : '+2 CRIT!';
+      const cleanLabel = label.trim() || '1d6 Roll';
+
+      const diceBroadcast: DiceBroadcast = {
+        id: `dice-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+        rollerRole: state.previewRole,
+        sides: 6,
+        result,
+        label: cleanLabel,
+        timestamp: Date.now(),
+      };
+
+      const roleTag =
+        state.previewRole === 'ruler'
+          ? 'Ruler'
+          : state.previewRole === 'master_a'
+            ? 'Master A'
+            : 'Master B';
+
+      const nextLogs = appendLog(
+        state.roomState,
+        state.previewRole,
+        `🎲 ${roleTag} ทอย 1d6 (${cleanLabel}): ได้ ${result} [Combat Bonus: ${bonusText}]`
+      );
+
+      set((s) => ({
+        roomState: {
+          ...s.roomState,
+          diceBroadcast,
+          logs: nextLogs,
+        },
+      }));
+
+      if (state.sessionMode === 'online' && state.activeRoomId) {
+        try {
+          await broadcastDiceRoll(state.activeRoomId, diceBroadcast, nextLogs);
+        } catch (err) {
+          console.error('Failed to broadcast dice roll:', err);
+        }
+      }
     },
   };
 });

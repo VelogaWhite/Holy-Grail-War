@@ -25,6 +25,9 @@ export function TopBarHud() {
   const setPreviewRole = useGameStore((s) => s.setPreviewRole);
   const leaveRoom = useGameStore((s) => s.leaveRoom);
   const setCatalogOpen = useGameStore((s) => s.setCatalogOpen);
+  const setWheelOpen = useGameStore((s) => s.setWheelOpen);
+  const setDiceOpen = useGameStore((s) => s.setDiceOpen);
+  const setLogsOpen = useGameStore((s) => s.setLogsOpen);
   const triggerSampleGrailBanner = useGameStore((s) => s.triggerSampleGrailBanner);
   const [copied, setCopied] = useState(false);
   const [grailIconErr, setGrailIconErr] = useState(false);
@@ -287,29 +290,29 @@ export function TopBarHud() {
           </button>
           <button
             type="button"
-            disabled
-            title="พร้อมใช้งานใน Phase 4"
-            className="flex cursor-not-allowed items-center gap-1 rounded-[2px] border border-slate-800 bg-[#090B10]/60 px-2 py-1.5 text-xs font-semibold text-slate-600"
+            onClick={() => setWheelOpen(true)}
+            title="เปิดวงล้อสุ่ม (Servant Draft / Map Event / Personal Event)"
+            className="flex items-center gap-1 rounded-[2px] border border-[#C8A253]/35 bg-[#090B10] px-2 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-[#C8A253] hover:text-[#E5C983]"
           >
-            <Disc className="h-3.5 w-3.5" />
+            <Disc className="h-3.5 w-3.5 text-[#C8A253]" />
             <span className="hidden xl:inline">Wheel</span>
           </button>
           <button
             type="button"
-            disabled
-            title="พร้อมใช้งานใน Phase 4"
-            className="flex cursor-not-allowed items-center gap-1 rounded-[2px] border border-slate-800 bg-[#090B10]/60 px-2 py-1.5 text-xs font-semibold text-slate-600"
+            onClick={() => setDiceOpen(true)}
+            title="ทอยลูกเต๋า 1d6 ซิงก์ทั้ง 3 หน้าจอ"
+            className="flex items-center gap-1 rounded-[2px] border border-[#C8A253]/35 bg-[#090B10] px-2 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-[#C8A253] hover:text-[#E5C983]"
           >
-            <Dices className="h-3.5 w-3.5" />
+            <Dices className="h-3.5 w-3.5 text-[#C8A253]" />
             <span className="hidden xl:inline">1d6</span>
           </button>
           <button
             type="button"
-            disabled
-            title="พร้อมใช้งานใน Phase 4"
-            className="flex cursor-not-allowed items-center gap-1 rounded-[2px] border border-slate-800 bg-[#090B10]/60 px-2 py-1.5 text-xs font-semibold text-slate-600"
+            onClick={() => setLogsOpen(true)}
+            title="เปิดประวัติการเล่น 50 รายการล่าสุด"
+            className="flex items-center gap-1 rounded-[2px] border border-[#C8A253]/35 bg-[#090B10] px-2 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-[#C8A253] hover:text-[#E5C983]"
           >
-            <ScrollText className="h-3.5 w-3.5" />
+            <ScrollText className="h-3.5 w-3.5 text-[#C8A253]" />
             <span className="hidden xl:inline">Logs</span>
           </button>
         </div>

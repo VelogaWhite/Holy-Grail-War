@@ -7,6 +7,8 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import type {
+  DiceBroadcast,
+  GameLogEntry,
   Role,
   RoomState,
   RulerSecretDoc,
@@ -282,5 +284,16 @@ export async function unlockMasterSecretOrders(params: {
     masterKey: params.masterKey,
     ordersDoc: nextDoc,
     currentTeams: params.currentTeams,
+  });
+}
+
+export async function broadcastDiceRoll(
+  roomId: string,
+  diceBroadcast: DiceBroadcast,
+  logs: GameLogEntry[]
+): Promise<void> {
+  await updateDoc(doc(db, 'rooms', roomId), {
+    diceBroadcast: stripUndefined(diceBroadcast),
+    logs: stripUndefined(logs),
   });
 }
