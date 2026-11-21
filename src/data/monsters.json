@@ -1,0 +1,72 @@
+[
+  {
+    "id": "skeleton",
+    "name": "Dragon Tooth Warrior (Skeleton)",
+    "tier": 1,
+    "hp": 4,
+    "atk": 1,
+    "mov": 0,
+    "range": 1,
+    "rewardMana": 2,
+    "rewardQp": 0,
+    "dropItemRarity": null,
+    "rewardNote": "เลือกได้ระหว่าง +2 Mana หรือ +2 QP",
+    "image": "/assets/monsters/skeleton.webp"
+  },
+  {
+    "id": "homunculus",
+    "name": "Stray Homunculus",
+    "tier": 1,
+    "hp": 4,
+    "atk": 1,
+    "mov": 0,
+    "range": 1,
+    "rewardMana": 0,
+    "rewardQp": 2,
+    "dropItemRarity": null,
+    "rewardNote": "เลือกได้ระหว่าง +2 QP หรือ +2 Mana",
+    "image": "/assets/monsters/homunculus.webp"
+  },
+  {
+    "id": "wyvern",
+    "name": "Fuyuki Wyvern",
+    "tier": 2,
+    "hp": 8,
+    "atk": 3,
+    "mov": 0,
+    "range": 1,
+    "rewardMana": 0,
+    "rewardQp": 5,
+    "dropItemRarity": "common",
+    "rewardNote": "+5 QP และสุ่มการ์ดไอเทมระดับ Common 1 ใบ",
+    "image": "/assets/monsters/wyvern.webp"
+  },
+  {
+    "id": "chimera",
+    "name": "Crimson Chimera",
+    "tier": 2,
+    "hp": 9,
+    "atk": 3,
+    "mov": 0,
+    "range": 1,
+    "rewardMana": 2,
+    "rewardQp": 4,
+    "dropItemRarity": "common",
+    "rewardNote": "+2 Mana, +4 QP และสุ่มการ์ดไอเทมระดับ Common 1 ใบ",
+    "image": "/assets/monsters/chimera.webp"
+  },
+  {
+    "id": "fafnir",
+    "name": "Evil Dragon Fafnir",
+    "tier": 3,
+    "hp": 14,
+    "atk": 4,
+    "mov": 0,
+    "range": 2,
+    "rewardMana": 8,
+    "rewardQp": 4,
+    "dropItemRarity": "rare",
+    "rewardNote": "+8 Mana, +4 QP, ไอเทมระดับ Rare 1 ชิ้น และผู้สังหารได้บัฟ +1 ATK ถาวร",
+    "image": "/assets/monsters/fafnir.webp"
+  }
+]

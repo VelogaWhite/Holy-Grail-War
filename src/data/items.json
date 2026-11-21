@@ -1,0 +1,66 @@
+[
+  {
+    "id": "dragon_vein_crystal",
+    "name": "Mana Prism (Dragon Vein Crystal)",
+    "rarity": "common",
+    "qpCost": 3,
+    "effectDesc": "เพิ่ม +3 Mana ให้ทีมทันทีเมื่อกดใช้",
+    "icon": "/assets/items/dragon_vein_crystal.webp"
+  },
+  {
+    "id": "black_keys",
+    "name": "Black Keys (กุญแจดำ)",
+    "rarity": "common",
+    "qpCost": 3,
+    "effectDesc": "โจมตีระยะไกล 3 ช่อง สร้างความเสียหายคงที่ 2 หน่วย (ไม่ต้องทอยเต๋า)",
+    "icon": "/assets/items/black_keys.webp"
+  },
+  {
+    "id": "golden_apple",
+    "name": "Golden Apple",
+    "rarity": "common",
+    "qpCost": 4,
+    "effectDesc": "ฟื้นฟู +4 HP ให้ Servant 1 ตน และเพิ่มระยะเดิน +1 MOV ในเทิร์นนั้น",
+    "icon": "/assets/items/golden_apple.webp"
+  },
+  {
+    "id": "protection_of_arrows",
+    "name": "Rune of Evasion",
+    "rarity": "common",
+    "qpCost": 4,
+    "effectDesc": "มอบป้าย [Evade 1x] ป้องกันความเสียหายจากการโจมตี 1 ครั้งให้ Servant 1 ตน",
+    "icon": "/assets/items/protection_of_arrows.webp"
+  },
+  {
+    "id": "gandr_shot",
+    "name": "Gandr Curse",
+    "rarity": "common",
+    "qpCost": 3,
+    "effectDesc": "ยิงคำสาประยะ 2 ช่อง ทำให้ศัตรูติดป้าย [Stun] ลดระยะเดินเหลือ 0 ในเทิร์นนี้",
+    "icon": "/assets/items/gandr_shot.webp"
+  },
+  {
+    "id": "clairvoyance_scroll",
+    "name": "Familiar Recon (สอดแนม)",
+    "rarity": "common",
+    "qpCost": 2,
+    "effectDesc": "สั่งให้ Ruler เปิดเผยตำแหน่ง Servant ศัตรู 1 ตน (หรือทั้งโซน Base ศัตรู) ทะลุ Fog of War เป็นเวลา 2 เทิร์น",
+    "icon": "/assets/items/clairvoyance_scroll.webp"
+  },
+  {
+    "id": "kaleidoscope_shard",
+    "name": "Kaleidoscope Shard",
+    "rarity": "rare",
+    "qpCost": 6,
+    "effectDesc": "เพิ่ม +5 Mana ให้ทีมทันที และปลดสถานะ [NP Ready] ให้ Servant 1 ตน",
+    "icon": "/assets/items/kaleidoscope_shard.webp"
+  },
+  {
+    "id": "saint_quartz",
+    "name": "Saint Quartz",
+    "rarity": "rare",
+    "qpCost": 8,
+    "effectDesc": "ชุบชีวิต Servant ที่ถูกกำจัดไปแล้ว 1 ตนกลับมาที่ Base Zone ด้วย HP ครึ่งหลอด (ปัดขึ้น) และลดยอด Kills ของศัตรูลง 1",
+    "icon": "/assets/items/saint_quartz.webp"
+  }
+]

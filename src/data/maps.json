@@ -1,0 +1,108 @@
+{
+  "gridSize": 6,
+  "gates": [
+    {
+      "id": "gate_a_north",
+      "label": "North Gate",
+      "from": { "zone": "base_a", "x": 5, "y": 1 },
+      "to": { "zone": "central", "x": 0, "y": 1 }
+    },
+    {
+      "id": "gate_a_mid",
+      "label": "Mid Gate",
+      "from": { "zone": "base_a", "x": 5, "y": 3 },
+      "to": { "zone": "central", "x": 0, "y": 3 }
+    },
+    {
+      "id": "gate_a_south",
+      "label": "South Gate",
+      "from": { "zone": "base_a", "x": 5, "y": 5 },
+      "to": { "zone": "central", "x": 0, "y": 5 }
+    },
+    {
+      "id": "gate_b_north",
+      "label": "North Gate",
+      "from": { "zone": "central", "x": 5, "y": 1 },
+      "to": { "zone": "base_b", "x": 0, "y": 1 }
+    },
+    {
+      "id": "gate_b_mid",
+      "label": "Mid Gate",
+      "from": { "zone": "central", "x": 5, "y": 3 },
+      "to": { "zone": "base_b", "x": 0, "y": 3 }
+    },
+    {
+      "id": "gate_b_south",
+      "label": "South Gate",
+      "from": { "zone": "central", "x": 5, "y": 5 },
+      "to": { "zone": "base_b", "x": 0, "y": 5 }
+    }
+  ],
+  "zones": {
+    "base_a": {
+      "id": "base_a",
+      "name": "Base A (Red Territory)",
+      "owner": "team_a",
+      "specialTiles": [
+        { "x": 0, "y": 1, "type": "spawn_a", "label": "Spawn A1" },
+        { "x": 0, "y": 3, "type": "spawn_a", "label": "Spawn A2" },
+        { "x": 0, "y": 5, "type": "spawn_a", "label": "Spawn A3" },
+        { "x": 1, "y": 3, "type": "safe_house", "label": "Red Safe House (+2 HP / Shop)" },
+        { "x": 2, "y": 0, "type": "leyline", "manaBonus": 2, "label": "Leyline (+2 Mana)" },
+        { "x": 2, "y": 5, "type": "leyline", "manaBonus": 2, "label": "Leyline (+2 Mana)" },
+        { "x": 3, "y": 1, "type": "qp_cache", "label": "QP Cache (1d6)" },
+        { "x": 3, "y": 4, "type": "personal_event", "label": "Personal Event (?)" },
+        { "x": 4, "y": 2, "type": "monster_nest", "monsterId": "skeleton", "tier": 1, "label": "Nest (Tier 1)" },
+        { "x": 4, "y": 4, "type": "monster_nest", "monsterId": "homunculus", "tier": 1, "label": "Nest (Tier 1)" },
+        { "x": 5, "y": 1, "type": "gate", "targetZone": "central", "label": "Gate -> Central" },
+        { "x": 5, "y": 3, "type": "gate", "targetZone": "central", "label": "Gate -> Central" },
+        { "x": 5, "y": 5, "type": "gate", "targetZone": "central", "label": "Gate -> Central" }
+      ]
+    },
+    "central": {
+      "id": "central",
+      "name": "Central Fuyuki (Battleground)",
+      "owner": "neutral",
+      "specialTiles": [
+        { "x": 0, "y": 1, "type": "gate", "targetZone": "base_a", "label": "Gate -> Base A" },
+        { "x": 0, "y": 3, "type": "gate", "targetZone": "base_a", "label": "Gate -> Base A" },
+        { "x": 0, "y": 5, "type": "gate", "targetZone": "base_a", "label": "Gate -> Base A" },
+        { "x": 5, "y": 1, "type": "gate", "targetZone": "base_b", "label": "Gate -> Base B" },
+        { "x": 5, "y": 3, "type": "gate", "targetZone": "base_b", "label": "Gate -> Base B" },
+        { "x": 5, "y": 5, "type": "gate", "targetZone": "base_b", "label": "Gate -> Base B" },
+        { "x": 2, "y": 0, "type": "leyline", "manaBonus": 3, "label": "Major Leyline (+3 Mana)" },
+        { "x": 3, "y": 5, "type": "leyline", "manaBonus": 3, "label": "Major Leyline (+3 Mana)" },
+        { "x": 2, "y": 1, "type": "safe_house", "label": "Fuyuki Church (+2 HP / Shop)" },
+        { "x": 3, "y": 1, "type": "personal_event", "label": "Personal Event (?)" },
+        { "x": 1, "y": 2, "type": "monster_nest", "monsterId": "wyvern", "tier": 2, "label": "Nest (Tier 2)" },
+        { "x": 4, "y": 2, "type": "monster_nest", "monsterId": "chimera", "tier": 2, "label": "Nest (Tier 2)" },
+        { "x": 1, "y": 4, "type": "qp_cache", "label": "QP Cache (1d6)" },
+        { "x": 4, "y": 4, "type": "qp_cache", "label": "QP Cache (1d6)" },
+        { "x": 2, "y": 3, "type": "grail_site", "label": "Greater Grail Site (West)" },
+        { "x": 3, "y": 3, "type": "grail_site", "label": "Greater Grail Site (East)" },
+        { "x": 2, "y": 5, "type": "personal_event", "label": "Personal Event (?)" },
+        { "x": 3, "y": 0, "type": "monster_nest", "monsterId": "fafnir", "tier": 3, "label": "Boss Nest (Tier 3)" }
+      ]
+    },
+    "base_b": {
+      "id": "base_b",
+      "name": "Base B (Blue Territory)",
+      "owner": "team_b",
+      "specialTiles": [
+        { "x": 5, "y": 1, "type": "spawn_b", "label": "Spawn B1" },
+        { "x": 5, "y": 3, "type": "spawn_b", "label": "Spawn B2" },
+        { "x": 5, "y": 5, "type": "spawn_b", "label": "Spawn B3" },
+        { "x": 4, "y": 3, "type": "safe_house", "label": "Blue Safe House (+2 HP / Shop)" },
+        { "x": 3, "y": 0, "type": "leyline", "manaBonus": 2, "label": "Leyline (+2 Mana)" },
+        { "x": 3, "y": 5, "type": "leyline", "manaBonus": 2, "label": "Leyline (+2 Mana)" },
+        { "x": 2, "y": 1, "type": "qp_cache", "label": "QP Cache (1d6)" },
+        { "x": 2, "y": 4, "type": "personal_event", "label": "Personal Event (?)" },
+        { "x": 1, "y": 2, "type": "monster_nest", "monsterId": "skeleton", "tier": 1, "label": "Nest (Tier 1)" },
+        { "x": 1, "y": 4, "type": "monster_nest", "monsterId": "homunculus", "tier": 1, "label": "Nest (Tier 1)" },
+        { "x": 0, "y": 1, "type": "gate", "targetZone": "central", "label": "Gate -> Central" },
+        { "x": 0, "y": 3, "type": "gate", "targetZone": "central", "label": "Gate -> Central" },
+        { "x": 0, "y": 5, "type": "gate", "targetZone": "central", "label": "Gate -> Central" }
+      ]
+    }
+  }
+}

@@ -1,0 +1,150 @@
+{
+  "mapEvents": [
+    {
+      "id": "mana_surge",
+      "title": "Mana Surge (กระแสเวทไหลบ่า)",
+      "description": "ทั้งสองฝ่ายได้รับ +2 Mana ทันที",
+      "weight": 2
+    },
+    {
+      "id": "haste_wind",
+      "title": "Haste Wind (สายลมเร่งความเร็ว)",
+      "description": "Servant ทุกตนบนกระดานได้รับระยะเดิน +1 MOV ในเทิร์นนี้",
+      "weight": 2
+    },
+    {
+      "id": "supply_drop",
+      "title": "Supply Drop (เสบียงจอกศักดิ์สิทธิ์)",
+      "description": "Ruler วางจุดเก็บไอเทมระดับ Common/Rare 1 ชิ้นไว้ใจกลางโซน Central ใครเดินถึงก่อนหยิบได้ทันที",
+      "weight": 2
+    },
+    {
+      "id": "mana_drought",
+      "title": "Mana Drought (ชีพจรเวทแห้งเหือด)",
+      "description": "เทิร์นนี้ งดแจก +2 Mana ประจำเทิร์นของทั้งสองฝ่าย",
+      "weight": 1
+    },
+    {
+      "id": "dense_fog",
+      "title": "Dense Fog (หมอกเวทมนตร์ปกคลุม)",
+      "description": "ระยะโจมตีไกล (Ranged และ NP) ลดลงเหลือสูงสุด 1 ช่องในเทิร์นนี้",
+      "weight": 1
+    },
+    {
+      "id": "bloodlust",
+      "title": "Bloodlust (จิตสังหารปะทุ)",
+      "description": "ทุกการโจมตีได้รับ +1 ATK แต่ห้ามใช้คำสั่ง Guard ในเทิร์นนี้",
+      "weight": 1
+    },
+    {
+      "id": "black_market",
+      "title": "Kirei's Black Market (ตลาดมืดโบสถ์)",
+      "description": "เทิร์นนี้ไอเทมทุกชิ้นในร้านค้า QP ลดราคาลง 2 QP (ขั้นต่ำ 1 QP) ซื้อได้ฝั่งละ 1 ชิ้น",
+      "weight": 1
+    },
+    {
+      "id": "spatial_distortion",
+      "title": "Spatial Distortion (มิติบิดเบี้ยว)",
+      "description": "แต่ละฝ่ายสามารถเลือกสลับตำแหน่ง Servant ของตัวเอง 1 คู่บนกระดานได้ฟรี (ข้ามโซนได้)",
+      "weight": 1
+    },
+    {
+      "id": "grail_mud",
+      "title": "Grail Mud (โคลนแห่งจอก)",
+      "description": "Servant ที่ยืนอยู่ช่องขอบสุดของกระดาน (x=0, x=5, y=0 หรือ y=5) โดนดาเมจคงที่ 1 หน่วยตอนจบเทิร์น",
+      "weight": 1
+    },
+    {
+      "id": "leyline_overload",
+      "title": "Leyline Overload (ชีพจรคลั่ง)",
+      "description": "ช่อง Leyline ทุกช่องให้ +4 Mana ในเทิร์นนี้ แต่ผู้ที่ยืนจะได้รับดาเมจ 1 หน่วย",
+      "weight": 1
+    },
+    {
+      "id": "command_resonance",
+      "title": "Command Resonance (เรย์จูสั่นพ้อง)",
+      "description": "ฝ่ายที่มีจำนวน Kills น้อยกว่า (หรือ HP รวมน้อยกว่าหากเท่ากัน) ได้รับ +1 Command Spell (สูงสุดไม่เกิน 3 ขีด)",
+      "weight": 1
+    },
+    {
+      "id": "stray_servant",
+      "title": "Stray Servant! (วีรชนเร่ร่อนบุก)",
+      "description": "Ruler หมุนวงล้อ Draft Pool ที่เหลือ 1 ครั้ง ตัวที่ออกจะเกิดเป็นบอสกลางโซน Central (HP 12, ATK 4) ใครฆ่าได้ +6 Mana และไอเทม Rare 1 ชิ้น",
+      "weight": 1
+    }
+  ],
+  "personalEvents": [
+    {
+      "id": "hidden_spring",
+      "title": "บ่อน้ำพุพลังเวท",
+      "description": "Servant ตนนี้ฟื้นฟู +3 HP และทีมได้รับ +1 Mana",
+      "weight": 2
+    },
+    {
+      "id": "abandoned_chest",
+      "title": "คลังสมบัติที่ถูกทิ้งร้าง",
+      "description": "ได้รับ +4 QP ทันที",
+      "weight": 2
+    },
+    {
+      "id": "found_mystic_code",
+      "title": "พบ Mystic Code ตกหล่น",
+      "description": "สุ่มรับไอเทมระดับ Common 1 ชิ้นเข้ากระเป๋าทีมฟรี",
+      "weight": 2
+    },
+    {
+      "id": "cursed_trap",
+      "title": "กับดักอาคมโบราณ",
+      "description": "Servant ตนนี้โดนความเสียหายคงที่ 2 หน่วย",
+      "weight": 2
+    },
+    {
+      "id": "weapon_resonance",
+      "title": "อาวุธสั่นพ้อง",
+      "description": "ติดป้าย [ATK+1] ให้ Servant ตนนี้เป็นเวลา 2 เทิร์น",
+      "weight": 1
+    },
+    {
+      "id": "phantom_ambush",
+      "title": "มอนสเตอร์ซุ่มโจมตี!",
+      "description": "Ruler เสกมอนสเตอร์ Tier 1 (Skeleton) 1 ตัวลงช่องข้างเคียง และมอนสเตอร์ตีใส่ทันที 1 ดาเมจ",
+      "weight": 1
+    },
+    {
+      "id": "secret_shortcut",
+      "title": "ทางลัดมิติ",
+      "description": "สามารถเลือกย้าย Servant ตนนี้ไปช่องว่างใดก็ได้ในระยะ 2 ช่อง (หรือวาร์ปกลับ Safe House ของทีม)",
+      "weight": 1
+    },
+    {
+      "id": "mana_leak",
+      "title": "รอยรั่ววงเวท",
+      "description": "ทีมเสีย -2 Mana (ขั้นต่ำเหลือ 0)",
+      "weight": 1
+    },
+    {
+      "id": "church_blessing",
+      "title": "พรแห่งโบสถ์ฟุยุกิ",
+      "description": "ได้รับป้าย [Evade 1x] ป้องกันการโจมตี 1 ครั้ง",
+      "weight": 1
+    },
+    {
+      "id": "scout_insight",
+      "title": "เบาะแสศัตรู",
+      "description": "Ruler เปิดเผยตำแหน่ง Servant ศัตรู 1 ตนที่ถูก Fog of War บังอยู่เป็นเวลา 1 เทิร์น",
+      "weight": 1
+    },
+    {
+      "id": "np_charge_burst",
+      "title": "ประจุโฮกุฉับพลัน",
+      "description": "ทีมได้รับ +3 Mana ทันที",
+      "weight": 1
+    },
+    {
+      "id": "golden_fragment",
+      "title": "เศษเสี้ยวแห่งจอก",
+      "description": "ได้รับไอเทมระดับ Rare 1 ชิ้น หรือเลือกเปลี่ยนเป็น +6 QP ทันที",
+      "weight": 1
+    }
+  ]
+}

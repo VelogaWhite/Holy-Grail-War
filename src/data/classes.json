@@ -1,0 +1,82 @@
+[
+  {
+    "id": "Saber",
+    "label": "Saber",
+    "baseMov": 2,
+    "baseRange": 1,
+    "ignoreZoC": false,
+    "icon": "/assets/classes/saber.webp",
+    "color": "#2563EB",
+    "traitNote": "สมดุลสูง ทั้งพลังชีวิตและพลังโจมตีระยะประชิด"
+  },
+  {
+    "id": "Archer",
+    "label": "Archer",
+    "baseMov": 2,
+    "baseRange": 2,
+    "ignoreZoC": false,
+    "icon": "/assets/classes/archer.webp",
+    "color": "#DC2626",
+    "traitNote": "โจมตีระยะไกล 2 ช่อง เหมาะสำหรับคุมพื้นที่และดักยิง"
+  },
+  {
+    "id": "Lancer",
+    "label": "Lancer",
+    "baseMov": 3,
+    "baseRange": 1,
+    "ignoreZoC": false,
+    "icon": "/assets/classes/lancer.webp",
+    "color": "#0284C7",
+    "traitNote": "ความคล่องตัวสูง (MOV 3) เดินไล่ล่าและคุมโซนกลางได้ไว"
+  },
+  {
+    "id": "Rider",
+    "label": "Rider",
+    "baseMov": 3,
+    "baseRange": 1,
+    "ignoreZoC": false,
+    "icon": "/assets/classes/rider.webp",
+    "color": "#EA580C",
+    "traitNote": "เคลื่อนที่ไว (MOV 3) เหมาะกับการฟาร์ม QP และข้าม Gate"
+  },
+  {
+    "id": "Caster",
+    "label": "Caster",
+    "baseMov": 2,
+    "baseRange": 2,
+    "ignoreZoC": false,
+    "icon": "/assets/classes/caster.webp",
+    "color": "#7C3AED",
+    "traitNote": "ระยะโจมตี 2 ช่อง เน้นสกิลสนับสนุน ฟื้นฟู และคุมมานา"
+  },
+  {
+    "id": "Assassin",
+    "label": "Assassin",
+    "baseMov": 3,
+    "baseRange": 1,
+    "ignoreZoC": true,
+    "icon": "/assets/classes/assassin.webp",
+    "color": "#475569",
+    "traitNote": "Presence Concealment: ไม่ติดโทษลดระยะเดิน (-1 MOV) จาก Zone of Control เมื่อถอยหนี"
+  },
+  {
+    "id": "Berserker",
+    "label": "Berserker",
+    "baseMov": 2,
+    "baseRange": 1,
+    "ignoreZoC": false,
+    "icon": "/assets/classes/berserker.webp",
+    "color": "#991B1B",
+    "traitNote": "พลังโจมตีพื้นฐานสูงสุด แต่เน้นแลกเลือดและต้องการการดูแลจาก Master"
+  },
+  {
+    "id": "Extra",
+    "label": "Extra",
+    "baseMov": 2,
+    "baseRange": 1,
+    "ignoreZoC": false,
+    "icon": "/assets/classes/ruler.webp",
+    "color": "#D97706",
+    "traitNote": "คลาสพิเศษ (Ruler, Avenger, Alter Ego, Moon Cancer) กำหนดสเตตัสเฉพาะตัวบนการ์ด"
+  }
+]
