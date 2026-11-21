@@ -8,7 +8,7 @@
 ## 1\. แนวคิดการออกแบบหลัก (Core Design Philosophy)
 
 * **Semi-Automated Custom VTT (กึ่งอัตโนมัติ):** ระบบทำหน้าที่ช่วยจัดการงานที่ซับซ้อนและยุ่งยาก เช่น การซิงก์กระดาน 3 โซนแบบ Real-time, ระบบส่งคำสั่งลับพร้อมกัน (WEGO), การวาดเส้นลูกศรคำสั่งซ้อนกันให้ GM เห็น, การคำนวณระยะเดิน/Zone of Control (ZoC), Fog of War, วงล้อสุ่ม และลูกเต๋า  
-* **Ruler God-Mode (GM คุมเกมได้อิสระ 100%):** ไม่ต้อง Hardcode ลอจิกสกิลหรือ Noble Phantasm ของ Servant ทั้ง 32+ ตัว แต่ให้เก็บรายละเอียดสกิลเป็นข้อความใน JSON และเปิดให้ Ruler สามารถลากหมากข้ามช่อง/ข้ามโซน แก้ค่า HP/ATK/MOV/Mana/QP/เรย์จู แปะ Custom Buff Tag และเสก/ลบมอนสเตอร์ได้โดยตรงขณะเล่น  
+* **Ruler God-Mode (GM คุมเกมได้อิสระ 100%):** ไม่ต้อง Hardcode ลอจิกสกิลหรือ Noble Phantasm ของ Servant ทั้ง 43 ตน แต่ให้เก็บรายละเอียดสกิลเป็นข้อความใน JSON และเปิดให้ Ruler สามารถลากหมากข้ามช่อง/ข้ามโซน แก้ค่า HP/ATK/MOV/Mana/QP/เรย์จู แปะ Custom Buff Tag และเสก/ลบมอนสเตอร์ได้โดยตรงขณะเล่น  
 * **Spark-First Optimization:** ออกแบบโครงสร้างฐานข้อมูลให้ใช้จำนวนการอ่าน/เขียน (Read/Write) ต่ำที่สุด เพื่อให้อยู่ในโควตาฟรีของ Firebase Spark Plan (อ่าน 50,000 / เขียน 20,000 ครั้งต่อวัน) อย่างปลอดภัย และไม่พึ่งพา Cloud Functions หรือ Cloud Storage
 
 ## 2\. Tech Stack & Hosting
@@ -18,7 +18,7 @@
 | **Frontend Framework** | React 18+ (Vite) \+ TypeScript | สร้าง SPA ที่รันเร็ว Deploy ขึ้น Firebase Hosting (Spark Plan) ได้ฟรี รองรับ Type Safety เต็มรูปแบบ |
 | **Styling & UI** | Tailwind CSS \+ Lucide Icons | ปรับแต่ง Layout หน้าจอกระดานและแผง GM ได้ไว โค้ดกระชับ เหมาะกับ AI Agent |
 | **State Management** | Zustand | จัดการ Local UI State, Selected Unit, Drag State และ Undo History Stack โดยไม่ทำให้ React re-render เกินจำเป็น |
-| **Drag & Drop** | @dnd-kit/core | ลากวางตัวหมากบนตาราง 6x6 และข้ามโซนได้ลื่นไหล รองรับ Pointer Event แม่นยำ |
+| **Drag & Drop** | @dnd-kit/core | ลากวางตัวหมากบนตารางแนวนอน 10×7 และข้ามโซนได้ลื่นไหล รองรับ Pointer Event แม่นยำ |
 | **Real-time Database** | Firebase Cloud Firestore (Spark) | ซิงก์ Game State ระหว่าง 3 หน้าจอทันทีผ่าน onSnapshot โดยไม่ต้องเขียนและดูแล WebSocket Server |
 | **Authentication** | Firebase Anonymous Auth | ฟรีบน Spark Plan ใช้ผูก UID ชั่วคราวเข้ากับที่นั่ง (Ruler / Master A / Master B) เพื่อให้ Security Rules กันแอบดูคำสั่งลับได้จริง |
 | **Hosting & Assets** | Firebase Hosting (public/assets/) | เก็บไฟล์เว็บและรูปไอคอนทั้งหมดใน Hosting โดยตรง ไม่ต้องเปิด Blaze Plan เพื่อใช้ Cloud Storage |
@@ -36,11 +36,13 @@ holy-grail-vtt/
 ├── src/
 │   ├── data/                # คลังข้อมูลเกมแบบ Static JSON (Import ใช้งานตรง แก้สมดุลได้โดยไม่แตะโค้ด)
 │   │   ├── classes.json     # กฎประจำคลาส (baseMOV, ignoreZoC, icon)
-│   │   ├── servants.json    # ข้อมูล Servant 32+ ตน
+│   │   ├── servants.json    # ข้อมูล Servant 43 ตน
 │   │   ├── monsters.json    # ข้อมูลมอนสเตอร์ PvE 3 ระดับ
 │   │   ├── items.json       # ข้อมูลไอเทมร้านค้าและดรอป
+
 │   │   ├── events.json      # Map Events และ Personal Events พร้อมน้ำหนักการสุ่ม
-│   │   └── maps.json        # ผัง 3 โซน (Base A, Central, Base B) ขนาด 6x6 + พิกัด Gate
+│   │   ├── terrains.json    # นิยามสเปกภูมิประเทศ 6 แบบ + คุณสมบัติ 2 ชั้น (Height & Movement Cost)
+│   │   └── maps.json        # ผัง 3 โซน (Base A: Mount Enzo, Central Fuyuki, Base B: Shinto City) ขนาด 10×7 แนวนอน + พิกัด Gate (y = 1, 3, 5)
 │   ├── types/
 │   │   └── game.ts          # TypeScript Interfaces ทั้งหมดของระบบ
 │   ├── services/
@@ -53,10 +55,11 @@ holy-grail-vtt/
 │   │   └── assetHelper.ts   # จัดการ URL รูปภาพและ Fallback เมื่อยังไม่มีไฟล์รูป
 │   ├── components/
 │   │   ├── lobby/           # หน้าสร้าง/เข้าห้องด้วย Room Code + เลือก Role
-│   │   ├── board/           # กระดาน 6x6, แท็บสลับ 3 โซน, ตัวหมาก, Fog Overlay, Command Arrows
+│   │   ├── board/           # กระดาน 10×7 แนวนอน, แท็บสลับ 3 โซน, ตัวหมาก, Fog Overlay, Command Arrows
 │   │   ├── master/          # แผงส่งคำสั่งลับ (Command Queue), กระเป๋าไอเทม, ตัวสำรอง
 │   │   ├── ruler/           # แผง Ruler God-Mode, Unit Inspector, Resource Override, Monster Spawner, Undo
-│   │   └── modals/          # วงล้อสุ่ม (Draft/Events), ลูกเต๋า 1d6, Servant Catalog, Turn Log
+
+│   │   └── modals/          # วงล้อสุ่ม (Draft/Events), ลูกเต๋า 1d6, Servant Catalog, Turn Log, GrailAbsorptionBanner
 │   └── App.tsx
 ├── firestore.rules          # กฎความปลอดภัยกัน Master แอบอ่านคำสั่งลับอีกฝั่ง
 ├── firebase.json            # ตั้งค่า SPA Rewrite และ Cache Header สำหรับรูปภาพ
@@ -80,13 +83,14 @@ holy-grail-vtt/
 
 ## 5\. โครงสร้างฐานข้อมูล Firestore (Data Model & Spark Optimization)
 
-แบ่งข้อมูลออกเป็น **1 เอกสารหลัก \+ 2 เอกสารความลับ** เพื่อประหยัดจำนวน Read/Write ให้มากที่สุด:
+แบ่งข้อมูลออกเป็น **1 เอกสารหลัก \+ 3 เอกสารความลับ** เพื่อประหยัดจำนวน Read/Write ให้มากที่สุด:
 
 | Document Path | สิทธิ์อ่าน (Read) | สิทธิ์เขียน (Write) | ข้อมูลที่เก็บ |
 | :---- | :---- | :---- | :---- |
 | **rooms/{roomId}** | ทุกคนในห้อง (Ruler, Master A, Master B) | Ruler เป็นหลัก (Master เขียนได้เฉพาะตอนจับจองที่นั่ง) | Game State ทั้งหมด: เทิร์น, เฟส, ยูนิตบนกระดาน, ทรัพยากร 2 ฝั่ง, สถานะช่อง, ผลวงล้อ/เต๋าล่าสุด, Log ล่าสุด 50 รายการ |
 | **rooms/{roomId}/secrets/master\_a** | Master A และ Ruler เท่านั้น | Master A (ส่งคำสั่ง) และ Ruler (เคลียร์คำสั่งหลังจบเทิร์น) | คำสั่งลับ (WEGO Command Queue) ของฝั่ง A ในเทิร์นปัจจุบัน |
 | **rooms/{roomId}/secrets/master\_b** | Master B และ Ruler เท่านั้น | Master B (ส่งคำสั่ง) และ Ruler (เคลียร์คำสั่งหลังจบเทิร์น) | คำสั่งลับ (WEGO Command Queue) ของฝั่ง B ในเทิร์นปัจจุบัน |
+| **rooms/{roomId}/secrets/ruler** | Ruler เท่านั้น | Ruler เท่านั้น | secretGrailTurn (สุ่ม 10, 11 หรือ 12\) และโน้ตลับของ GM เพื่อป้องกันไม่ให้ Master เปิด DevTools แอบดู |
 
 ### แนวทางการจัดการ Undo Stack (ไม่เปลืองโควตา Firestore)
 
@@ -96,7 +100,7 @@ holy-grail-vtt/
 
 ### แนวทางการจัดการ Fog of War (3 ผู้เล่นบน Spark Plan)
 
-* **ระดับที่ 1 (แนะนำสำหรับวงเพื่อน 3 คน):** เก็บพิกัดยูนิตทั้งหมดไว้ใน **rooms/{roomId}** เพื่อให้อัปเดตจบใน 1 Read/Write แล้วให้ Frontend ของฝั่ง Master กรองการแสดงผลตามค่า **fogConfig** (ซ่อนศัตรูที่อยู่นอกโซนหรือนอกระยะมองเห็น เว้นแต่ Ruler จะกด **isRevealedToEnemy: true**)  
+* **ระดับที่ 1 (แนะนำสำหรับวงเพื่อน 3 คน):** เก็บพิกัดยูนิตทั้งหมดไว้ใน **rooms/{roomId}** เพื่อใหัปเดตจบใน 1 Read/Write แล้วให้ Frontend ของฝั่ง Master กรองการแสดงผลตามค่า **fogConfig** (ซ่อนศัตรูที่อยู่นอกโซน/ในโซนฐานทัพศัตรู, ซ่อนยูนิตศัตรูที่ยืนในช่อง **ป่า (forest)** เว้นแต่จะยืนติดกันในระยะ 1 ช่อง หรือ Ruler กด **isRevealedToEnemy: true**)  
 * **ระดับที่ 2 (ป้องกันการเปิด DevTools แอบดู):** หากอนาคตต้องการซ่อนข้อมูลศัตรูระดับฐานข้อมูล สามารถแยกเอกสาร **publicState** กับ **rulerFullState** เพิ่มได้ในภายหลัง โดยที่ข้อมูลคำสั่งลับ (**secrets/master\_a** และ **secrets/master\_b**) ถูกป้องกันระดับฐานข้อมูลตั้งแต่เฟสแรกอยู่แล้ว
 
 ## 6\. โครงสร้าง TypeScript Interfaces (src/types/game.ts)
@@ -109,10 +113,14 @@ export type ZoneId = 'base_a' | 'central' | 'base_b';
 export type TurnPhase = 'draft' | 'event' | 'planning' | 'resolution' | 'ended';
 export type UnitStatus = 'active' | 'reserve' | 'defeated';
 
+export type TerrainType = 'open' | 'road' | 'building' | 'forest' | 'ruins' | 'water';
+
 export interface Coordinates {
   zone: ZoneId;
-  x: number; // 0 ถึง 5 (กระดาน 6x6)
-  y: number; // 0 ถึง 5
+
+  x: number; // 0 ถึง 9 (กระดานแนวนอน 10x7)
+
+  y: number; // 0 ถึง 6
 }
 
 export interface BoardUnit {
@@ -140,7 +148,8 @@ export interface TeamState {
   qp: number;
   commandSpells: number;     // สูงสุด 3 ขีด
   inventory: string[];       // รายการ itemId ในกระเป๋า
-  defeatedCount: number;     // นับจำนวน Servant ที่ถูกกำจัด (เช็กเงื่อนไขชนะ)
+
+  defeatedCount: number;     // นับจำนวน Servant ที่ถูกกำจัด (เช็กเงื่อนไข Wipeout 6/6)
   readyLocked: boolean;      // true เมื่อกดส่งคำสั่งลับในเทิร์นนั้นแล้ว
 }
 
@@ -165,6 +174,12 @@ export interface SecretCommandsDoc {
   orders: CommandOrder[];    // สูงสุด 3 คำสั่ง (ตามจำนวน Active Servant)
 }
 
+
+export interface RulerSecretDoc {
+  secretGrailTurn: 10 | 11 | 12;
+  gmPrivateNote?: string;
+}
+
 export interface WheelBroadcast {
   id: string;                // Timestamp หรือ UUID เพื่อให้ทุกจอรันอนิเมชันเมื่อค่าเปลี่ยน
   wheelType: 'servant_draft' | 'map_event' | 'personal_event';
@@ -174,6 +189,16 @@ export interface WheelBroadcast {
   resultLabel: string | null;
   resultDescription?: string | null;
   targetTeam?: TeamId | null;
+}
+
+
+export interface GrailBannerBroadcast {
+  id: string;
+  servantName?: string;
+  absorbedCount: number;     // 0 ถึง 5
+  isManifestation: boolean;  // true เมื่อจอกจุติ (ครบ 5/5 หรือถึง Secret Turn)
+  message: string;
+  timestamp: number;
 }
 
 export interface DiceBroadcast {
@@ -189,8 +214,12 @@ export interface FogConfig {
   enabled: boolean;
   revealBaseZoneToOwnerOnly: boolean; // ซ่อนสไลด์ฐานทัพอีกฝั่งจนกว่าจะมีตัวเดินข้าม Gate เข้าไป
   showCentralToAll: boolean;
-}
 
+  showCentralToAll: boolean;
+
+  hideUnitsInForest: boolean;
+
+}
 export interface GameLogEntry {
   id: string;
   turn: number;
@@ -220,6 +249,11 @@ export interface RoomState {
   activeMapEvent: { id: string; title: string; description: string } | null;
   wheelBroadcast: WheelBroadcast | null;
   diceBroadcast: DiceBroadcast | null;
+
+  grailAbsorbedCount: number; // นับ Servant ที่ถูกจอกกลืนกินรวมทั้ง 2 ฝั่ง (ครบ 5 จอกจุติทันที)
+  grailAbsorbedNames: string[];
+  grailManifested: boolean;
+  grailBannerBroadcast: GrailBannerBroadcast | null;
   logs: GameLogEntry[];         // เก็บเฉพาะ 50 รายการล่าสุด
 }
 ```
@@ -229,14 +263,18 @@ export interface RoomState {
 ฟังก์ชันเหล่านี้ทำงานเป็น **Visual Helper** (ช่วยไฮไลต์ช่องและแจ้งเตือน GM/Master) แต่จะไม่ล็อกสิทธิ์การลากหมากของ Ruler:
 
 1. **Gate Crossing (การเดินข้ามโซน 3 สไลด์):**  
-   1. กำหนดคู่พิกัด Gate ใน **maps.json** เช่น **base\_a (x:5, y:1)** เชื่อมต่อแบบ 2 ทิศทางกับ **central (x:0, y:1)** และ **central (x:5, y:1)** เชื่อมกับ **base\_b (x:0, y:1)** (มี Gate เหนือ/กลาง/ใต้)  
+   1. กำหนดคู่พิกัด Gate ใน **maps.json** ได้แก่ **base\_a (x:9, y:1/3/5) \<-\> central (x:0, y:1/3/5)** และ **central (x:9, y:1/3/5) \<-\> base\_b (x:0, y:1/3/5)** (มี Gate เหนือ/กลาง/ใต้)  
    2. การก้าวข้าม Gate นับเป็นระยะเดิน 1 ช่องปกติ  
-2. **Zone of Control (ZoC — ล็อกขาหนียาก):**  
+2. **Terrain Movement Cost (Weighted BFS / Dijkstra):**  
+   1. เมื่อเริ่มเคลื่อนที่จากช่อง **road** จะได้รับโบนัส **\+1 MOV** ในเทิร์นนั้น (สูงสุด \+1/เทิร์น)  
+   2. ช่อง **forest** และ **water** ใช้ **2 MOV** ในการเดินเข้า  
+   3. ช่อง **building** ใช้ **2 MOV** ในการปีนขึ้นจากพื้นราบ (ข้ามระหว่างตึกติดกันใช้ **1 MOV**)  
+3. **Zone of Control (ZoC — ล็อกขาหนียาก):**  
    1. ตรวจสอบตอนต้นเฟสวางแผนว่ามียูนิตศัตรูยืนติดในระยะ Manhattan Distance \= 1 (บน/ล่าง/ซ้าย/ขวา ในโซนเดียวกัน) หรือไม่  
    2. หากติดสถานะ **Engaged** และคลาสของตัวละครไม่มีคุณสมบัติ **ignoreZoC: true** (เช่น Assassin):  
       1. ช่องที่เพิ่มระยะห่างจากศัตรูที่ติดอยู่ จะคำนวณระยะเดินสูงสุดลดลง **\-1 MOV** (ขั้นต่ำ 1 ช่อง) และไฮไลต์สีเตือนบนกระดาน  
       2. การเดินเข้าหาหรือเดินวนรอบศัตรูใช้ระยะ **MOV** เต็มตามปกติ  
-3. **Command Arrow Overlay (หน้าจอ Ruler):**  
+4. **Command Arrow Overlay (หน้าจอ Ruler):**  
    1. เมื่อ Master A และ Master B กด Lock Turn หน้าจอ Ruler จะอ่านเอกสาร **secrets/master\_a** และ **secrets/master\_b** แล้ววาดเส้น SVG Arrow ทับบนกระดาน (ฝั่ง A สีแดง, ฝั่ง B สีน้ำเงิน) เพื่อให้ Ruler มองเห็นจุดปะทะ (Collision) และการดักทางได้ทันทีก่อนลากหมากเฉลยผล
 
 ## 8\. Firestore Security Rules (firestore.rules)
@@ -263,6 +301,12 @@ service cloud.firestore {
           get(/databases/$(database)/documents/rooms/$(roomId)).data.seats.rulerUid == request.auth.uid ||
           get(/databases/$(database)/documents/rooms/$(roomId)).data.seats.masterAUid == request.auth.uid
         );
+      }
+
+
+      match /secrets/ruler {
+        allow read, write: if request.auth != null &&
+          get(/databases/$(database)/documents/rooms/$(roomId)).data.seats.rulerUid == request.auth.uid;
       }
 
       match /secrets/master_b {

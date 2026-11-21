@@ -3,6 +3,7 @@ import servantsRaw from './servants.json';
 import monstersRaw from './monsters.json';
 import itemsRaw from './items.json';
 import eventsRaw from './events.json';
+import terrainsRaw from './terrains.json';
 import mapsRaw from './maps.json';
 import type {
   ClassDefinition,
@@ -12,6 +13,8 @@ import type {
   MonsterTemplate,
   ServantClassId,
   ServantTemplate,
+  TerrainDefinition,
+  TerrainId,
 } from '../types/game';
 
 export const CLASSES = classesRaw as ClassDefinition[];
@@ -19,6 +22,7 @@ export const SERVANTS = servantsRaw as ServantTemplate[];
 export const MONSTERS = monstersRaw as MonsterTemplate[];
 export const ITEMS = itemsRaw as ItemTemplate[];
 export const EVENTS = eventsRaw as EventsData;
+export const TERRAINS = terrainsRaw as TerrainDefinition[];
 export const MAP_DATA = mapsRaw as MapData;
 
 export const CLASSES_BY_ID: Record<ServantClassId, ClassDefinition> = CLASSES.reduce(
@@ -51,4 +55,12 @@ export const ITEMS_BY_ID: Record<string, ItemTemplate> = ITEMS.reduce(
     return acc;
   },
   {} as Record<string, ItemTemplate>
+);
+
+export const TERRAINS_BY_ID: Record<TerrainId, TerrainDefinition> = TERRAINS.reduce(
+  (acc, item) => {
+    acc[item.id] = item;
+    return acc;
+  },
+  {} as Record<TerrainId, TerrainDefinition>
 );

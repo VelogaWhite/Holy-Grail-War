@@ -1,17 +1,18 @@
 # **คลังข้อมูลเกม (`src/data/*.json`) — Fate: Holy Grail War (Custom VTT)**
 
-เอกสารรวมโครงสร้าง Schema และข้อมูลตั้งต้นสำหรับไฟล์ JSON ทั้ง 6 ไฟล์ในโฟลเดอร์ `src/data/` ออกแบบให้โปรแกรม React \+ TypeScript Import ไปใช้งานได้โดยตรง และสามารถเพิ่ม/ลด/ปรับสมดุลตัวละคร FGO, มอนสเตอร์, ไอเทม, อีเวนต์ หรือแผนที่ได้ทันทีโดยไม่ต้องแก้ไขโค้ดเกม
+เอกสารรวมโครงสร้าง Schema และข้อมูลตั้งต้นสำหรับไฟล์ JSON ทั้ง 7 ไฟล์ในโฟลเดอร์ `src/data/` ออกแบบให้โปรแกรม React \+ TypeScript Import ไปใช้งานได้โดยตรง และสามารถเพิ่ม/ลด/ปรับสมดุลตัวละคร FGO, มอนสเตอร์, ไอเทม, อีเวนต์ หรือแผนที่ได้ทันทีโดยไม่ต้องแก้ไขโค้ดเกม
 
 # **สรุปไฟล์ในโฟลเดอร์ `src/data/`**
 
 | ชื่อไฟล์ | หน้าที่หลัก | การนำไปใช้ในโปรแกรม |
 | :---- | :---- | :---- |
 | `classes.json` | กฎพื้นฐานประจำคลาส (MOV, Range, ignoreZoC, ไอคอน) | ใช้กำหนดค่าเริ่มต้นของคลาส, ตัวกรองใน Catalog และกฎ ZoC ใน `gridMath.ts` |
-| `servants.json` | ข้อมูล Servant Pool (32+ ตน) พร้อมสเตตัส สกิล และ NP | ใช้แสดงใน Servant Catalog, วงล้อ Draft และสร้าง `BoardUnit` |
+| `servants.json` | ชุดตัวอย่าง Servant Pool (คลังฉบับเต็ม 43 ตน แยกไว้ในเอกสาร Grail\_War\_Servants) | ใช้แสดงใน Servant Catalog, วงล้อ Draft และสร้าง `BoardUnit` |
 | `monsters.json` | ข้อมูลมอนสเตอร์ PvE 3 ระดับ (Tier 1–3) | ใช้ในเมนู `Spawn Monster` ของ Ruler และแสดงรางวัลการกำจัด |
 | `items.json` | รายการไอเทม Mystic Codes สำหรับร้านค้า QP และการดรอป | ใช้แสดงในแท็บ QP Shop และเมนูกดแจกไอเทม `+ Give Item` ของ Ruler |
 | `events.json` | รายการ Map Events (12 แบบ) และ Personal Events (12 แบบ) | ใช้เป็นข้อมูลวงล้อสุ่มใน `WheelModal.tsx` พร้อมน้ำหนักการสุ่ม (`weight`) |
-| `maps.json` | ผังกระดาน 3 โซน (`base_a`, `central`, `base_b`) ขนาด 6x6 \+ Gate | ใช้เรนเดอร์ช่องพิเศษบน `GameBoard.tsx` และคำนวณการข้ามโซนใน `gridMath.ts` |
+| `terrains.json` | ข้อมูล 6 ภูมิประเทศพื้นฐาน (moveCost, combatNote, stealth, highGround ฯลฯ) | ใช้คำนวณการเคลื่อนที่, โบนัสคำนวณการต่อสู้ และเรนเดอร์สี/ไอคอนภูมิประเทศบนกระดาน |
+| `maps.json` | ผังกระดาน 3 โซน (`base_a`, `central`, `base_b`) ขนาด 10x7 แนวนอน 2-Layer ไม่สมมาตร | ใช้เรนเดอร์ช่องพิเศษและภูมิประเทศบน `GameBoard.tsx` และคำนวณการข้ามโซนใน `gridMath.ts` |
 
 # **1\. `src/data/classes.json` (ข้อมูลคลาสและกฎประจำคลาส)**
 
@@ -99,18 +100,17 @@
 }  
 \]
 
-````
+# **2\. `src/data/servants.json` (คลัง Servant 43 ตน)**
 
-## 2. `src/data/servants.json` (คลัง Servant 32+ ตน)
+## **เกณฑ์สเกลสมดุลสำหรับตอนเติมตัวละคร FGO ให้ครบ 43 ตน**
 
-### เกณฑ์สเกลสมดุลสำหรับตอนเติมตัวละคร FGO ให้ครบ 32+ ตน
-เพื่อให้เกมบาลานซ์กับสูตรดาเมจ `ATK + 1d6 (+0/+1/+2)` ใน `01_GAME_RULES.md`:
-* **HP:** 10–16 หน่วย (ตัวบาง/สายตีไกล/Assassin: 10–12 | สายสมดุล: 12–14 | สายแทงก์/Berserker/ตัวใหญ่: 14–16)
-* **ATK:** 2–4 หน่วย (สายซัพพอร์ต: 2 | ทั่วไป: 3 | สายตีแรง/Berserker: 4)
-* **Skill Mana Cost:** 1–3 Mana | **NP Mana Cost:** 4–6 Mana (สร้างดาเมจประมาณ 5–8 หน่วย หรือให้เอฟเฟกต์พลิกเกม)
-* **การตั้งชื่อไฟล์รูป:** ตั้ง `id` เป็นภาษาอังกฤษตัวเล็กไร้ช่องว่าง (ใช้ `_`) ให้ตรงกับไฟล์ใน `public/assets/servants/{id}.webp` (หรือวาง URL รูปโดยตรงก็ได้)
+เพื่อให้เกมบาลานซ์กับสูตรดาเมจ `ATK + 1d6 (+0/+1/+2)` ใน `01_GAME_RULES.md`:  
+**HP:** 10–16 หน่วย (ตัวบาง/สายตีไกล/Assassin: 10–12 \| สายสมดุล: 12–14 \| สายแทงก์/Berserker/ตัวใหญ่: 14–16)  
+**ATK:** 2–4 หน่วย (สายซัพพอร์ต: 2 \| ทั่วไป: 3 \| สายตีแรง/Berserker: 4\)  
+**Skill Mana Cost:** 1–3 Mana \| **NP Mana Cost:** 4–6 Mana (สร้างดาเมจประมาณ 5–8 หน่วย หรือให้เอฟเฟกต์พลิกเกม)  
+**การตั้งชื่อไฟล์รูป:** ตั้ง `id` เป็นภาษาอังกฤษตัวเล็กไร้ช่องว่าง (ใช้ `_`) ให้ตรงกับไฟล์ใน `public/assets/servants/{id}.webp` (หรือวาง URL รูปโดยตรงก็ได้)
 
-### ชุดข้อมูลตัวอย่างตั้งต้น (10 ตน ครบทุกคลาส — พร้อมใช้รัน Phase 1 ทันที)
+## **ชุดข้อมูลตัวอย่างตั้งต้น (10 ตน ครบทุกคลาส — พร้อมใช้รัน Phase 1 ทันที)**
 
 ```json
 [
@@ -275,9 +275,9 @@
     "image": "/assets/servants/heracles.webp"
   }
 ]
-````
+```
 
-## **เทมเพลตว่างสำหรับก๊อปปี้เติมตัวละครเพิ่ม (ให้ครบ 32+ ตน)**
+## **เทมเพลตว่างสำหรับก๊อปปี้เติมตัวละครเพิ่ม (ให้ครบ 43 ตน)**
 
 ```
   {
@@ -446,7 +446,7 @@
     "name": "Saint Quartz",
     "rarity": "rare",
     "qpCost": 8,
-    "effectDesc": "ชุบชีวิต Servant ที่ถูกกำจัดไปแล้ว 1 ตนกลับมาที่ Base Zone ด้วย HP ครึ่งหลอด (ปัดขึ้น) และลดยอด Kills ของศัตรูลง 1",
+    "effectDesc": "ชุบชีวิต Servant ที่ถูกกำจัดไปแล้ว 1 ตนกลับมาที่ Base Zone ด้วย HP ครึ่งหลอด (ปัดขึ้น) และลดยอด Kills ของศัตรูลง 1 (แต่ไม่ลดจำนวนวิญญาณใน ภาชนะจอกศักดิ์สิทธิ์ ที่ถูกกลืนไปแล้ว หรือให้ขึ้นอยู่กับ Ruler)",
     "icon": "/assets/items/saint_quartz.webp"
   }
 ]
@@ -454,269 +454,391 @@
 
 # **5\. `src/data/events.json` (Map Events & Personal Events สำหรับวงล้อสุ่ม)**
 
-แบ่งเป็น 2 อาร์เรย์ชัดเจน (mapEvents สำหรับหมุนทุกต้นเทิร์น และ personalEvents สำหรับช่อง ?) โดยฟิลด์ weight ใช้กำหนดจำนวนช่อง/โอกาสสุ่มบนวงล้อ:n  
-{  
-"mapEvents": \[  
-{  
-"id": "mana\_surge",  
-"title": "Mana Surge (กระแสเวทไหลบ่า)",  
-"description": "ทั้งสองฝ่ายได้รับ \+2 Mana ทันที",  
-"weight": 2  
-},  
-{  
-"id": "haste\_wind",  
-"title": "Haste Wind (สายลมเร่งความเร็ว)",  
-"description": "Servant ทุกตนบนกระดานได้รับระยะเดิน \+1 MOV ในเทิร์นนี้",  
-"weight": 2  
-},  
-{  
-"id": "supply\_drop",  
-"title": "Supply Drop (เสบียงจอกศักดิ์สิทธิ์)",  
-"description": "Ruler วางจุดเก็บไอเทมระดับ Common/Rare 1 ชิ้นไว้ใจกลางโซน Central ใครเดินถึงก่อนหยิบได้ทันที",  
-"weight": 2  
-},  
-{  
-"id": "mana\_drought",  
-"title": "Mana Drought (ชีพจรเวทแห้งเหือด)",  
-"description": "เทิร์นนี้ งดแจก \+2 Mana ประจำเทิร์นของทั้งสองฝ่าย",  
-"weight": 1  
-},  
-{  
-"id": "dense\_fog",  
-"title": "Dense Fog (หมอกเวทมนตร์ปกคลุม)",  
-"description": "ระยะโจมตีไกล (Ranged และ NP) ลดลงเหลือสูงสุด 1 ช่องในเทิร์นนี้",  
-"weight": 1  
-},  
-{  
-"id": "bloodlust",  
-"title": "Bloodlust (จิตสังหารปะทุ)",  
-"description": "ทุกการโจมตีได้รับ \+1 ATK แต่ห้ามใช้คำสั่ง Guard ในเทิร์นนี้",  
-"weight": 1  
-},  
-{  
-"id": "black\_market",  
-"title": "Kirei's Black Market (ตลาดมืดโบสถ์)",  
-"description": "เทิร์นนี้ไอเทมทุกชิ้นในร้านค้า QP ลดราคาลง 2 QP (ขั้นต่ำ 1 QP) ซื้อได้ฝั่งละ 1 ชิ้น",  
-"weight": 1  
-},  
-{  
-"id": "spatial\_distortion",  
-"title": "Spatial Distortion (มิติบิดเบี้ยว)",  
-"description": "แต่ละฝ่ายสามารถเลือกสลับตำแหน่ง Servant ของตัวเอง 1 คู่บนกระดานได้ฟรี (ข้ามโซนได้)",  
-"weight": 1  
-},  
-{  
-"id": "grail\_mud",  
-"title": "Grail Mud (โคลนแห่งจอก)",  
-"description": "Servant ที่ยืนอยู่ช่องขอบสุดของกระดาน (x=0, x=5, y=0 หรือ y=5) โดนดาเมจคงที่ 1 หน่วยตอนจบเทิร์น",  
-"weight": 1  
-},  
-{  
-"id": "leyline\_overload",  
-"title": "Leyline Overload (ชีพจรคลั่ง)",  
-"description": "ช่อง Leyline ทุกช่องให้ \+4 Mana ในเทิร์นนี้ แต่ผู้ที่ยืนจะได้รับดาเมจ 1 หน่วย",  
-"weight": 1  
-},  
-{  
-"id": "command\_resonance",  
-"title": "Command Resonance (เรย์จูสั่นพ้อง)",  
-"description": "ฝ่ายที่มีจำนวน Kills น้อยกว่า (หรือ HP รวมน้อยกว่าหากเท่ากัน) ได้รับ \+1 Command Spell (สูงสุดไม่เกิน 3 ขีด)",  
-"weight": 1  
-},  
-{  
-"id": "stray\_servant",  
-"title": "Stray Servant\! (วีรชนเร่ร่อนบุก)",  
-"description": "Ruler หมุนวงล้อ Draft Pool ที่เหลือ 1 ครั้ง ตัวที่ออกจะเกิดเป็นบอสกลางโซน Central (HP 12, ATK 4\) ใครฆ่าได้ \+6 Mana และไอเทม Rare 1 ชิ้น",  
-"weight": 1  
-}  
-\],  
-"personalEvents": \[  
-{  
-"id": "hidden\_spring",  
-"title": "บ่อน้ำพุพลังเวท",  
-"description": "Servant ตนนี้ฟื้นฟู \+3 HP และทีมได้รับ \+1 Mana",  
-"weight": 2  
-},  
-{  
-"id": "abandoned\_chest",  
-"title": "คลังสมบัติที่ถูกทิ้งร้าง",  
-"description": "ได้รับ \+4 QP ทันที",  
-"weight": 2  
-},  
-{  
-"id": "found\_mystic\_code",  
-"title": "พบ Mystic Code ตกหล่น",  
-"description": "สุ่มรับไอเทมระดับ Common 1 ชิ้นเข้ากระเป๋าทีมฟรี",  
-"weight": 2  
-},  
-{  
-"id": "cursed\_trap",  
-"title": "กับดักอาคมโบราณ",  
-"description": "Servant ตนนี้โดนความเสียหายคงที่ 2 หน่วย",  
-"weight": 2  
-},  
-{  
-"id": "weapon\_resonance",  
-"title": "อาวุธสั่นพ้อง",  
-"description": "ติดป้าย \[ATK+1\] ให้ Servant ตนนี้เป็นเวลา 2 เทิร์น",  
-"weight": 1  
-},  
-{  
-"id": "phantom\_ambush",  
-"title": "มอนสเตอร์ซุ่มโจมตี\!",  
-"description": "Ruler เสกมอนสเตอร์ Tier 1 (Skeleton) 1 ตัวลงช่องข้างเคียง และมอนสเตอร์ตีใส่ทันที 1 ดาเมจ",  
-"weight": 1  
-},  
-{  
-"id": "secret\_shortcut",  
-"title": "ทางลัดมิติ",  
-"description": "สามารถเลือกย้าย Servant ตนนี้ไปช่องว่างใดก็ได้ในระยะ 2 ช่อง (หรือวาร์ปกลับ Safe House ของทีม)",  
-"weight": 1  
-},  
-{  
-"id": "mana\_leak",  
-"title": "รอยรั่ววงเวท",  
-"description": "ทีมเสีย \-2 Mana (ขั้นต่ำเหลือ 0)",  
-"weight": 1  
-},  
-{  
-"id": "church\_blessing",  
-"title": "พรแห่งโบสถ์ฟุยุกิ",  
-"description": "ได้รับป้าย \[Evade 1x\] ป้องกันการโจมตี 1 ครั้ง",  
-"weight": 1  
-},  
-{  
-"id": "scout\_insight",  
-"title": "เบาะแสศัตรู",  
-"description": "Ruler เปิดเผยตำแหน่ง Servant ศัตรู 1 ตนที่ถูก Fog of War บังอยู่เป็นเวลา 1 เทิร์น",  
-"weight": 1  
-},  
-{  
-"id": "np\_charge\_burst",  
-"title": "ประจุโฮกุฉับพลัน",  
-"description": "ทีมได้รับ \+3 Mana ทันที",  
-"weight": 1  
-},  
-{  
-"id": "golden\_fragment",  
-"title": "เศษเสี้ยวแห่งจอก",  
-"description": "ได้รับไอเทมระดับ Rare 1 ชิ้น หรือเลือกเปลี่ยนเป็น \+6 QP ทันที",  
-"weight": 1  
-}  
-\]  
-}
-
-````
-
-## 6. `src/data/maps.json` (ผังแผนที่ 3 โซน ขนาด 6x6 สมมาตร)
-
-### หมายเหตุการออกแบบสมมาตรบนกระดาน 6x6 (`x: 0..5, y: 0..5`)
-* **จุดเชื่อมต่อ Gate (3 จุดต่อรอยต่อ):** วางที่แถว `y = 1` (Gate เหนือ), `y = 3` (Gate กลาง), และ `y = 5` (Gate ใต้) โดยฝั่ง `Base A (x=5)` เชื่อมกับ `Central (x=0)` และ `Central (x=5)` เชื่อมกับ `Base B (x=0)`
-* **สมมาตรของ Greater Grail Site:** เนื่องจากตาราง 6x6 มีกึ่งกลางแนวนอนอยู่ระหว่างคอลัมน์ `x = 2` และ `x = 3` จึงกำหนดให้ทั้ง `(2, 3)` และ `(3, 3)` ในโซน `central` เป็นพื้นที่ **Greater Grail Sanctuary** (ตรงกับ Gate กลาง `y = 3` พอดี) ทำให้ทั้งฝั่ง A และฝั่ง B ใช้ระยะเดินเท่ากันเป๊ะ (2 ก้าวจากขอบโซน)
-* **การเรนเดอร์ช่องปกติ:** ช่องใดที่ไม่ได้ระบุในอาร์เรย์ `specialTiles` จะถือว่าเป็นช่องพื้นปกติ (`type: "normal"`)
+แบ่งเป็น 2 อาร์เรย์ชัดเจน (mapEvents สำหรับหมุนทุกต้นเทิร์น และ personalEvents สำหรับช่อง ?) โดยฟิลด์ weight ใช้กำหนดจำนวนช่อง/โอกาสสุ่มบนวงล้อ:
 
 ```json
 {
-  "gridSize": 6,
+  "mapEvents": [
+    {
+      "id": "mana_surge",
+      "title": "Mana Surge (กระแสเวทไหลบ่า)",
+      "description": "ทั้งสองฝ่ายได้รับ +2 Mana ทันที",
+      "weight": 2
+    },
+    {
+      "id": "haste_wind",
+      "title": "Haste Wind (สายลมเร่งความเร็ว)",
+      "description": "Servant ทุกตนบนกระดานได้รับระยะเดิน +1 MOV ในเทิร์นนี้",
+      "weight": 2
+    },
+    {
+      "id": "supply_drop",
+      "title": "Supply Drop (เสบียงจอกศักดิ์สิทธิ์)",
+      "description": "Ruler วางจุดเก็บไอเทมระดับ Common/Rare 1 ชิ้นไว้ใจกลางโซน Central ใครเดินถึงก่อนหยิบได้ทันที",
+      "weight": 2
+    },
+    {
+      "id": "mana_drought",
+      "title": "Mana Drought (ชีพจรเวทแห้งเหือด)",
+      "description": "เทิร์นนี้ งดแจก +2 Mana ประจำเทิร์นของทั้งสองฝ่าย",
+      "weight": 1
+    },
+    {
+      "id": "dense_fog",
+      "title": "Dense Fog (หมอกเวทมนตร์ปกคลุม)",
+      "description": "ระยะโจมตีไกล (Ranged และ NP) ลดลงเหลือสูงสุด 1 ช่องในเทิร์นนี้",
+      "weight": 1
+    },
+    {
+      "id": "bloodlust",
+      "title": "Bloodlust (จิตสังหารปะทุ)",
+      "description": "ทุกการโจมตีได้รับ +1 ATK แต่ห้ามใช้คำสั่ง Guard ในเทิร์นนี้",
+      "weight": 1
+    },
+    {
+      "id": "black_market",
+      "title": "Kirei's Black Market (ตลาดมืดโบสถ์)",
+      "description": "เทิร์นนี้ไอเทมทุกชิ้นในร้านค้า QP ลดราคาลง 2 QP (ขั้นต่ำ 1 QP) ซื้อได้ฝั่งละ 1 ชิ้น",
+      "weight": 1
+    },
+    {
+      "id": "spatial_distortion",
+      "title": "Spatial Distortion (มิติบิดเบี้ยว)",
+      "description": "แต่ละฝ่ายสามารถเลือกสลับตำแหน่ง Servant ของตัวเอง 1 คู่บนกระดานได้ฟรี (ข้ามโซนได้)",
+      "weight": 1
+    },
+    {
+      "id": "grail_mud",
+      "title": "Grail Mud (โคลนแห่งจอก)",
+      "description": "Servant ที่ยืนอยู่ช่องขอบสุดของกระดาน (x=0, x=9, y=0 หรือ y=6) โดนดาเมจคงที่ 1 หน่วยตอนจบเทิร์น",
+      "weight": 1
+    },
+    {
+      "id": "leyline_overload",
+      "title": "Leyline Overload (ชีพจรคลั่ง)",
+      "description": "ช่อง Leyline ทุกช่องให้ +4 Mana ในเทิร์นนี้ แต่ผู้ที่ยืนจะได้รับดาเมจ 1 หน่วย",
+      "weight": 1
+    },
+    {
+      "id": "command_resonance",
+      "title": "Command Resonance (เรย์จูสั่นพ้อง)",
+      "description": "ฝ่ายที่มีจำนวน Kills น้อยกว่า (หรือ HP รวมน้อยกว่าหากเท่ากัน) ได้รับ +1 Command Spell (สูงสุดไม่เกิน 3 ขีด)",
+      "weight": 1
+    },
+    {
+      "id": "stray_servant",
+      "title": "Stray Servant! (วีรชนเร่ร่อนบุก)",
+      "description": "Ruler หมุนวงล้อ Draft Pool ที่เหลือ 1 ครั้ง ตัวที่ออกจะเกิดเป็นบอสกลางโซน Central (HP 12, ATK 4) ใครฆ่าได้ +6 Mana และไอเทม Rare 1 ชิ้น",
+      "weight": 1
+    }
+  ],
+  "personalEvents": [
+    {
+      "id": "hidden_spring",
+      "title": "บ่อน้ำพุพลังเวท",
+      "description": "Servant ตนนี้ฟื้นฟู +3 HP และทีมได้รับ +1 Mana",
+      "weight": 2
+    },
+    {
+      "id": "abandoned_chest",
+      "title": "คลังสมบัติที่ถูกทิ้งร้าง",
+      "description": "ได้รับ +4 QP ทันที",
+      "weight": 2
+    },
+    {
+      "id": "found_mystic_code",
+      "title": "พบ Mystic Code ตกหล่น",
+      "description": "สุ่มรับไอเทมระดับ Common 1 ชิ้นเข้ากระเป๋าทีมฟรี",
+      "weight": 2
+    },
+    {
+      "id": "cursed_trap",
+      "title": "กับดักอาคมโบราณ",
+      "description": "Servant ตนนี้โดนความเสียหายคงที่ 2 หน่วย",
+      "weight": 2
+    },
+    {
+      "id": "weapon_resonance",
+      "title": "อาวุธสั่นพ้อง",
+      "description": "ติดป้าย [ATK+1] ให้ Servant ตนนี้เป็นเวลา 2 เทิร์น",
+      "weight": 1
+    },
+    {
+      "id": "phantom_ambush",
+      "title": "มอนสเตอร์ซุ่มโจมตี!",
+      "description": "Ruler เสกมอนสเตอร์ Tier 1 (Skeleton) 1 ตัวลงช่องข้างเคียง และมอนสเตอร์ตีใส่ทันที 1 ดาเมจ",
+      "weight": 1
+    },
+    {
+      "id": "secret_shortcut",
+      "title": "ทางลัดมิติ",
+      "description": "สามารถเลือกย้าย Servant ตนนี้ไปช่องว่างใดก็ได้ในระยะ 2 ช่อง (หรือวาร์ปกลับ Safe House ของทีม)",
+      "weight": 1
+    },
+    {
+      "id": "mana_leak",
+      "title": "รอยรั่ววงเวท",
+      "description": "ทีมเสีย -2 Mana (ขั้นต่ำเหลือ 0)",
+      "weight": 1
+    },
+    {
+      "id": "church_blessing",
+      "title": "พรแห่งโบสถ์ฟุยุกิ",
+      "description": "ได้รับป้าย [Evade 1x] ป้องกันการโจมตี 1 ครั้ง",
+      "weight": 1
+    },
+    {
+      "id": "scout_insight",
+      "title": "เบาะแสศัตรู",
+      "description": "Ruler เปิดเผยตำแหน่ง Servant ศัตรู 1 ตนที่ถูก Fog of War บังอยู่เป็นเวลา 1 เทิร์น",
+      "weight": 1
+    },
+    {
+      "id": "np_charge_burst",
+      "title": "ประจุโฮกุฉับพลัน",
+      "description": "ทีมได้รับ +3 Mana ทันที",
+      "weight": 1
+    },
+    {
+      "id": "golden_fragment",
+      "title": "เศษเสี้ยวแห่งจอก",
+      "description": "ได้รับไอเทมระดับ Rare 1 ชิ้น หรือเลือกเปลี่ยนเป็น +6 QP ทันที",
+      "weight": 1
+    }
+  ]
+}
+```
+
+กำหนดคุณสมบัติการเคลื่อนที่ โบนัสการต่อสู้ การซ่อนตัว และสีพื้นหลังของแต่ละภูมิประเทศ:
+
+```json
+[
+  {
+    "id": "open",
+    "label": "ที่โล่ง",
+    "moveCost": 1,
+    "startRoadBonus": 0,
+    "combatNote": "ไม่มีบัฟหรือดีบัฟ มองเห็นชัดเจน",
+    "stealth": false,
+    "highGround": false,
+    "bgColor": "#1A2421",
+    "icon": "plains"
+  },
+  {
+    "id": "road",
+    "label": "ถนน",
+    "moveCost": 1,
+    "startRoadBonus": 1,
+    "combatNote": "เมื่อเริ่มเคลื่อนที่จากช่องถนน ได้รับโบนัส +1 MOV ในเทิร์นนั้น (สูงสุด +1/เทิร์น)",
+    "stealth": false,
+    "highGround": false,
+    "bgColor": "#1E2430",
+    "icon": "road"
+  },
+  {
+    "id": "building",
+    "label": "ตึก",
+    "moveCost": 2,
+    "sameTerrainMoveCost": 1,
+    "startRoadBonus": 0,
+    "combatNote": "ปีนขึ้นจากพื้นราบใช้ 2 MOV (ข้ามตึกติดกันใช้ 1) | High Ground: โจมตีพื้นล่าง +1 ATK และคลาสตีไกล +1 Range",
+    "stealth": false,
+    "highGround": true,
+    "bgColor": "#242B3D",
+    "icon": "building"
+  },
+  {
+    "id": "forest",
+    "label": "ป่า",
+    "moveCost": 2,
+    "startRoadBonus": 0,
+    "combatNote": "เดินเข้าใช้ 2 MOV | Stealth: ศัตรูที่อยู่นอกป่ามองไม่เห็นจนกว่าจะประชิด 1 ช่องหรือเข้าป่า และลดดาเมจตีไกลจากนอกป่า -1",
+    "stealth": true,
+    "highGround": false,
+    "bgColor": "#132A1E",
+    "icon": "trees"
+  },
+  {
+    "id": "ruins",
+    "label": "ซากปรักฯ",
+    "moveCost": 1,
+    "startRoadBonus": 0,
+    "combatNote": "Cover: ลดความเสียหายจากการโจมตีปกติที่ได้รับลง 1 หน่วย",
+    "stealth": false,
+    "highGround": false,
+    "bgColor": "#29231E",
+    "icon": "landmark"
+  },
+  {
+    "id": "water",
+    "label": "แม่น้ำ",
+    "moveCost": 2,
+    "startRoadBonus": 0,
+    "combatNote": "เดินผ่านใช้ 2 MOV | Exposed: ไม่มีที่กำบัง รับความเสียหายเพิ่มขึ้น +1 หากสู้ในน้ำ",
+    "stealth": false,
+    "highGround": false,
+    "bgColor": "#0F2537",
+    "icon": "waves"
+  }
+]
+```
+
+# **6\. `src/data/terrains.json` (ข้อมูล 6 ภูมิประเทศพื้นฐาน)**
+
+# **7\. `src/data/maps.json` (ผังแผนที่ 3 โซน ขนาด 10×7 แนวนอน ไม่สมมาตร)**
+
+```
+{
+  "cols": 10,
+  "rows": 7,
   "gates": [
     {
       "id": "gate_a_north",
       "label": "North Gate",
-      "from": { "zone": "base_a", "x": 5, "y": 1 },
+      "from": { "zone": "base_a", "x": 9, "y": 1 },
       "to": { "zone": "central", "x": 0, "y": 1 }
     },
     {
       "id": "gate_a_mid",
       "label": "Mid Gate",
-      "from": { "zone": "base_a", "x": 5, "y": 3 },
+      "from": { "zone": "base_a", "x": 9, "y": 3 },
       "to": { "zone": "central", "x": 0, "y": 3 }
     },
     {
       "id": "gate_a_south",
       "label": "South Gate",
-      "from": { "zone": "base_a", "x": 5, "y": 5 },
+      "from": { "zone": "base_a", "x": 9, "y": 5 },
       "to": { "zone": "central", "x": 0, "y": 5 }
     },
     {
       "id": "gate_b_north",
       "label": "North Gate",
-      "from": { "zone": "central", "x": 5, "y": 1 },
+      "from": { "zone": "central", "x": 9, "y": 1 },
       "to": { "zone": "base_b", "x": 0, "y": 1 }
     },
     {
       "id": "gate_b_mid",
       "label": "Mid Gate",
-      "from": { "zone": "central", "x": 5, "y": 3 },
+      "from": { "zone": "central", "x": 9, "y": 3 },
       "to": { "zone": "base_b", "x": 0, "y": 3 }
     },
     {
       "id": "gate_b_south",
       "label": "South Gate",
-      "from": { "zone": "central", "x": 5, "y": 5 },
+      "from": { "zone": "central", "x": 9, "y": 5 },
       "to": { "zone": "base_b", "x": 0, "y": 5 }
     }
   ],
   "zones": {
     "base_a": {
       "id": "base_a",
-      "name": "Base A (Red Territory)",
+      "name": "Mount Enzo & Ryudou Temple (Base A)",
       "owner": "team_a",
+      "terrainGrid": [
+        ["forest", "forest", "forest", "ruins", "ruins", "forest", "forest", "open", "open", "open"],
+        ["open", "road", "road", "road", "road", "road", "road", "road", "road", "open"],
+        ["forest", "forest", "open", "ruins", "ruins", "open", "forest", "forest", "open", "open"],
+        ["open", "road", "road", "road", "road", "road", "road", "road", "road", "open"],
+        ["ruins", "ruins", "open", "forest", "forest", "open", "ruins", "ruins", "open", "open"],
+        ["open", "road", "road", "road", "road", "road", "road", "road", "road", "open"],
+        ["forest", "forest", "forest", "ruins", "ruins", "forest", "forest", "open", "open", "open"]
+      ],
       "specialTiles": [
         { "x": 0, "y": 1, "type": "spawn_a", "label": "Spawn A1" },
         { "x": 0, "y": 3, "type": "spawn_a", "label": "Spawn A2" },
         { "x": 0, "y": 5, "type": "spawn_a", "label": "Spawn A3" },
         { "x": 1, "y": 3, "type": "safe_house", "label": "Red Safe House (+2 HP / Shop)" },
-        { "x": 2, "y": 0, "type": "leyline", "manaBonus": 2, "label": "Leyline (+2 Mana)" },
-        { "x": 2, "y": 5, "type": "leyline", "manaBonus": 2, "label": "Leyline (+2 Mana)" },
-        { "x": 3, "y": 1, "type": "qp_cache", "label": "QP Cache (1d6)" },
-        { "x": 3, "y": 4, "type": "personal_event", "label": "Personal Event (?)" },
-        { "x": 4, "y": 2, "type": "monster_nest", "monsterId": "skeleton", "tier": 1, "label": "Nest (Tier 1)" },
-        { "x": 4, "y": 4, "type": "monster_nest", "monsterId": "homunculus", "tier": 1, "label": "Nest (Tier 1)" },
-        { "x": 5, "y": 1, "type": "gate", "targetZone": "central", "label": "Gate -> Central" },
-        { "x": 5, "y": 3, "type": "gate", "targetZone": "central", "label": "Gate -> Central" },
-        { "x": 5, "y": 5, "type": "gate", "targetZone": "central", "label": "Gate -> Central" }
+        { "x": 3, "y": 0, "type": "leyline", "manaBonus": 2, "label": "Leyline (+2 Mana)" },
+        { "x": 3, "y": 6, "type": "leyline", "manaBonus": 2, "label": "Leyline (+2 Mana)" },
+        { "x": 4, "y": 1, "type": "qp_cache", "label": "QP Cache (1d6)" },
+        { "x": 4, "y": 5, "type": "qp_cache", "label": "QP Cache (1d6)" },
+        { "x": 2, "y": 2, "type": "personal_event", "label": "Personal Event (?)" },
+        { "x": 2, "y": 4, "type": "personal_event", "label": "Personal Event (?)" },
+        { "x": 6, "y": 2, "type": "monster_nest", "monsterId": "skeleton", "tier": 1, "label": "Nest (Tier 1)" },
+        { "x": 6, "y": 4, "type": "monster_nest", "monsterId": "homunculus", "tier": 1, "label": "Nest (Tier 1)" },
+        { "x": 5, "y": 0, "type": "watchtower", "label": "Watchtower (Scout)" },
+        { "x": 5, "y": 6, "type": "blood_altar", "label": "Blood Altar (Sacrifice)" },
+
+        { "x": 7, "y": 3, "type": "workshop", "label": "Magus Workshop (3 QP -> ATK+1 / DEF+1)" },
+        { "x": 8, "y": 1, "type": "teleporter", "targetZone": "central", "targetX": 1, "targetY": 1, "label": "Leyline Portal" },
+        { "x": 9, "y": 1, "type": "gate", "targetZone": "central", "label": "Gate -> Central" },
+        { "x": 9, "y": 3, "type": "gate", "targetZone": "central", "label": "Gate -> Central" },
+        { "x": 9, "y": 5, "type": "gate", "targetZone": "central", "label": "Gate -> Central" }
       ]
     },
     "central": {
       "id": "central",
-      "name": "Central Fuyuki (Battleground)",
+      "name": "Fuyuki City Center & Great Bridge",
       "owner": "neutral",
+      "terrainGrid": [
+        ["open", "open", "building", "building", "water", "water", "building", "building", "open", "open"],
+        ["road", "road", "road", "road", "road", "road", "road", "road", "road", "road"],
+        ["forest", "open", "ruins", "open", "water", "water", "open", "ruins", "open", "forest"],
+        ["road", "road", "road", "road", "road", "road", "road", "road", "road", "road"],
+        ["forest", "open", "ruins", "open", "water", "water", "open", "ruins", "open", "forest"],
+        ["road", "road", "road", "road", "road", "road", "road", "road", "road", "road"],
+        ["open", "open", "building", "building", "water", "water", "building", "building", "open", "open"]
+      ],
       "specialTiles": [
         { "x": 0, "y": 1, "type": "gate", "targetZone": "base_a", "label": "Gate -> Base A" },
         { "x": 0, "y": 3, "type": "gate", "targetZone": "base_a", "label": "Gate -> Base A" },
         { "x": 0, "y": 5, "type": "gate", "targetZone": "base_a", "label": "Gate -> Base A" },
-        { "x": 5, "y": 1, "type": "gate", "targetZone": "base_b", "label": "Gate -> Base B" },
-        { "x": 5, "y": 3, "type": "gate", "targetZone": "base_b", "label": "Gate -> Base B" },
-        { "x": 5, "y": 5, "type": "gate", "targetZone": "base_b", "label": "Gate -> Base B" },
-        { "x": 2, "y": 0, "type": "leyline", "manaBonus": 3, "label": "Major Leyline (+3 Mana)" },
-        { "x": 3, "y": 5, "type": "leyline", "manaBonus": 3, "label": "Major Leyline (+3 Mana)" },
-        { "x": 2, "y": 1, "type": "safe_house", "label": "Fuyuki Church (+2 HP / Shop)" },
-        { "x": 3, "y": 1, "type": "personal_event", "label": "Personal Event (?)" },
-        { "x": 1, "y": 2, "type": "monster_nest", "monsterId": "wyvern", "tier": 2, "label": "Nest (Tier 2)" },
-        { "x": 4, "y": 2, "type": "monster_nest", "monsterId": "chimera", "tier": 2, "label": "Nest (Tier 2)" },
-        { "x": 1, "y": 4, "type": "qp_cache", "label": "QP Cache (1d6)" },
-        { "x": 4, "y": 4, "type": "qp_cache", "label": "QP Cache (1d6)" },
-        { "x": 2, "y": 3, "type": "grail_site", "label": "Greater Grail Site (West)" },
-        { "x": 3, "y": 3, "type": "grail_site", "label": "Greater Grail Site (East)" },
-        { "x": 2, "y": 5, "type": "personal_event", "label": "Personal Event (?)" },
-        { "x": 3, "y": 0, "type": "monster_nest", "monsterId": "fafnir", "tier": 3, "label": "Boss Nest (Tier 3)" }
+        { "x": 9, "y": 1, "type": "gate", "targetZone": "base_b", "label": "Gate -> Base B" },
+        { "x": 9, "y": 3, "type": "gate", "targetZone": "base_b", "label": "Gate -> Base B" },
+        { "x": 9, "y": 5, "type": "gate", "targetZone": "base_b", "label": "Gate -> Base B" },
+        { "x": 1, "y": 3, "type": "summoning_altar", "label": "Summoning Altar (West)" },
+        { "x": 8, "y": 3, "type": "summoning_altar", "label": "Summoning Altar (East)" },
+        { "x": 3, "y": 0, "type": "leyline", "manaBonus": 3, "label": "Major Leyline (+3 Mana)" },
+        { "x": 6, "y": 6, "type": "leyline", "manaBonus": 3, "label": "Major Leyline (+3 Mana)" },
+        { "x": 4, "y": 1, "type": "safe_house", "label": "Fuyuki Church (+2 HP / Shop)" },
+        { "x": 5, "y": 1, "type": "personal_event", "label": "Personal Event (?)" },
+        { "x": 2, "y": 2, "type": "monster_nest", "monsterId": "wyvern", "tier": 2, "label": "Nest (Tier 2)" },
+        { "x": 7, "y": 4, "type": "monster_nest", "monsterId": "chimera", "tier": 2, "label": "Nest (Tier 2)" },
+        { "x": 2, "y": 5, "type": "qp_cache", "label": "QP Cache (1d6)" },
+        { "x": 7, "y": 1, "type": "qp_cache", "label": "QP Cache (1d6)" },
+        { "x": 3, "y": 5, "type": "personal_event", "label": "Personal Event (?)" },
+        { "x": 4, "y": 0, "type": "monster_nest", "monsterId": "fafnir", "tier": 3, "label": "Boss Nest (Tier 3)" },
+        { "x": 4, "y": 3, "type": "grail_site", "label": "Greater Grail Sanctuary (West)" },
+        { "x": 5, "y": 3, "type": "grail_site", "label": "Greater Grail Sanctuary (East)" },
+        { "x": 1, "y": 1, "type": "teleporter", "targetZone": "central", "targetX": 8, "targetY": 5, "label": "North Portal" },
+        { "x": 8, "y": 5, "type": "teleporter", "targetZone": "central", "targetX": 1, "targetY": 1, "label": "South Portal" },
+        { "x": 6, "y": 0, "type": "watchtower", "label": "Bridge Watchtower" },
+
+        { "x": 3, "y": 6, "type": "workshop", "label": "Central Workshop (3 QP -> ATK+1 / DEF+1)" },
+        { "x": 5, "y": 6, "type": "blood_altar", "label": "Central Blood Altar" }
       ]
     },
     "base_b": {
       "id": "base_b",
-      "name": "Base B (Blue Territory)",
+      "name": "Shinto City & Port (Base B)",
       "owner": "team_b",
+      "terrainGrid": [
+        ["open", "open", "open", "building", "building", "water", "water", "building", "building", "building"],
+        ["open", "road", "road", "road", "road", "road", "road", "road", "road", "open"],
+        ["open", "open", "building", "building", "open", "water", "water", "building", "building", "building"],
+        ["open", "road", "road", "road", "road", "road", "road", "road", "road", "open"],
+        ["open", "open", "building", "building", "open", "water", "water", "building", "building", "building"],
+        ["open", "road", "road", "road", "road", "road", "road", "road", "road", "open"],
+        ["open", "open", "open", "building", "building", "water", "water", "building", "building", "building"]
+      ],
       "specialTiles": [
-        { "x": 5, "y": 1, "type": "spawn_b", "label": "Spawn B1" },
-        { "x": 5, "y": 3, "type": "spawn_b", "label": "Spawn B2" },
-        { "x": 5, "y": 5, "type": "spawn_b", "label": "Spawn B3" },
-        { "x": 4, "y": 3, "type": "safe_house", "label": "Blue Safe House (+2 HP / Shop)" },
-        { "x": 3, "y": 0, "type": "leyline", "manaBonus": 2, "label": "Leyline (+2 Mana)" },
-        { "x": 3, "y": 5, "type": "leyline", "manaBonus": 2, "label": "Leyline (+2 Mana)" },
-        { "x": 2, "y": 1, "type": "qp_cache", "label": "QP Cache (1d6)" },
-        { "x": 2, "y": 4, "type": "personal_event", "label": "Personal Event (?)" },
-        { "x": 1, "y": 2, "type": "monster_nest", "monsterId": "skeleton", "tier": 1, "label": "Nest (Tier 1)" },
-        { "x": 1, "y": 4, "type": "monster_nest", "monsterId": "homunculus", "tier": 1, "label": "Nest (Tier 1)" },
+        { "x": 9, "y": 1, "type": "spawn_b", "label": "Spawn B1" },
+        { "x": 9, "y": 3, "type": "spawn_b", "label": "Spawn B2" },
+        { "x": 9, "y": 5, "type": "spawn_b", "label": "Spawn B3" },
+        { "x": 8, "y": 3, "type": "safe_house", "label": "Blue Safe House (+2 HP / Shop)" },
+        { "x": 6, "y": 0, "type": "leyline", "manaBonus": 2, "label": "Leyline (+2 Mana)" },
+        { "x": 6, "y": 6, "type": "leyline", "manaBonus": 2, "label": "Leyline (+2 Mana)" },
+        { "x": 5, "y": 1, "type": "qp_cache", "label": "QP Cache (1d6)" },
+        { "x": 5, "y": 5, "type": "qp_cache", "label": "QP Cache (1d6)" },
+        { "x": 7, "y": 2, "type": "personal_event", "label": "Personal Event (?)" },
+        { "x": 7, "y": 4, "type": "personal_event", "label": "Personal Event (?)" },
+        { "x": 3, "y": 2, "type": "monster_nest", "monsterId": "skeleton", "tier": 1, "label": "Nest (Tier 1)" },
+        { "x": 3, "y": 4, "type": "monster_nest", "monsterId": "homunculus", "tier": 1, "label": "Nest (Tier 1)" },
+        { "x": 4, "y": 0, "type": "watchtower", "label": "Port Watchtower" },
+        { "x": 4, "y": 6, "type": "blood_altar", "label": "Shinto Blood Altar" },
+
+        { "x": 2, "y": 3, "type": "workshop", "label": "Shinto Workshop (3 QP -> ATK+1 / DEF+1)" },
+        { "x": 1, "y": 5, "type": "teleporter", "targetZone": "central", "targetX": 8, "targetY": 5, "label": "Shinto Portal" },
         { "x": 0, "y": 1, "type": "gate", "targetZone": "central", "label": "Gate -> Central" },
         { "x": 0, "y": 3, "type": "gate", "targetZone": "central", "label": "Gate -> Central" },
         { "x": 0, "y": 5, "type": "gate", "targetZone": "central", "label": "Gate -> Central" }
@@ -724,11 +846,11 @@
     }
   }
 }
-````
+```
 
 # **วิธีนำเอกสารชุดนี้ไปใช้กับ AntiGravity**
 
 1. ดาวน์โหลดเอกสารทั้ง 4 ฉบับ (`01_GAME_RULES.md`, `02_ARCHITECTURE.md`, `03_UI_SPEC.md`, `04_BUILD_ROADMAP.md`) เป็นไฟล์ `.md` แล้ววางไว้ในโฟลเดอร์ `docs/` ของโปรเจกต์  
-2. ก๊อปปี้ JSON ทั้ง 6 บล็อกด้านบนไปสร้างไฟล์ใน `src/data/` (หรือวางเอกสารนี้ไว้เป็น `docs/05_DATA_SCHEMAS.md` แล้วสั่ง AntiGravity แตกออกเป็น 6 ไฟล์ใน `src/data/` อัตโนมัติใน Phase 1\)  
-3. เมื่อระบบ Phase 1–3 ทำงานเรียบร้อยแล้ว ค่อยเพิ่มรายชื่อตัวละคร FGO ที่คุณเลือกเองลงใน `src/data/servants.json` ให้ครบ 32+ ตน และนำรูปไอคอนมาวางใน `public/assets/servants/`
+2. ก๊อปปี้ JSON ทั้ง 7 บล็อกด้านบนไปสร้างไฟล์ใน `src/data/` (หรือวางเอกสารนี้ไว้เป็น `docs/05_DATA_SCHEMAS.md` แล้วสั่ง AntiGravity แตกออกเป็น 7 ไฟล์ใน `src/data/` อัตโนมัติใน Phase 1\)  
+3. เมื่อระบบ Phase 1–3 ทำงานเรียบร้อยแล้ว ค่อยเพิ่มรายชื่อตัวละคร FGO ที่คุณเลือกเองลงใน `src/data/servants.json` ให้ครบ 43 ตน และนำรูปไอคอนมาวางใน `public/assets/servants/`
 

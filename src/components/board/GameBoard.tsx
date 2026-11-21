@@ -1,9 +1,9 @@
-import { Coins, Cross, Crown, HelpCircle, Skull, Sparkles } from 'lucide-react';
 import { MAP_DATA } from '../../data';
 import { useGameStore } from '../../store/useGameStore';
 import type { BoardUnit, SpecialTile } from '../../types/game';
 import { getTileKey } from '../../utils/assetHelper';
 import { GridTile } from './GridTile';
+import { TileInfoTooltip } from './TileInfoTooltip';
 import { ZoneTabs } from './ZoneTabs';
 
 export function GameBoard() {
@@ -12,9 +12,10 @@ export function GameBoard() {
   const roomState = useGameStore((s) => s.roomState);
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
   const selectUnit = useGameStore((s) => s.selectUnit);
+  const setHoveredTile = useGameStore((s) => s.setHoveredTile);
 
   const zoneDef = MAP_DATA.zones[activeZone];
-  const gridSize = MAP_DATA.gridSize;
+  const { cols, rows } = MAP_DATA;
 
   const specialMap = new Map<string, SpecialTile>();
   for (const tile of zoneDef.specialTiles) {
@@ -29,24 +30,31 @@ export function GameBoard() {
   }
 
   const cells: { x: number; y: number }[] = [];
-  for (let y = 0; y < gridSize; y++) {
-    for (let x = 0; x < gridSize; x++) {
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
       cells.push({ x, y });
     }
   }
 
   return (
-    <main className="flex flex-1 min-w-0 flex-col items-center justify-between overflow-hidden bg-slate-50 px-3 py-2">
+    <main className="flex flex-1 min-w-0 flex-col items-center justify-between overflow-hidden bg-slate-950 px-3 py-2">
       {/* Zone Switcher Tabs */}
       <ZoneTabs />
 
-      {/* 6x6 Interactive Grid Container */}
-      <div className="flex flex-1 min-h-0 w-full items-center justify-center py-1.5">
+      {/* 10x7 Horizontal Interactive Grid */}
+      <div
+        className="flex flex-1 min-h-0 w-full items-center justify-center py-1.5"
+        onMouseLeave={() => setHoveredTile(null)}
+      >
         <div
-          className="grid aspect-square h-full max-h-[580px] max-w-[580px] grid-cols-6 grid-rows-6 overflow-visible rounded-lg border-2 border-slate-900 bg-white shadow-sm"
-          style={{ width: 'min(100%, calc(100vh - 185px))', height: 'min(100%, calc(100vh - 185px))' }}
+          className="grid grid-cols-10 grid-rows-7 overflow-visible rounded-lg border-2 border-slate-700 bg-slate-950 shadow-2xl"
+          style={{
+            width: 'min(100%, calc((100vh - 200px) * 10 / 7))',
+            aspectRatio: '10 / 7',
+          }}
         >
           {cells.map(({ x, y }) => {
+            const terrainId = zoneDef.terrainGrid[y]?.[x] ?? 'open';
             const specialTile = specialMap.get(`${x}_${y}`);
             const tileKey = getTileKey(activeZone, x, y);
             const tileOverride = roomState.tileOverrides[tileKey];
@@ -58,42 +66,22 @@ export function GameBoard() {
                 zone={activeZone}
                 x={x}
                 y={y}
+                terrainId={terrainId}
                 specialTile={specialTile}
                 tileOverride={tileOverride}
                 unit={unit}
                 isSelectedUnit={unit?.id === selectedUnitId}
                 onSelectUnit={selectUnit}
                 onGateJump={setActiveZone}
+                onHover={() => setHoveredTile({ zone: activeZone, x, y })}
               />
             );
           })}
         </div>
       </div>
 
-      {/* Compact Legend Bar */}
-      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-md border border-slate-300 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700">
-        <span className="flex items-center gap-1 text-sky-700">
-          <Sparkles className="h-3 w-3" /> Leyline (+2/+3M)
-        </span>
-        <span className="flex items-center gap-1 text-amber-600">
-          <Coins className="h-3 w-3" /> QP (1d6)
-        </span>
-        <span className="flex items-center gap-1 text-orange-600">
-          <HelpCircle className="h-3 w-3" /> Event (?)
-        </span>
-        <span className="flex items-center gap-1 text-stone-600">
-          <Skull className="h-3 w-3" /> Monster Nest
-        </span>
-        <span className="flex items-center gap-1 text-emerald-700">
-          <Cross className="h-3 w-3" /> Safe House
-        </span>
-        <span className="flex items-center gap-1 text-orange-600">
-          <Crown className="h-3 w-3" /> Grail (T10)
-        </span>
-        <span className="text-slate-500">
-          | <strong className="text-orange-600">ZoC:</strong> ถอยหนี -1 MOV (ยกเว้น Assassin)
-        </span>
-      </div>
+      {/* Live Hover Tile Info (Terrain Layer 1 + Special Feature Layer 2) */}
+      <TileInfoTooltip />
     </main>
   );
 }

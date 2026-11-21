@@ -15,30 +15,32 @@ export type ServantClassId =
   | 'Berserker'
   | 'Extra';
 
+export type TerrainId = 'open' | 'road' | 'building' | 'forest' | 'ruins' | 'water';
+
 export interface Coordinates {
   zone: ZoneId;
-  x: number; // 0 to 5 (6x6 grid)
-  y: number; // 0 to 5
+  x: number; // 0 to 9 (10x7 horizontal grid)
+  y: number; // 0 to 6
 }
 
 export interface BoardUnit {
-  id: string; // Unique instance ID e.g. "unit_a_1" or "mon_wyvern_1"
-  templateId: string; // Reference id in servants.json or monsters.json
+  id: string;
+  templateId: string;
   unitType: 'servant' | 'monster' | 'grail';
   name: string;
   servantClass?: ServantClassId;
-  subClass?: string; // e.g. "Ruler", "Avenger", "Alter Ego", "Moon Cancer"
+  subClass?: string;
   owner: OwnerId;
   status: UnitStatus;
-  position: Coordinates | null; // null when reserve or defeated
+  position: Coordinates | null;
   hp: number;
   maxHp: number;
   atk: number;
   mov: number;
   range?: number;
   npReady: boolean;
-  tags: string[]; // Free-form GM buff/debuff tags e.g. ["Evade 1x", "Stun", "ATK+2"]
-  isRevealedToEnemy: boolean; // Override reveal through Fog of War
+  tags: string[];
+  isRevealedToEnemy: boolean;
   image?: string;
 }
 
@@ -47,13 +49,13 @@ export interface TeamState {
   mana: number;
   qp: number;
   commandSpells: number; // Max 3
-  inventory: string[]; // itemId list
-  defeatedCount: number; // Enemy kills count or own defeated count (per win condition)
+  inventory: string[];
+  defeatedCount: number; // Wipeout 6/6
   readyLocked: boolean;
 }
 
 export interface TileOverride {
-  tileKey: string; // "{zone}_{x}_{y}" e.g. "central_2_3"
+  tileKey: string; // "{zone}_{x}_{y}" e.g. "central_4_3"
   cleared: boolean;
   customNote?: string;
 }
@@ -84,6 +86,11 @@ export interface SecretCommandsDoc {
   orders: CommandOrder[]; // Max 3 orders (Active Servants)
 }
 
+export interface RulerSecretDoc {
+  secretGrailTurn: 10 | 11 | 12;
+  gmPrivateNote?: string;
+}
+
 export interface WheelBroadcast {
   id: string;
   wheelType: 'servant_draft' | 'map_event' | 'personal_event';
@@ -95,10 +102,19 @@ export interface WheelBroadcast {
   targetTeam?: TeamId | null;
 }
 
+export interface GrailBannerBroadcast {
+  id: string;
+  servantName?: string;
+  absorbedCount: number; // 0 to 5
+  isManifestation: boolean;
+  message: string;
+  timestamp: number;
+}
+
 export interface DiceBroadcast {
   id: string;
   rollerRole: Role;
-  sides: number; // e.g. 6 (1d6)
+  sides: number;
   result: number;
   label: string;
   timestamp: number;
@@ -108,6 +124,7 @@ export interface FogConfig {
   enabled: boolean;
   revealBaseZoneToOwnerOnly: boolean;
   showCentralToAll: boolean;
+  hideUnitsInForest: boolean;
 }
 
 export interface GameLogEntry {
@@ -139,6 +156,10 @@ export interface RoomState {
   activeMapEvent: { id: string; title: string; description: string } | null;
   wheelBroadcast: WheelBroadcast | null;
   diceBroadcast: DiceBroadcast | null;
+  grailAbsorbedCount: number; // Total defeated servants across both teams (5 = manifest)
+  grailAbsorbedNames: string[];
+  grailManifested: boolean;
+  grailBannerBroadcast: GrailBannerBroadcast | null;
   logs: GameLogEntry[]; // Latest 50 entries
 }
 
@@ -209,6 +230,19 @@ export interface EventsData {
   personalEvents: GameEventTemplate[];
 }
 
+export interface TerrainDefinition {
+  id: TerrainId;
+  label: string;
+  moveCost: number;
+  sameTerrainMoveCost?: number;
+  startRoadBonus: number;
+  combatNote: string;
+  stealth: boolean;
+  highGround: boolean;
+  bgColor: string;
+  icon: string;
+}
+
 export type SpecialTileType =
   | 'spawn_a'
   | 'spawn_b'
@@ -218,7 +252,12 @@ export type SpecialTileType =
   | 'personal_event'
   | 'monster_nest'
   | 'gate'
-  | 'grail_site';
+  | 'grail_site'
+  | 'summoning_altar'
+  | 'teleporter'
+  | 'watchtower'
+  | 'workshop'
+  | 'blood_altar';
 
 export interface SpecialTile {
   x: number;
@@ -229,6 +268,8 @@ export interface SpecialTile {
   monsterId?: string;
   tier?: number;
   targetZone?: ZoneId;
+  targetX?: number;
+  targetY?: number;
 }
 
 export interface GateDefinition {
@@ -242,11 +283,13 @@ export interface ZoneDefinition {
   id: ZoneId;
   name: string;
   owner: OwnerId;
+  terrainGrid: TerrainId[][]; // 7 rows x 10 cols
   specialTiles: SpecialTile[];
 }
 
 export interface MapData {
-  gridSize: number;
+  cols: number;
+  rows: number;
   gates: GateDefinition[];
   zones: Record<ZoneId, ZoneDefinition>;
 }

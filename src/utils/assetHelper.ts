@@ -1,4 +1,4 @@
-import type { OwnerId, ServantClassId } from '../types/game';
+import type { OwnerId, ServantClassId, SpecialTileType } from '../types/game';
 
 const SUBCLASS_ICON_MAP: Record<string, string> = {
   ruler: '/assets/classes/ruler.webp',
@@ -71,31 +71,31 @@ export function getFactionStyle(owner: OwnerId): FactionStyle {
   switch (owner) {
     case 'team_a':
       return {
-        border: 'border-red-600',
-        bg: 'bg-red-600',
-        softBg: 'bg-red-50',
-        text: 'text-red-700',
-        badgeBg: 'bg-red-600 text-white',
-        ring: 'ring-red-500',
+        border: 'border-rose-500',
+        bg: 'bg-rose-600',
+        softBg: 'bg-rose-950/50',
+        text: 'text-rose-400',
+        badgeBg: 'bg-rose-600 text-white',
+        ring: 'ring-rose-500',
         label: 'Team A',
       };
     case 'team_b':
       return {
-        border: 'border-blue-600',
-        bg: 'bg-blue-600',
-        softBg: 'bg-blue-50',
-        text: 'text-blue-700',
-        badgeBg: 'bg-blue-600 text-white',
-        ring: 'ring-blue-500',
+        border: 'border-sky-500',
+        bg: 'bg-sky-600',
+        softBg: 'bg-sky-950/50',
+        text: 'text-sky-400',
+        badgeBg: 'bg-sky-600 text-white',
+        ring: 'ring-sky-500',
         label: 'Team B',
       };
     default:
       return {
         border: 'border-amber-600',
         bg: 'bg-stone-700',
-        softBg: 'bg-stone-100',
-        text: 'text-stone-800',
-        badgeBg: 'bg-stone-700 text-white',
+        softBg: 'bg-stone-900/70',
+        text: 'text-amber-400',
+        badgeBg: 'bg-stone-700 text-amber-200',
         ring: 'ring-amber-500',
         label: 'PvE',
       };
@@ -103,10 +103,43 @@ export function getFactionStyle(owner: OwnerId): FactionStyle {
 }
 
 export function formatCoordLabel(x: number, y: number): string {
-  const col = String.fromCharCode(65 + x); // A..F
+  const col = String.fromCharCode(65 + x); // A..J
   return `${col}${y + 1}`;
 }
 
 export function getTileKey(zone: string, x: number, y: number): string {
   return `${zone}_${x}_${y}`;
+}
+
+export function getSpecialTileEffectText(type: SpecialTileType, manaBonus?: number): string {
+  switch (type) {
+    case 'leyline':
+      return `ได้รับ +${manaBonus ?? 2} Mana ตอนจบเทิร์น (ใช้ได้ทุกเทิร์น)`;
+    case 'qp_cache':
+      return 'ทอยเต๋า 1d6 รับเงิน QP ตามแต้มที่ออก (รีเซ็ตทุก 3 เทิร์น)';
+    case 'personal_event':
+      return 'Ruler หมุนวงล้อ Mini-Event เฉพาะตัว (รีเซ็ตทุก 3 เทิร์น)';
+    case 'monster_nest':
+      return 'จุดเกิดมอนสเตอร์ PvE (เกิดใหม่ทุก 4 เทิร์นหลังถูกกำจัด)';
+    case 'safe_house':
+      return 'ฟื้นฟู +2 HP ตอนจบเทิร์น และเป็นจุดซื้อ Mystic Codes ด้วย QP';
+    case 'grail_site':
+      return 'จุดจุติจอกศักดิ์สิทธิ์ (วิญญาณครบ 5/5 หรือถึงเทิร์นลับ 10–12) ยึดครอง 2 เทิร์นติดชนะทันที';
+    case 'summoning_altar':
+      return 'จ่าย 1 Mana สั่ง Tag-Out สลับตัวสำรองลงช่องนี้จากโซน Central ได้ทันที';
+    case 'teleporter':
+      return 'จ่าย 2 Mana วาร์ปไปช่องวงเวทคู่กันอีกจุดหนึ่งบนกระดานได้ทันที';
+    case 'watchtower':
+      return 'ใช้ Action Explore (ฟรี) เปิดเผยศัตรูที่ซ่อนในป่าทั้งโซน หรือส่อง Base ศัตรู 1 เทิร์น';
+    case 'workshop':
+      return 'จ่าย 3 QP แปะป้าย [ATK+1] หรือ [DEF+1] ให้ Servant นาน 2 เทิร์น (เทิร์นละ 1 ครั้ง)';
+    case 'blood_altar':
+      return 'ยอมเสีย 3 HP (คงที่) แลกเป็น +3 Mana หรือ +4 QP ทันที (เทิร์นละ 1 ครั้ง)';
+    case 'gate':
+      return 'ช่องเชื่อมโซน ก้าวข้ามไปโซนถัดไปนับเป็นระยะเดิน 1 ช่องปกติ';
+    case 'spawn_a':
+      return 'จุดเกิดเริ่มต้นและจุดส่งตัวสำรองของ Team A (Mount Enzo)';
+    case 'spawn_b':
+      return 'จุดเกิดเริ่มต้นและจุดส่งตัวสำรองของ Team B (Shinto City)';
+  }
 }

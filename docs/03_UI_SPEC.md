@@ -4,20 +4,20 @@
 
 # **1\. ระบบสีและแนวทางการออกแบบ (Design System & Theme)**
 
-ออกแบบด้วยแนวทาง High-Contrast Light Tactical UI เพื่อให้อ่านสเตตัส ตัวอักษร และตำแหน่งหมากบนกระดาน 6x6 ได้ชัดเจนตลอดการเล่นหลายชั่วโมง โดยไม่ต้องเพ่งสายตา:
+ออกแบบด้วยแนวทาง Fuyuki Midnight & Grail Gold (High-Contrast Dark Tactical UI) เพื่อให้อ่านสเตตัส ตัวอักษร และตำแหน่งหมากบนกระดาน 10×7 ได้ชัดเจนตลอดการเล่นหลายชั่วโมง โดยไม่ต้องเพ่งสายตา:
 
 | องค์ประกอบ (Token) | ค่าสีแนะนำ (Tailwind / Hex) | การใช้งานหลัก |
 | :---- | :---- | :---- |
-| **Background (พื้นหลังหลัก)** | `bg-slate-50` (`#F8FAFC`) / `bg-white` (`#FFFFFF`) | พื้นหลังแอป การ์ด และแผงเครื่องมือทั้งหมด (ใช้ Light Theme เป็นหลัก) |
-| **Primary Text (ตัวอักษรหลัก)** | `text-slate-950` (`#020617`) / `text-black` (`#000000`) | ชื่อตัวละคร ค่าสถานะ ตัวเลขพิกัด และหัวข้อทั้งหมด |
-| **Primary Accent (สีเน้นหลัก)** | `bg-orange-500` / `text-orange-600` (`#F97316` / `#EA580C`) | ปุ่มแอ็กชันหลัก (Lock Turn, Spin Wheel, Next Turn), แท็บโซนที่เลือกอยู่, แถบ Ruler God-Mode, ช่อง Gate และจอกศักดิ์สิทธิ์ |
-| **Borders & Grid Lines** | `border-slate-900` (กรอบหลัก) / `border-slate-300` (เส้นตาราง) | ขอบกระดาน 6x6 และเส้นแบ่งแผงให้ดูคมชัดสไตล์บอร์ดเกม |
-| **Team A (Red Faction)** | `bg-red-600` / `border-red-600` (`#DC2626`) | ขอบตัวหมาก ฝั่งซ้าย, แถบทรัพยากร Team A, เส้นลูกศรคำสั่งฝั่ง A |
-| **Team B (Blue Faction)** | `bg-blue-600` / `border-blue-600` (`#2563EB`) | ขอบตัวหมาก ฝั่งขวา, แถบทรัพยากร Team B, เส้นลูกศรคำสั่งฝั่ง B |
-| **PvE / Neutral** | `bg-stone-700` / `border-amber-600` | ตัวหมากมอนสเตอร์ PvE และ Stray Servant |
-| **Status / Warning** | เขียว (`#16A34A`) \= ช่องเดินได้ปกติ, ส้มเข้ม (`#EA580C`) \= ติด ZoC (-1 MOV) / Collision Alert | ไฮไลต์ช่วยคำนวณบนกระดาน |
+| **Background (พื้นหลังหลัก)** | `bg-slate-950` (`#090D16`) / `bg-slate-900` (`#111827`) | พื้นหลังแอป การ์ด แผงเครื่องมือ และ Sidebar ทั้งหมด (Dark Tactical Theme) |
+| **Primary & Secondary Text** | `text-slate-100` (`#F1F5F9`) / `text-slate-400` (`#94A3B8`) | ชื่อตัวละคร ค่าสถานะ ตัวเลขพิกัด ข้อความคำแนะนำ และหัวข้อทั้งหมด |
+| **Grail Gold (สีเน้นหลัก)** | `#D4AF37` / `bg-amber-400` / `text-amber-400` (`#FBBF24`) | ปุ่มแอ็กชันหลัก (Lock Turn, Spin Wheel), แท็บโซนที่เลือกอยู่, จอกศักดิ์สิทธิ์, แถบ ภาชนะจอก 5/5 และ Active Map Event |
+| **Borders & Card Panels** | `border-slate-700/80` / `border-slate-800` | ขอบกระดาน 10x7, เส้นแบ่งพาเนล และกรอบการ์ด ให้คมชัดมีมิติบนพื้นหลังมืด |
+| **Team A (Red Faction / Mount Enzo)** | `bg-rose-500` / `border-rose-500` (`#F43F5E`) | ขอบตัวหมากฝั่ง A (Mount Enzo), แถบทรัพยากร Team A, เส้นลูกศรคำสั่งฝั่ง A |
+| **Team B (Blue Faction / Shinto City)** | `bg-sky-500` / `border-sky-500` (`#0EA5E9`) | ขอบตัวหมากฝั่ง B (Shinto City), แถบทรัพยากร Team B, เส้นลูกศรคำสั่งฝั่ง B (สว่างอ่านชัดบนพื้นมืด) |
+| **Arcane / Leyline / Gate / Teleporter** | `text-cyan-400` / `border-cyan-400` (`#22D3EE`) | วงเวท Leyline, ช่อง Gate เชื่อมโซน และวงแหวน Teleport Circle |
+| **Night Terrain Colors (ภูมิประเทศ)** | Open (`#1A2421`), Road (`#1E2430`), Building (`#242B3D`), Forest (`#132A1E`), Ruins (`#29231E`), Water (`#0F2537`) | สีพื้นหลังช่องกระดานชั้นล่างสุดตามประเภทภูมิประเทศในบรรยากาศกลางคืน |
 
-* **ขนาดหน้าจอเป้าหมาย:** Desktop-First (`1280x720` ขึ้นไป) ใช้โครงสร้าง **Full Viewport (`h-screen overflow-hidden`)** เพื่อให้กระดาน 6x6 อยู่กลางจอตลอดเวลาโดยไม่ต้องสโครลหน้าเว็บหลัก (ให้สโครลเฉพาะภายใน Sidebar หรือ Modal)
+* **ขนาดหน้าจอเป้าหมาย:** Desktop-First (`1280x720` ขึ้นไป) ใช้โครงสร้าง **Full Viewport (`h-screen overflow-hidden`)** เพื่อให้กระดานแนวนอน 10x7 อยู่กลางจอตลอดเวลาโดยไม่ต้องสโครลหน้าเว็บหลัก (ให้สโครลเฉพาะภายใน Sidebar หรือ Modal)
 
 # **2\. หน้าจอล็อบบี้และเลือกที่นั่ง (Lobby Screen)**
 
@@ -25,14 +25,14 @@
 
 1. **การ์ดกลางจอ (Centered Card):** แสดงชื่อเกม **FATE: HOLY GRAIL WAR — VTT**  
 2. **ฝั่งสร้างห้องใหม่ (Create Room — สำหรับ Ruler):**  
-   * ช่องกรอกชื่อทีมเริ่มต้น (ค่าเริ่มต้น `Team A (Red)` / `Team B (Blue)`) และช่อง **Optional 4-Digit Ruler PIN**  
-   * ปุ่มสีส้มขนาดใหญ่ **`Create New War Room`** — เมื่อกดจะสร้างห้องใน Firestore พร้อมสุ่ม Room Code 6 หลัก (เช่น `FGO-482`) และพาเข้าสู่หน้าจอ Ruler ทันที  
+   * ช่องกรอกชื่อทีมเริ่มต้น (ค่าเริ่มต้น `Team A (Red / Mount Enzo)` / `Team B (Blue / Shinto City)`) และช่อง **Optional 4-Digit Ruler PIN**  
+   * ปุ่มสีทองขนาดใหญ่ **`Create New War Room`** — เมื่อกดจะสร้างห้องใน Firestore พร้อมสุ่ม Room Code 6 หลัก (เช่น `FGO-482`), สุ่ม `secretGrailTurn` (10–12) เก็บไว้ในเอกสารลับของ Ruler อัตโนมัติ (สามารถเปิดดูและเปลี่ยนได้ใน Ruler Control Strip) และพาเข้าสู่หน้าจอ Ruler ทันที  
 3. **ฝั่งเข้าร่วมห้อง (Join Room):**  
    * ช่องกรอก `Room Code` \+ ปุ่ม `Find Room`  
    * เมื่อพบห้อง จะแสดงการ์ดเลือกที่นั่ง **3 ใบเรียงแนวนอน**:  
      * **Ruler / GM** (ขอบสีส้ม) — แสดงสถานะ `Available` หรือ `Occupied` (ต้องใส่ PIN หากตั้งไว้)  
-     * **Master A — Red Faction** (ขอบสีแดง)  
-     * **Master B — Blue Faction** (ขอบสีน้ำเงิน)  
+     * **Master A — Red Faction (Mount Enzo)** (ขอบสีแดง)  
+     * **Master B — Blue Faction (Shinto City)** (ขอบสีน้ำเงิน)  
    * หากเบราว์เซอร์เดิมเคยเข้าที่นั่งไหนไว้แล้ว (`uid` ตรงกัน) ให้แสดงปุ่ม **`Rejoin Seat`** เพื่อกลับเข้าเกมเดิมทันที
 
 # **3\. โครงสร้างหน้าจอหลัก (Main Workspace — 3-Column Layout)**
@@ -40,33 +40,33 @@
 แบ่งพื้นที่หน้าจอ `100vh` ออกเป็น 4 ส่วนหลักดังนี้:
 
 ```
-+---------------------------------------------------------------------------------+
-| TOP BAR HUD: [Room: FGO-482] [Turn 4 | Phase: Planning] [Active Map Event]      |
-|              [Team A: Mana/QP/CS | Ready?]  [Team B: Mana/QP/CS | Ready?]       |
-|              [Catalog] [Wheel] [Dice 1d6] [Logs]                                |
-+------------------+-------------------------------------------+------------------+
-|  LEFT SIDEBAR    |            CENTER STAGE (BOARD)           |  RIGHT SIDEBAR   |
-|  (Width: 280px)  |            (Flex-1, Centered)             |  (Width: 340px)  |
-|                  |                                           |                  |
-|  [Master View]   |   [ Base A (2) ] [ Central (3) ] [ Base B]|  [Master View]   |
-|  - Active (3)    |   +-----+-----+-----+-----+-----+-----+   |  - Secret        |
-|  - Reserve (3)   |   |  0  |  1  |  2  |  3  |  4  |  5  |   |    Command Queue |
-|  - Inventory     |   |     |     |     |     |     |     |   |    (3 Slots)     |
-|                  |   |        6x6 Interactive Grid       |   |  - [LOCK TURN]   |
-|  [Ruler View]    |   |      + Tokens + SVG Arrows        |   |                  |
-|  - All Units     |   |      + Fog of War Overlay         |   |  [Ruler View]    |
-|  - Spawn PvE     |   +-----+-----+-----+-----+-----+-----+   |  - Unit Inspector|
-|  - Fog Toggle    |                                           |    (God-Mode)    |
-|  - [Undo (12)]   |   [Legend Bar: Tile Icons & ZoC Guide]    |  - Secret Orders |
-+------------------+-------------------------------------------+------------------+
++-----------------------------------------------------------------------------------------+
+| TOP BAR HUD: [Room: FGO-482] [Turn 4 | PLANNING] [Grail Vessel: 2/5] [Secret Grail: T11] |
+|              [Team A: Mana/QP/CS | Kills: 1/6]  [Team B: Mana/QP/CS | Kills: 0/6]       |
+|              [Active Event: Haste Wind] [Catalog] [Wheel] [Dice 1d6] [Logs]             |
++------------------+---------------------------------------------------+------------------+
+|  LEFT SIDEBAR    |               CENTER STAGE (BOARD)                |  RIGHT SIDEBAR   |
+|  (Width: 250px)  |               (Flex-1, Centered)                  |  (Width: 320px)  |
+|                  |                                                   |                  |
+|  [Master View]   | [ Base A: Enzo ] [ Central Fuyuki ] [ Base B: Shinto ]|  [Master View]   |
+|  - Active (3)    | +-----------------------------------------------+ |  - Secret        |
+|  - Reserve (3)   | | 10x7 Horizontal Interactive Grid GridTile     | |    Command Queue |
+|  - Inventory     | | Layer 1: Night Terrain (6 Types + TH Badge)   | |    (3 Slots)     |
+|                  | | Layer 2: Special Features (12 Types)          | |  - [LOCK TURN]   |
+|  [Ruler View]    | | + Tokens + SVG Arrows + Fog Overlay             | |                  |
+|  - All Units     | +-----------------------------------------------+ |  [Ruler View]    |
+|  - Spawn PvE     |                                                   |  - Unit Inspector|
+|  - Fog Toggle    | [Legend Bar: Terrain & Special Features Guide]    |    (God-Mode)    |
+|  - [Undo (12)]   |                                                   |  - Secret Orders |
++------------------+---------------------------------------------------+------------------+
 ```
 
 ## **3.1 Top Bar HUD (แถบข้อมูลบนสุด — สูง 64px)**
 
 * **ซ้าย:** ป้ายรหัสห้อง (คลิกเพื่อ Copy), เลขเทิร์น (`Turn 4`), และป้ายเฟสปัจจุบัน (`DRAFT` / `EVENT` / `PLANNING` / `RESOLUTION`)  
 * **กลาง:**  
-  * กล่องสรุป **Team A (แดง)** และ **Team B (น้ำเงิน)** แสดงค่า `Mana`, `QP`, ขีด `Command Spells` (ไอคอน 3 ขีด), ตัวนับ `Kills (X/4)`, และป้ายสถานะ `Waiting...` / `LOCKED`  
-  * แถบย่อยด้านล่าง (หรือป้ายกลาง) แสดง **Active Map Event** ประจำเทิร์น (เช่น *"Haste Wind: ทุกตัว \+1 MOV"*) พร้อม Tooltip อ่านคำอธิบายเต็ม  
+  * กล่องสรุป **Team A (แดง / Mount Enzo)** และ **Team B (น้ำเงิน / Shinto City)** แสดงค่า `Mana`, `QP`, ขีด `Command Spells` (ไอคอน 3 ขีด), ตัวนับ **`Kills: X / 6 (Wipeout)`**, และป้ายสถานะ `Waiting...` / `LOCKED`  
+  * หลอด **`ภาชนะจอกศักดิ์สิทธิ์: X / 5`** (Grail Vessel Progress Bar สีทองเรืองแสง) ตรงกลางแถบบน พร้อมป้ายเทิร์นจอกจุติ (มุมมอง Master แสดง **`จอกจุติ: เทิร์น ???`**, มุมมอง Ruler แสดงป้ายทองส่วนตัว **`Secret Grail: T10–T12`** พร้อมปุ่มปรับแก้ไขได้)  
 * **ขวา:** ปุ่มเครื่องมือร่วม 4 ปุ่ม:  
   1. **`Catalog`** (เปิดดู Servant 32+ ตน, ร้านค้า QP และกติกาย่อ)  
   2. **`Wheel`** (เปิดหน้าต่างวงล้อสุ่ม — Ruler กดหมุนได้, Master ดูได้อย่างเดียว)  
@@ -77,48 +77,47 @@
 
 ## **4.1 Zone Switcher Tabs (แท็บสลับ 3 โซน)**
 
-* วางปุ่มแท็บขนาดใหญ่เหนือกระดาน: **`Base A (Red)`** ↔ **`Central Fuyuki`** ↔ **`Base B (Blue)`**  
-* แท็บที่เลือกอยู่ไฮไลต์ด้วยแถบสีส้ม (`border-b-4 border-orange-500`)  
+* วางปุ่มแท็บขนาดใหญ่เหนือกระดาน: **`Base A: Mount Enzo`** ↔ **`Central Fuyuki`** ↔ **`Base B: Shinto City`**  
+* แท็บที่เลือกอยู่ไฮไลต์ด้วยแถบสีทอง (`border-b-4 border-amber-400 text-amber-400`)  
 * บนแต่ละแท็บมี Badge ตัวเลขเล็กๆ แสดงจำนวน Servant ที่มองเห็นได้ในโซนนั้น เพื่อไม่ให้ลืมตัวละครที่อยู่อีกโซน
 
 ## **4.2 การแสดงผลช่องตาราง (Tile Visuals)**
 
-* กระดานขนาด `6x6` สัดส่วนจัตุรัส (`aspect-square`) ช่องละประมาณ `80x80px – 96x96px`  
-* มุมซ้ายบนของแต่ละช่องแสดงพิกัดตัวจาง (`A1`–`F6` หรือ `0,0`–`5,5`)  
-* **สัญลักษณ์ช่องพิเศษ (วางตรงกลางหรือมุมขวาล่าง):**  
-  * **Leyline:** วงเวทสีฟ้า/ส้ม พร้อมป้าย `+2M` หรือ `+3M`  
-  * **QP Cache:** ไอคอนหีบสมบัติสีทอง  
-  * **Personal Event:** เครื่องหมาย `?` สีส้มเด่น  
-  * **Monster Nest:** ไอคอนหัวกะโหลกสีเทาเข้ม  
-  * **Safe House / Church:** ไอคอนไม้กางเขน/โล่สีเขียว  
-  * **Gate (ช่องเชื่อมโซน):** แถบขอบช่องด้านที่เชื่อมเป็นสีส้มพร้อมลูกศร (`→ Central`, `← Base A`) คลิกที่ป้ายลูกศรเพื่อสลับไปดูโซนปลายทางได้ทันที  
-  * **Greater Grail Site (ใจกลาง Central):** ไอคอนถ้วยจอกสีทอง-ส้ม มีตัวนับเทิร์นยึดครอง (`Hold: 1/2`) เมื่อถึงเทิร์นที่ 10  
-* **สถานะช่องถูกเคลียร์ (`cleared: true`):** แสดงแถบคาดสีเทาโปร่งและป้ายเล็กๆ คำว่า `CLEARED`  
-* **Custom Note จาก GM:** หากช่องมี `customNote` ให้แสดงไอคอนหมุดสีส้มมุมขวาบน เมื่อเอาเมาส์ชี้จะขึ้นข้อความโน้ต
+* กระดานแนวนอนขนาด **`10 คอลัมน์ × 7 แถว (10x7 Grid)`** แสดงผล 2 ชั้น (GridTile.tsx):  
+* **ชั้นที่ 1 (Terrain Layer — บังคับแสดงครบทุกช่อง):** แสดงสีพื้นหลังตามประเภทภูมิประเทศโทน Night \+ ไอคอนภูมิประเทศจางๆ \+ **ป้ายชื่อภาษาไทยมุมล่างซ้ายเสมอ** ถึงจะเป็นช่องเปล่าก็ต้องแสดงชื่อ ดังนี้:  
+  * **ที่โล่ง (open):** สีเขียวขี้เถ้าเข้ม (`#1A2421`) — พื้นที่ปกติ ไม่คิดโบนัสหรือส่วนลด  
+  * **ถนน (road):** สีเทาน้ำเงิน (`#1E2430`) — หากเริ่มเดินบนถนนจะได้ **`+1 MOV`**  
+  * **ตึก (building):** สีน้ำเงินเข้มจัด (`#242B3D`) — ใช้ **`2 MOV`** ในการเดินเข้า, ให้โบนัสป้องกัน `DEF +1`  
+  * **ป่า (forest):** สีเขียวป่าเข้ม (`#132A1E`) — ใช้ **`2 MOV`** ในการเดินเข้า, ซ่อนตัวละครจากศัตรูภายนอกป่า (Fog of War Hiding Factor)  
+  * **ซากปรักฯ (ruins):** สีน้ำตาลเข้มไหม้ (`#29231E`) — พื้นที่ยากลำบาก ให้โบนัสซุ่มโจมตี  
+  * **แม่น้ำ (water):** สีฟ้าเทามืด (`#0F2537`) — ใช้ **`2 MOV`** ในการข้าม (ยกเว้นยูนิตที่มีทักษะเดินบนน้ำ)  
+* **ชั้นที่ 2 (Special Feature Layer — วางซ้อนบนภูมิประเทศได้):**  
+  * **Leyline / QP Cache / Personal Event / Monster Nest / Safe House / Gate / Greater Grail Site:** คงสัญลักษณ์เดิม (จอกวางที่พิกัด `(4,3)` และ `(5,3)` ใจกลาง Central Fuyuki)  
+  * **Summoning Altar (แท่นอัญเชิญ):** ไอคอนวงเวทอัญเชิญสีม่วงสดใส  
+  * **Teleport Circle (วงแท่นวาร์ปคู่):** ไอคอนวงแหวนสีฟ้า `cyan-400` พร้อมระบุป้ายคู่ (เช่น `TP-A` / `TP-B`)  
+  * **Watchtower (หอคอยสอดแนม):** ไอคอนหอคอยสีเหลือง เปิดหมอกรอบข้าง 2 ช่อง  
+  * **Workshop (เวิร์กชอปจอมเวท):** ไอคอนค้อนกะทั่ง/คริสตัล ให้โบนัสฟื้นฟู Mana  
+  * **Blood Altar (แท่นบูชายัญเลือด):** ไอคอนหยดเลือดสีแดงเข้ม  
+* **Hover Tooltip / Tile Info Panel (TileInfoTooltip.tsx):** แสดงรายละเอียดครบทั้งภูมิประเทศ (เช่น *"ป่า: เดินเข้า 2 MOV, ซ่อนตัวจากคนนอกป่า"*) และช่องพิเศษที่วางซ้อนอยู่
 
-## **4.3 การออกแบบตัวหมาก (Unit Token)**
+## **4.3 การออกแบบตัวหมาก (UnitToken.tsx)**
 
-* วางอยู่กลางช่อง ใช้กรอบสี่เหลี่ยมมนหรือวงกลมพร้อม **ขอบหนา 3px ตามสีฝ่าย** (Team A แดง, Team B น้ำเงิน, PvE เทา/ส้ม)  
-* **รูปภาพ \+ Fallback:** ดึงรูปจาก `unit.image` หากโหลดไม่ได้ให้แสดงพื้นหลังสีฝ่ายพร้อมตัวอักษรย่อ 2–3 ตัวของชื่อ (เช่น `ART`, `MEL`, `GIL`)  
-* **ข้อมูลบนตัวหมาก (มองเห็นได้ทันทีโดยไม่ต้องคลิก):**  
+* วางอยู่กลางช่อง ใช้กรอบสี่เหลี่ยมมนพร้อม **ขอบหนา 3px ตามสีฝ่าย** (Team A rose-500, Team B sky-500, PvE stone-700)  
+* **ข้อมูลบนตัวหมาก (ปรับปรุงสำหรับ Dark Theme):** ป้ายชื่อฉากหลังดำโปร่ง และหลอด HP คมชัดไม่ตัดข้อความ  
   * มุมซ้ายบน: ไอคอนคลาสขนาดเล็ก (Saber, Archer ฯลฯ)  
-  * มุมขวาบน: จุดสีส้มเรืองแสงเมื่อ `npReady: true` หรือไอคอนรูปตาเมื่อ Ruler กด `Reveal`  
+  * มุมขวาบน: จุดสีทองเรืองแสงเมื่อ `npReady: true` หรือไอคอนรูปตาเมื่อ Ruler กด `Reveal`  
   * ด้านล่าง: หลอด HP แนวนอน \+ ตัวเลขคมชัด (`12/14`)  
-  * ด้านบน/ขอบล่าง: แสดง **Custom Buff Tags** เป็นป้าย Pill ขนาดเล็กสูงสุด 2 ป้าย (เช่น `Evade`, `Stun`) และ `+N` หากมีมากกว่า 2 ป้าย  
-* **เมื่อเอาเมาส์ชี้ (Hover Tooltip):** แสดงการ์ดย่อ (ชื่อเต็ม, ATK, MOV, Range, Tags ทั้งหมด)
+  * ด้านบน/ขอบล่าง: แสดง **Custom Buff Tags** เป็นป้าย Pill ขนาดเล็ก
 
 ## **4.4 Overlays ช่วยเล่นบนกระดาน**
 
 1. **Movement & ZoC Highlight (Visual Helper):**  
-   * เมื่อคลิกเลือก Servant บนกระดาน ช่องที่เดินถึงได้ตามระยะ `MOV` (รวมช่อง Gate) จะไฮไลต์ขอบสีเขียวอ่อน  
-   * หากตัวละครติด **Zone of Control (Engaged)** จากศัตรูที่ยืนติด 1 ช่อง ช่องที่เป็นการเดินถอยหนีจะถูกจำกัดระยะ `-1 MOV` และแสดงป้ายเตือนสีส้ม `ZoC (-1)` ให้เห็นชัด (ยกเว้น Assassin)  
-2. **Fog of War Overlay (เฉพาะหน้าจอ Master):**  
-   * หาก `fogConfig.enabled === true` และฝั่งเรายังไม่มี Servant อยู่ใน Base Zone ของศัตรู โซนฐานทัพศัตรูจะถูกคลุมด้วยม่านสีเทาอ่อน (`bg-slate-200/80 backdrop-blur-[2px]`) พร้อมข้อความ *"Fog of War — ส่ง Servant ข้าม Gate เพื่อเปิดพื้นที่"* และซ่อนตัวหมากศัตรูในโซนนั้น (ยกเว้นตัวที่ `isRevealedToEnemy: true`)  
+   * เมื่อคลิกเลือก Servant บนกระดาน ระบบจะไฮไลต์ช่องที่เดินถึงได้โดยคำนวณโบนัสถนน (**`+1 MOV`** เมื่อเริ่มเดินบนถนน) และหักค่าเดิน **`2 MOV`** ของช่องป่า ตึก ซากปรักฯ และแม่น้ำ  
+   * หากติด **Zone of Control (Engaged)** ช่องเดินถอยหนีจะถูกหัก `-1 MOV` พร้อมป้ายเตือนสีส้ม `ZoC (-1)`  
+2. **Fog of War Overlay & Forest Hiding (FogOverlay.tsx):**  
+   * นอกจากซ่อนโซนฐานทัพศัตรูแล้ว ระบบจะ \*\*ซ่อนตัวหมากศัตรูที่ยืนอยู่ในช่องป่า (forest)\*\* บนหน้าจอฝั่ง Master จนกว่าจะมี Servant ฝั่งเรายืนติดระยะ 1 ช่อง หรืออยู่ในป่าเดียวกัน (หรือ Ruler กด Reveal / ใช้ Watchtower)  
 3. **Command Arrow Overlay (เฉพาะหน้าจอ Ruler):**  
-   * เมื่อ Master A หรือ B กดส่งคำสั่งลับ หน้าจอ Ruler จะวาด **SVG Arrow Overlay** ทับบนกระดาน (ลูกศรสีแดง \= Team A, สีน้ำเงิน \= Team B) ชี้จากตำแหน่งปัจจุบันไปยัง `targetPosition` หรือ `targetUnitId` พร้อมป้ายไอคอนแอ็กชันตรงปลายลูกศร  
-   * **Collision Alert:** หากปลายลูกศรของ Team A และ Team B ชี้มาที่พิกัดเดียวกันพอดี ให้ไฮไลต์ช่องนั้นด้วยกรอบเส้นประสีส้มเข้มพร้อมป้าย `COLLISION!` เพื่อให้ Ruler สังเกตเห็นทันที
-
-# **5\. หน้าจอฝั่ง Master (Master A / Master B Specific UI)**
+   * วาด SVG Arrow Overlay บนกระดาน (แดง \= Team A, ฟ้า \= Team B) พร้อมไฮไลต์กรอบประสีส้ม `COLLISION!` เมื่อเป้าหมายตรงกัน
 
 ## **5.1 Left Sidebar (กองทัพและกระเป๋าของตนเอง)**
 
@@ -144,9 +143,9 @@
 
 ## **6.1 Ruler Control Strip (แถบควบคุมพิเศษใต้ Top Bar)**
 
-* **Phase Stepper:** ปุ่มกดเปลี่ยนเฟสตามลำดับ `[Draft]` → `[Event]` → `[Planning]` → `[Resolution]` → **`[End Turn & Next]`**  
-  * ปุ่ม **`End Turn & Next`** จะบวกเลขเทิร์น `+1`, แจก `+2 Mana` ให้ทั้ง 2 ฝั่งอัตโนมัติ (เลือกติ๊กยกเว้นได้หากติด Event `Mana Drought`), และเคลียร์คำสั่งลับ `secrets/master_a`, `master_b`  
-* **สวิตช์ `Free Drag (God-Mode)`:** เปิดไว้เป็นค่าเริ่มต้นให้ Ruler ลากตัวหมากของใครก็ได้ไปวางช่องไหนก็ได้ทันที (ไม่ติดข้อจำกัด MOV หรือ ZoC)  
+* **Phase Stepper & Secret Grail Controller:** ปุ่มกดเปลี่ยนเฟสตามลำดับ `[Draft]` → `[Event]` → `[Planning]` → `[Resolution]` → **`[End Turn & Next]`**  
+  * มีช่องปรับแก้ไขค่า **`Secret Grail Turn (10–12)`** และปุ่มสวิตช์สั่งการสถานะ **`Grail Manifested (จอกจุติ)`** สดๆ เฉพาะหน้าจอ Ruler  
+  * ปุ่ม **`End Turn & Next`** จะบวกเลขเทิร์น `+1`, แจก `+2 Mana` ให้ทั้ง 2 ฝั่งอัตโนมัติ และเคลียร์คำสั่งลับ  
 * **สวิตช์ `Show Command Arrows`:** เปิด-ปิดเส้นลูกศรคำสั่งลับบนกระดาน  
 * **สวิตช์ `Fog of War`:** เปิด-ปิดหมอกสงครามทั้งแมพในคลิกเดียว  
 * **ปุ่ม `Undo` (พร้อมตัวเลข Stack เช่น `Undo (8)`):** ย้อนกลับ Game State ก่อนหน้าจาก Local History Stack ได้ทันทีหากลากพลาดหรือแก้เลขผิด
@@ -194,19 +193,21 @@
   * โหมด Draft: ปุ่ม **`Assign to Team A (แดง)`** / **`Assign to Team B (น้ำเงิน)`** / **`Spawn as Stray Boss`** (กดแล้วตัดชื่อออกจาก `draftPoolRemaining` อัตโนมัติ)  
   * โหมด Map Event: ปุ่ม **`Set as Active Turn Event`** (นำข้อความไปขึ้นแถบ Top Bar HUD ทันที)
 
-## **7.2 Dice Roller Modal & Broadcast Toast (1d6)**
+## **7.2 Grail Absorption Banner (GrailAbsorptionBanner.tsx)**
 
-* ใครก็ได้ในห้อง (Ruler หรือ Master) สามารถเปิดปุ่ม `Dice 1d6`, ใส่ป้ายกำกับสั้นๆ (เช่น *"Artoria Attack"* หรือ *"QP Cache"*), แล้วกด **`Roll 1d6`**  
-* ผลลัพธ์จะอัปเดตผ่าน `diceBroadcast` และเด้งเป็น **Notification Toast** มุมขวาล่างบนจอทั้ง 3 คนพร้อมกัน แสดงเลขลูกเต๋าขนาดใหญ่และแปลผล Combat Bonus ให้อัตโนมัติ (`1–2: +0`, `3–4: +1`, `5–6: +2 CRIT!`) พร้อมบันทึกลง Game Log
+* แบนเนอร์ป๊อปอัปสีทอง-ดำเด้งขึ้นกลางจอทั้ง 3 เครื่องพร้อมกันทุกครั้งที่มี Servant ถูกเปลี่ยนสถานะเป็น `Defeated`:  
+  1. *"วิญญาณวีรชน \[ชื่อ Servant\] ถูกจอกศักดิ์สิทธิ์กลืนกินแล้ว... (ภาชนะจอก X / 5)"*  
+* เมื่อสะสมดวงวิญญาณครบ **`5 / 5`** หรือถึงเทิร์นลับ `secretGrailTurn` แบนเนอร์จะแสดงเอฟเฟกต์พิเศษอลังการแจ้งเตือนว่า **"จอกศักดิ์สิทธิ์ได้จุติลง ณ ใจกลางฟุยุกิแล้ว\!"**
 
-## **7.3 Servant Catalog & Reference Modal**
+## **7.3 Dice Roller Modal & Broadcast Toast (1d6)**
 
-* หน้าต่างขนาดใหญ่แบบ 3 แท็บย่อย:  
-  1. **`Servants (32+)`:** ช่องค้นหาชื่อ \+ ปุ่มกรองตามคลาส (Saber, Archer, Lancer, Rider, Caster, Assassin, Berserker) แสดงเป็น Grid การ์ดสีขาวขอบดำ บอก HP, ATK, MOV, Range, Skill, NP และป้ายสถานะว่าตัวไหนถูกดราฟต์ไปแล้ว (`Team A` / `Team B` / `In Pool`)  
-  2. **`Mystic Codes (QP Shop)`:** ตารางรายการไอเทมทั้งหมด ราคา QP และคำอธิบายเอฟเฟกต์  
-  3. **`Quick Rules`:** สรุปกติกาสำคัญ 1 หน้า (สูตร 1d6, ZoC, ลำดับ Priority 1–4, ผลเรย์จู) เพื่อให้อ้างอิงระหว่างเล่นได้ทันทีโดยไม่ต้องสลับหน้าต่าง
+* ทอยเต๋าพร้อม Toast แจ้งเตือนมุมขวาล่าง ซิงก์ผล real-time 3 หน้าจอ
 
-## **7.4 Game Log Drawer**
+## **7.4 Servant Catalog & Reference Modal (43 Servants)**
+
+* หน้าต่างค้นหาและดูข้อมูลวีรชน **`43 Servants`** แยกตามคลาส พร้อมตาราง Mystic Codes และกติกาย่อ 1 หน้า
+
+## **7.5 Game Log Drawer**
 
 * แถบ Slide-over ด้านขวา แสดงประวัติการเล่นล่าสุด 50 รายการ แบ่งกลุ่มตามหมายเลขเทิร์น มีตัวกรองดูเฉพาะ `Combat/Dice`, `Events`, หรือ `All`
 
@@ -216,9 +217,9 @@
 
 | โฟลเดอร์ | ชื่อ Component หลัก | หน้าที่สำคัญ |
 | :---- | :---- | :---- |
-| `components/lobby/` | `LobbyView.tsx`, `SeatSelector.tsx` | สร้างห้อง, กรอก Room Code, จอง/รีจอยที่นั่ง |
-| `components/board/` | `GameBoard.tsx`, `ZoneTabs.tsx`, `GridTile.tsx`, `UnitToken.tsx`, `CommandArrowsSvg.tsx`, `FogOverlay.tsx` | เรนเดอร์กระดาน 6x6, Drag & Drop (`@dnd-kit/core`), ไฮไลต์ MOV/ZoC, วาดลูกศร SVG และ Fog |
+| `components/lobby/` | `LobbyView.tsx`, `SeatSelector.tsx` | สร้างห้องพร้อมสุ่ม secretGrailTurn (10-12), จอง/รีจอยที่นั่ง |
+| `components/board/` | `GameBoard.tsx`, `ZoneTabs.tsx`, `GridTile.tsx`, `UnitToken.tsx`, `CommandArrowsSvg.tsx`, `FogOverlay.tsx`, `TileInfoTooltip.tsx` | เรนเดอร์กระดาน 10x7, ภูมิประเทศ 2 ชั้น \+ ชื่อภาษาไทย, ซ่อนตัวในป่า, Tooltip คำอธิบาย |
 | `components/master/` | `MasterRosterSidebar.tsx`, `SecretCommandPanel.tsx` | แสดง Active/Reserve/Inventory และฟอร์มส่งคำสั่งลับ 3 ช่อง \+ ปุ่ม Lock Turn |
-| `components/ruler/` | `RulerControlStrip.tsx`, `RulerToolsSidebar.tsx`, `UnitInspectorPanel.tsx`, `SecretOrdersViewer.tsx`, `TilePopover.tsx` | แผง God-Mode ทั้งหมด, แก้สเตตัส/Tag, จัดการทรัพยากร, เสกมอนสเตอร์ และปุ่ม Undo |
-| `components/modals/` | `WheelModal.tsx`, `DiceModal.tsx`, `DiceToast.tsx`, `CatalogModal.tsx`, `GameLogDrawer.tsx` | วงล้อสุ่มแบบซิงก์ 3 จอ, ลูกเต๋า 1d6, คลังข้อมูล 32+ Servant และแถบ Log |
+| `components/ruler/` | `RulerControlStrip.tsx`, `RulerToolsSidebar.tsx`, `UnitInspectorPanel.tsx`, `SecretOrdersViewer.tsx`, `TilePopover.tsx` | แผง God-Mode, ตั้งค่า Secret Grail Turn (10-12), สวิตช์ Grail Manifested และ Undo |
+| `components/modals/` | `WheelModal.tsx`, `DiceModal.tsx`, `DiceToast.tsx`, `CatalogModal.tsx`, `GrailAbsorptionBanner.tsx`, `GameLogDrawer.tsx` | วงล้อสุ่ม, ลูกเต๋า 1d6, คลัง 43 Servants, แบนเนอร์จอกกลืนกินวิญญาณ 5/5 และ Log |
 

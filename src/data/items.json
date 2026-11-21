@@ -60,7 +60,7 @@
     "name": "Saint Quartz",
     "rarity": "rare",
     "qpCost": 8,
-    "effectDesc": "ชุบชีวิต Servant ที่ถูกกำจัดไปแล้ว 1 ตนกลับมาที่ Base Zone ด้วย HP ครึ่งหลอด (ปัดขึ้น) และลดยอด Kills ของศัตรูลง 1",
+    "effectDesc": "ชุบชีวิต Servant ที่ถูกกำจัดไปแล้ว 1 ตนกลับมาที่ Base Zone ด้วย HP ครึ่งหลอด (ปัดขึ้น) และลดยอด Kills ของศัตรูลง 1 (แต่ไม่ลดจำนวนวิญญาณใน ภาชนะจอกศักดิ์สิทธิ์ ที่ถูกกลืนไปแล้ว หรือให้ขึ้นอยู่กับ Ruler)",
     "icon": "/assets/items/saint_quartz.webp"
   }
 ]

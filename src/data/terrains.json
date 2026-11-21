@@ -1,0 +1,69 @@
+[
+  {
+    "id": "open",
+    "label": "ที่โล่ง",
+    "moveCost": 1,
+    "startRoadBonus": 0,
+    "combatNote": "ไม่มีบัฟหรือดีบัฟ มองเห็นชัดเจน",
+    "stealth": false,
+    "highGround": false,
+    "bgColor": "#1A2421",
+    "icon": "plains"
+  },
+  {
+    "id": "road",
+    "label": "ถนน",
+    "moveCost": 1,
+    "startRoadBonus": 1,
+    "combatNote": "เมื่อเริ่มเคลื่อนที่จากช่องถนน ได้รับโบนัส +1 MOV ในเทิร์นนั้น (สูงสุด +1/เทิร์น)",
+    "stealth": false,
+    "highGround": false,
+    "bgColor": "#1E2430",
+    "icon": "road"
+  },
+  {
+    "id": "building",
+    "label": "ตึก",
+    "moveCost": 2,
+    "sameTerrainMoveCost": 1,
+    "startRoadBonus": 0,
+    "combatNote": "ปีนขึ้นจากพื้นราบใช้ 2 MOV (ข้ามตึกติดกันใช้ 1) | High Ground: โจมตีพื้นล่าง +1 ATK และคลาสตีไกล +1 Range",
+    "stealth": false,
+    "highGround": true,
+    "bgColor": "#242B3D",
+    "icon": "building"
+  },
+  {
+    "id": "forest",
+    "label": "ป่า",
+    "moveCost": 2,
+    "startRoadBonus": 0,
+    "combatNote": "เดินเข้าใช้ 2 MOV | Stealth: ศัตรูที่อยู่นอกป่ามองไม่เห็นจนกว่าจะประชิด 1 ช่องหรือเข้าป่า และลดดาเมจตีไกลจากนอกป่า -1",
+    "stealth": true,
+    "highGround": false,
+    "bgColor": "#132A1E",
+    "icon": "trees"
+  },
+  {
+    "id": "ruins",
+    "label": "ซากปรักฯ",
+    "moveCost": 1,
+    "startRoadBonus": 0,
+    "combatNote": "Cover: ลดความเสียหายจากการโจมตีปกติที่ได้รับลง 1 หน่วย",
+    "stealth": false,
+    "highGround": false,
+    "bgColor": "#29231E",
+    "icon": "landmark"
+  },
+  {
+    "id": "water",
+    "label": "แม่น้ำ",
+    "moveCost": 2,
+    "startRoadBonus": 0,
+    "combatNote": "เดินผ่านใช้ 2 MOV | Exposed: ไม่มีที่กำบัง รับความเสียหายเพิ่มขึ้น +1 หากสู้ในน้ำ",
+    "stealth": false,
+    "highGround": false,
+    "bgColor": "#0F2537",
+    "icon": "waves"
+  }
+]

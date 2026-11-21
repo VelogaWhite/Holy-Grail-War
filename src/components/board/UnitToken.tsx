@@ -23,8 +23,9 @@ export function UnitToken({ unit, isSelected, onSelect }: UnitTokenProps) {
   const classIconUrl = getClassIconUrl(unit.servantClass, unit.subClass);
   const hpPercent = Math.max(0, Math.min(100, (unit.hp / Math.max(1, unit.maxHp)) * 100));
 
-  const visibleTags = unit.tags.slice(0, 2);
-  const extraTags = unit.tags.length - visibleTags.length;
+  const primaryTag = unit.tags[0];
+  const extraTags = unit.tags.length > 1 ? unit.tags.length - 1 : 0;
+  const shortName = unit.name.split(' ')[0];
 
   return (
     <button
@@ -33,16 +34,16 @@ export function UnitToken({ unit, isSelected, onSelect }: UnitTokenProps) {
         e.stopPropagation();
         onSelect();
       }}
-      className={`group relative flex h-[86%] w-[86%] flex-col items-center justify-center rounded-lg border-[3px] bg-white shadow-sm transition ${
+      className={`group relative flex h-[88%] w-[88%] flex-col items-center justify-center rounded-md border-[2.5px] bg-slate-900 shadow-md transition ${
         faction.border
       } ${
         isSelected
-          ? 'ring-3 ring-orange-500 ring-offset-1 scale-[1.03] z-20'
-          : 'hover:scale-[1.03] hover:z-20'
+          ? 'z-20 scale-[1.04] ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-950'
+          : 'hover:z-20 hover:scale-[1.04]'
       }`}
     >
       {/* Portrait or Initials Fallback */}
-      <div className="relative h-full w-full overflow-hidden rounded-[5px]">
+      <div className="relative h-full w-full overflow-hidden rounded-[4px]">
         {imageUrl && !imgError ? (
           <img
             src={imageUrl}
@@ -55,36 +56,28 @@ export function UnitToken({ unit, isSelected, onSelect }: UnitTokenProps) {
           <div
             className={`flex h-full w-full flex-col items-center justify-center ${faction.bg} text-white`}
           >
-            <span className="text-sm font-black tracking-tight">
+            <span className="text-xs font-black tracking-tight">
               {getInitials(unit.name)}
             </span>
-            {unit.servantClass && (
-              <span className="text-[9px] font-semibold opacity-85">
-                {unit.subClass || unit.servantClass}
-              </span>
-            )}
           </div>
         )}
 
-        {/* Bottom gradient for readable HP bar */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-black/85 via-black/50 to-transparent" />
-
-        {/* Bottom HP bar + crisp numeric label */}
-        <div className="pointer-events-none absolute inset-x-1 bottom-0.5 flex flex-col gap-0.5">
-          <div className="flex items-center justify-between px-0.5 text-[9px] font-black leading-none text-white drop-shadow">
-            <span className="truncate max-w-[65%]">{unit.name.split(' ')[0]}</span>
-            <span>
+        {/* High-contrast dark backdrop for Name + HP bar */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-slate-950/90 px-1 pt-0.5 pb-0.5">
+          <div className="flex items-center justify-between gap-0.5 text-[8.5px] font-extrabold leading-none text-slate-100">
+            <span className="truncate">{shortName}</span>
+            <span className="shrink-0 font-mono text-amber-300">
               {unit.hp}/{unit.maxHp}
             </span>
           </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-900/80">
+          <div className="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-slate-800">
             <div
               className={`h-full transition-all ${
                 hpPercent > 50
                   ? 'bg-emerald-400'
                   : hpPercent > 25
                     ? 'bg-amber-400'
-                    : 'bg-red-500'
+                    : 'bg-rose-500'
               }`}
               style={{ width: `${hpPercent}%` }}
             />
@@ -96,7 +89,7 @@ export function UnitToken({ unit, isSelected, onSelect }: UnitTokenProps) {
       {classIconUrl && !classIconError && (
         <div
           title={unit.subClass ? `${unit.servantClass} (${unit.subClass})` : unit.servantClass}
-          className="absolute -top-1.5 -left-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-slate-900 bg-slate-950 p-0.5 shadow"
+          className="absolute -top-1.5 -left-1.5 flex h-4 w-4 items-center justify-center rounded-full border border-amber-400/70 bg-slate-950 p-0.5 shadow"
         >
           <img
             src={classIconUrl}
@@ -112,7 +105,7 @@ export function UnitToken({ unit, isSelected, onSelect }: UnitTokenProps) {
         {unit.npReady && (
           <span
             title="NP Ready"
-            className="flex h-4 w-4 items-center justify-center rounded-full border border-white bg-orange-500 text-white shadow"
+            className="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-slate-950 bg-amber-400 text-slate-950 shadow-[0_0_6px_rgba(251,191,36,0.9)]"
           >
             <Sparkles className="h-2.5 w-2.5" />
           </span>
@@ -120,26 +113,21 @@ export function UnitToken({ unit, isSelected, onSelect }: UnitTokenProps) {
         {unit.isRevealedToEnemy && unit.unitType === 'servant' && (
           <span
             title="Revealed through Fog"
-            className="flex h-4 w-4 items-center justify-center rounded-full border border-white bg-slate-900 text-white shadow"
+            className="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-slate-950 bg-cyan-400 text-slate-950 shadow"
           >
             <Eye className="h-2.5 w-2.5" />
           </span>
         )}
       </div>
 
-      {/* Top Tag Pills (max 2 + "+N") */}
-      {visibleTags.length > 0 && (
-        <div className="pointer-events-none absolute -bottom-2.5 inset-x-0 flex items-center justify-center gap-0.5">
-          {visibleTags.map((tag) => (
-            <span
-              key={tag}
-              className="max-w-[52px] truncate rounded bg-slate-900 px-1 py-px text-[8px] font-bold text-orange-300 shadow"
-            >
-              {tag}
-            </span>
-          ))}
+      {/* Compact Top-Center Tag Pill (stays neatly inside tile) */}
+      {primaryTag && (
+        <div className="pointer-events-none absolute top-0.5 inset-x-3 flex items-center justify-center gap-0.5">
+          <span className="max-w-full truncate rounded bg-slate-950/90 px-1 py-px text-[7.5px] font-bold text-amber-300 ring-1 ring-amber-400/40">
+            {primaryTag}
+          </span>
           {extraTags > 0 && (
-            <span className="rounded bg-orange-500 px-1 py-px text-[8px] font-bold text-white shadow">
+            <span className="shrink-0 rounded bg-amber-400 px-1 py-px text-[7.5px] font-black text-slate-950">
               +{extraTags}
             </span>
           )}
@@ -147,14 +135,14 @@ export function UnitToken({ unit, isSelected, onSelect }: UnitTokenProps) {
       )}
 
       {/* Hover Quick Tooltip */}
-      <div className="pointer-events-none absolute bottom-full left-1/2 z-40 mb-2 hidden w-44 -translate-x-1/2 rounded-lg border-2 border-slate-900 bg-white p-2 text-left text-[11px] text-slate-900 shadow-lg group-hover:block">
-        <div className="font-extrabold leading-tight">{unit.name}</div>
-        <div className="mt-0.5 text-[10px] font-semibold text-slate-500">
+      <div className="pointer-events-none absolute bottom-full left-1/2 z-40 mb-2 hidden w-44 -translate-x-1/2 rounded-lg border border-amber-400/70 bg-slate-900 p-2 text-left text-[11px] text-slate-100 shadow-xl group-hover:block">
+        <div className="font-black leading-tight text-amber-300">{unit.name}</div>
+        <div className="mt-0.5 text-[10px] font-semibold text-slate-400">
           {unit.unitType === 'servant'
             ? `${unit.servantClass}${unit.subClass ? ` • ${unit.subClass}` : ''}`
             : 'Neutral PvE Monster'}
         </div>
-        <div className="mt-1.5 grid grid-cols-3 gap-1 rounded bg-slate-100 px-1.5 py-1 text-center text-[10px] font-bold">
+        <div className="mt-1.5 grid grid-cols-3 gap-1 rounded bg-slate-950 px-1.5 py-1 text-center text-[10px] font-bold text-slate-200">
           <span>ATK {unit.atk}</span>
           <span>MOV {unit.mov}</span>
           <span>RNG {unit.range ?? 1}</span>
@@ -164,7 +152,7 @@ export function UnitToken({ unit, isSelected, onSelect }: UnitTokenProps) {
             {unit.tags.map((t) => (
               <span
                 key={t}
-                className="rounded bg-orange-100 px-1 py-0.5 text-[9px] font-bold text-orange-800"
+                className="rounded bg-amber-400/20 px-1 py-0.5 text-[9px] font-bold text-amber-300"
               >
                 {t}
               </span>

@@ -28,15 +28,15 @@ function ServantCard({
 
   const badge =
     draftStatus === 'team_a'
-      ? { text: 'Team A', cls: 'bg-red-600 text-white' }
+      ? { text: 'Team A', cls: 'bg-rose-600 text-white' }
       : draftStatus === 'team_b'
-        ? { text: 'Team B', cls: 'bg-blue-600 text-white' }
-        : { text: 'In Pool', cls: 'bg-slate-200 text-slate-700' };
+        ? { text: 'Team B', cls: 'bg-sky-600 text-white' }
+        : { text: 'In Pool', cls: 'bg-slate-800 text-slate-300 border border-slate-700' };
 
   return (
-    <div className="flex flex-col rounded-xl border-2 border-slate-900 bg-white p-3 shadow-xs transition hover:border-orange-500">
+    <div className="flex flex-col rounded-xl border border-slate-700 bg-slate-900 p-3 shadow-sm transition hover:border-amber-400">
       <div className="flex items-start gap-2.5">
-        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 border-slate-900 bg-slate-100">
+        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 border-slate-700 bg-slate-950">
           {imgUrl && !imgErr ? (
             <img
               src={imgUrl}
@@ -46,7 +46,7 @@ function ServantCard({
               loading="lazy"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-slate-800 text-xs font-black text-white">
+            <div className="flex h-full w-full items-center justify-center bg-slate-800 text-xs font-black text-slate-200">
               {getInitials(servant.name)}
             </div>
           )}
@@ -54,7 +54,7 @@ function ServantCard({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-1">
-            <h4 className="truncate text-sm font-black text-slate-950" title={servant.name}>
+            <h4 className="truncate text-sm font-black text-slate-100" title={servant.name}>
               {servant.name}
             </h4>
             <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${badge.cls}`}>
@@ -62,12 +62,12 @@ function ServantCard({
             </span>
           </div>
 
-          <div className="mt-0.5 flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
+          <div className="mt-0.5 flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
             {classIconUrl && (
               <img
                 src={classIconUrl}
                 alt={servant.servantClass}
-                className="h-4 w-4 rounded-full bg-slate-900 object-contain p-0.5"
+                className="h-4 w-4 rounded-full border border-amber-400/30 bg-slate-950 object-contain p-0.5"
               />
             )}
             <span>
@@ -76,7 +76,7 @@ function ServantCard({
             </span>
           </div>
 
-          <div className="mt-1.5 grid grid-cols-4 gap-1 rounded bg-slate-100 px-1.5 py-1 text-center text-[10px] font-black text-slate-900">
+          <div className="mt-1.5 grid grid-cols-4 gap-1 rounded bg-slate-950 px-1.5 py-1 text-center text-[10px] font-black text-slate-200">
             <span>HP {servant.hp}</span>
             <span>ATK {servant.atk}</span>
             <span>MOV {servant.mov}</span>
@@ -86,27 +86,27 @@ function ServantCard({
       </div>
 
       {/* Skill */}
-      <div className="mt-2.5 rounded-md border border-slate-200 bg-slate-50 p-2 text-[11px]">
-        <div className="flex items-center justify-between gap-1 font-extrabold text-slate-900">
+      <div className="mt-2.5 rounded-md border border-slate-800 bg-slate-950/70 p-2 text-[11px]">
+        <div className="flex items-center justify-between gap-1 font-extrabold text-cyan-300">
           <span className="flex items-center gap-1 truncate">
-            <Sparkles className="h-3 w-3 shrink-0 text-sky-600" />
+            <Sparkles className="h-3 w-3 shrink-0 text-cyan-400" />
             {servant.skillName}
           </span>
-          <span className="shrink-0 text-[10px] text-sky-700">{servant.skillCost}M</span>
+          <span className="shrink-0 text-[10px] text-cyan-400">{servant.skillCost}M</span>
         </div>
-        <p className="mt-0.5 leading-snug text-slate-700">{servant.skillDesc}</p>
+        <p className="mt-0.5 leading-snug text-slate-300">{servant.skillDesc}</p>
       </div>
 
       {/* NP */}
-      <div className="mt-1.5 rounded-md border border-orange-300 bg-orange-50/70 p-2 text-[11px]">
-        <div className="flex items-center justify-between gap-1 font-extrabold text-orange-950">
+      <div className="mt-1.5 rounded-md border border-amber-400/40 bg-amber-950/25 p-2 text-[11px]">
+        <div className="flex items-center justify-between gap-1 font-extrabold text-amber-300">
           <span className="flex items-center gap-1 truncate">
-            <Flame className="h-3 w-3 shrink-0 text-orange-600" />
+            <Flame className="h-3 w-3 shrink-0 text-amber-400" />
             {servant.npName}
           </span>
-          <span className="shrink-0 text-[10px] text-orange-700">{servant.npCost}M</span>
+          <span className="shrink-0 text-[10px] text-amber-400">{servant.npCost}M</span>
         </div>
-        <p className="mt-0.5 leading-snug text-slate-800">{servant.npDesc}</p>
+        <p className="mt-0.5 leading-snug text-amber-100/90">{servant.npDesc}</p>
       </div>
     </div>
   );
@@ -117,8 +117,8 @@ function ItemCard({ item }: { item: ItemTemplate }) {
   const iconUrl = resolveAssetUrl(item.icon);
 
   return (
-    <div className="flex items-start gap-3 rounded-xl border-2 border-slate-900 bg-white p-3">
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-300 bg-slate-50">
+    <div className="flex items-start gap-3 rounded-xl border border-slate-700 bg-slate-900 p-3">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-700 bg-slate-950">
         {iconUrl && !imgErr ? (
           <img
             src={iconUrl}
@@ -127,14 +127,14 @@ function ItemCard({ item }: { item: ItemTemplate }) {
             className="h-10 w-10 object-contain"
           />
         ) : (
-          <Package className="h-6 w-6 text-orange-500" />
+          <Package className="h-6 w-6 text-amber-400" />
         )}
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <h4 className="text-sm font-black text-slate-950">{item.name}</h4>
-          <span className="flex shrink-0 items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-black text-amber-900">
+          <h4 className="text-sm font-black text-slate-100">{item.name}</h4>
+          <span className="flex shrink-0 items-center gap-1 rounded-md border border-amber-400/40 bg-amber-400/15 px-2 py-0.5 text-xs font-black text-amber-300">
             <img
               src="/assets/items/qp.webp"
               alt="QP"
@@ -149,13 +149,13 @@ function ItemCard({ item }: { item: ItemTemplate }) {
         <span
           className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${
             item.rarity === 'rare'
-              ? 'bg-orange-500 text-white'
-              : 'bg-slate-200 text-slate-700'
+              ? 'bg-amber-400 text-slate-950'
+              : 'bg-slate-800 text-slate-300'
           }`}
         >
           {item.rarity}
         </span>
-        <p className="mt-1.5 text-xs leading-relaxed text-slate-700">{item.effectDesc}</p>
+        <p className="mt-1.5 text-xs leading-relaxed text-slate-300">{item.effectDesc}</p>
       </div>
     </div>
   );
@@ -199,25 +199,28 @@ export function CatalogModal() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-[1px]"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Servant Catalog & Holy Grail Reference"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-xs"
       onClick={() => setCatalogOpen(false)}
     >
       <div
-        className="flex h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border-2 border-slate-900 bg-slate-50 shadow-2xl"
+        className="flex h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border-2 border-amber-400/60 bg-slate-950 text-slate-100 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b-2 border-slate-900 bg-white px-5 py-3">
+        <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-5 py-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-orange-500 text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-amber-400 text-slate-950">
               <BookOpen className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-base font-black text-slate-950">
+              <h2 className="text-base font-black text-amber-300">
                 Servant Catalog & Holy Grail Reference
               </h2>
-              <p className="text-xs text-slate-500">
-                คลังข้อมูล Servant ทั้งหมด {SERVANTS.length} ตน, ร้านค้า Mystic Codes และสรุปกติกา
+              <p className="text-xs text-slate-400">
+                คลังข้อมูล Servant ทั้งหมด {SERVANTS.length} ตน, ร้านค้า Mystic Codes และสรุปกติกา 10×7
               </p>
             </div>
           </div>
@@ -225,21 +228,22 @@ export function CatalogModal() {
           <button
             type="button"
             onClick={() => setCatalogOpen(false)}
-            className="rounded-lg border border-slate-300 bg-slate-100 p-1.5 text-slate-700 transition hover:border-slate-900 hover:bg-slate-200"
+            aria-label="ปิดหน้าต่าง"
+            className="rounded-lg border border-slate-700 bg-slate-800 p-1.5 text-slate-300 transition hover:border-amber-400 hover:text-amber-300"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Sub-Tabs */}
-        <div className="flex items-center gap-2 border-b border-slate-300 bg-white px-5 pt-2">
+        <div className="flex items-center gap-2 border-b border-slate-800 bg-slate-900 px-5 pt-2">
           <button
             type="button"
             onClick={() => setActiveTab('servants')}
             className={`flex items-center gap-1.5 border-b-4 px-4 py-2 text-xs font-black transition ${
               activeTab === 'servants'
-                ? 'border-orange-500 text-orange-600'
-                : 'border-transparent text-slate-600 hover:text-slate-900'
+                ? 'border-amber-400 text-amber-400'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <Sparkles className="h-3.5 w-3.5" />
@@ -250,8 +254,8 @@ export function CatalogModal() {
             onClick={() => setActiveTab('shop')}
             className={`flex items-center gap-1.5 border-b-4 px-4 py-2 text-xs font-black transition ${
               activeTab === 'shop'
-                ? 'border-orange-500 text-orange-600'
-                : 'border-transparent text-slate-600 hover:text-slate-900'
+                ? 'border-amber-400 text-amber-400'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <ShoppingBag className="h-3.5 w-3.5" />
@@ -262,8 +266,8 @@ export function CatalogModal() {
             onClick={() => setActiveTab('rules')}
             className={`flex items-center gap-1.5 border-b-4 px-4 py-2 text-xs font-black transition ${
               activeTab === 'rules'
-                ? 'border-orange-500 text-orange-600'
-                : 'border-transparent text-slate-600 hover:text-slate-900'
+                ? 'border-amber-400 text-amber-400'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <BookOpen className="h-3.5 w-3.5" />
@@ -284,7 +288,7 @@ export function CatalogModal() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="ค้นหาชื่อ Servant, สกิล, โฮกุ หรือคลาสย่อย..."
-                    className="w-full rounded-lg border-2 border-slate-300 bg-white py-1.5 pr-3 pl-9 text-xs font-semibold text-slate-950 focus:border-orange-500 focus:outline-none"
+                    className="w-full rounded-lg border border-slate-700 bg-slate-900 py-1.5 pr-3 pl-9 text-xs font-semibold text-slate-100 placeholder:text-slate-500 focus:border-amber-400 focus:outline-none"
                   />
                 </div>
 
@@ -294,8 +298,8 @@ export function CatalogModal() {
                     onClick={() => setSelectedClass('ALL')}
                     className={`rounded-md border px-2.5 py-1 text-xs font-bold transition ${
                       selectedClass === 'ALL'
-                        ? 'border-slate-900 bg-slate-900 text-white'
-                        : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                        ? 'border-amber-400 bg-amber-400 text-slate-950'
+                        : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500'
                     }`}
                   >
                     All ({SERVANTS.length})
@@ -307,14 +311,14 @@ export function CatalogModal() {
                       onClick={() => setSelectedClass(cls.id)}
                       className={`flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-bold transition ${
                         selectedClass === cls.id
-                          ? 'border-orange-600 bg-orange-500 text-white'
-                          : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                          ? 'border-amber-400 bg-amber-400 text-slate-950'
+                          : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500'
                       }`}
                     >
                       <img
                         src={cls.icon}
                         alt={cls.label}
-                        className="h-3.5 w-3.5 rounded-full bg-slate-900 object-contain p-0.5"
+                        className="h-3.5 w-3.5 rounded-full bg-slate-950 object-contain p-0.5"
                       />
                       <span>{cls.label}</span>
                     </button>
@@ -342,9 +346,9 @@ export function CatalogModal() {
 
           {activeTab === 'shop' && (
             <div>
-              <p className="mb-3 text-xs font-semibold text-slate-600">
+              <p className="mb-3 text-xs font-semibold text-slate-400">
                 สามารถซื้อไอเทมได้เมื่อ Servant ยืนอยู่ที่ช่อง{' '}
-                <strong className="text-emerald-700">Safe House / Fuyuki Church</strong>{' '}
+                <strong className="text-emerald-400">Safe House / Fuyuki Church</strong>{' '}
                 หรือได้รับจากการกำจัดมอนสเตอร์ PvE / Personal Events
               </p>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -357,54 +361,64 @@ export function CatalogModal() {
 
           {activeTab === 'rules' && (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="rounded-xl border-2 border-slate-900 bg-white p-4">
-                <h3 className="text-sm font-black text-orange-600">1. เงื่อนไขการชนะ (Win Conditions)</h3>
-                <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-800">
+              <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
+                <h3 className="text-sm font-black text-amber-400">
+                  1. เงื่อนไขการชนะ & จอกศักดิ์สิทธิ์จุติ
+                </h3>
+                <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-300">
                   <li>
-                    <strong>ยึดครองจอกศักดิ์สิทธิ์ (Grail Conquest):</strong> จอกเกิดเทิร์น 10 กลางโซน Central — ยืนคุมพื้นที่ครบ <strong>2 เทิร์นติด</strong> โดยไม่มีศัตรูในช่องเดียวกัน ชนะทันที
+                    <strong className="text-slate-100">Soul Trigger (ภาชนะจอก 5/5):</strong>{' '}
+                    เมื่อมี Servant ถูกกำจัดรวมทั้ง 2 ฝั่งครบ <strong>5 ตน</strong> จอกจุติทันทีที่ Central (4,3)/(5,3)
                   </li>
                   <li>
-                    <strong>กวาดล้างศัตรู (Total Elimination):</strong> สังหาร Servant ฝ่ายตรงข้ามครบ <strong>4 ตน</strong> (จาก 6 ตน) ชนะทันที
-                  </li>
-                </ul>
-              </div>
-
-              <div className="rounded-xl border-2 border-slate-900 bg-white p-4">
-                <h3 className="text-sm font-black text-orange-600">2. สูตรต่อสู้ 1d6 & Guard</h3>
-                <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-800">
-                  <li>
-                    <strong>โจมตีปกติ:</strong> <code>ATK + 1d6 Bonus</code> → ทอย 1–2 (+0), ทอย 3–4 (+1), ทอย 5–6 (<strong>+2 CRIT!</strong>)
+                    <strong className="text-slate-100">Secret Turn Trigger:</strong> สุ่มเทิร์นลับ <strong>10, 11 หรือ 12</strong> (เห็นเฉพาะ Ruler) หากถึงเทิร์นลับจอกจุติทันที
                   </li>
                   <li>
-                    <strong>Guard (ตั้งรับ):</strong> ลดความเสียหายทั้งหมดในเทิร์นนั้นลงครึ่งหนึ่ง (ปัดเศษดาเมจที่โดนลง เช่น 5 เหลือ 2)
-                  </li>
-                  <li>
-                    <strong>ค่าหัวสังหาร (Bounty):</strong> ฆ่า Servant ศัตรูได้ <strong>+4 Mana</strong> และ <strong>+3 QP</strong> ทันที
+                    <strong className="text-slate-100">ยึดครองจอก / Wipeout:</strong> ยืนคุมช่องจอกครบ <strong>2 เทิร์นติด</strong> หรือสังหารศัตรูครบ <strong>6/6 ตน</strong> ชนะทันที
                   </li>
                 </ul>
               </div>
 
-              <div className="rounded-xl border-2 border-slate-900 bg-white p-4">
-                <h3 className="text-sm font-black text-orange-600">3. ลำดับเฉลยผล (Priority 1 → 4)</h3>
-                <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-slate-800">
-                  <li><strong>Priority 1:</strong> Command Spells, Guard, Buffs & Tag-Out</li>
-                  <li><strong>Priority 2:</strong> Simultaneous Movement (เช็ก ZoC ก่อนเดิน; ชนช่องเดียวกันหยุดประจันหน้า)</li>
-                  <li><strong>Priority 3:</strong> Combat, Skill, NP (เช็กระยะหลังเป้าหมายเดินจบ — Anti-Whiff) & PvE Counter</li>
-                  <li><strong>Priority 4:</strong> Tile Effects (Leyline, QP, Event, Safe House) & อัปเดตจอก/จบเทิร์น</li>
-                </ol>
+              <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
+                <h3 className="text-sm font-black text-amber-400">
+                  2. ระบบภูมิประเทศ 2 ชั้น (10×7)
+                </h3>
+                <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-300">
+                  <li><strong className="text-slate-100">ถนน (Road):</strong> 1 MOV • เริ่มเคลื่อนที่จากถนนได้ <strong>+1 MOV</strong></li>
+                  <li><strong className="text-slate-100">ตึก (Building):</strong> ปีน 2 MOV / ข้ามตึก 1 MOV • High Ground <strong>+1 ATK</strong>, ตีไกล <strong>+1 Range</strong></li>
+                  <li><strong className="text-emerald-400">ป่า (Forest):</strong> 2 MOV • <strong>Stealth</strong> ซ่อนตัวจากศัตรูนอกป่า & ลดดาเมจตีไกล -1</li>
+                  <li><strong className="text-amber-300">ซากปรักฯ (Ruins):</strong> 1 MOV • Cover ลดดาเมจโจมตีปกติ -1</li>
+                  <li><strong className="text-sky-400">แม่น้ำ (Water):</strong> 2 MOV • Exposed รับดาเมจเพิ่ม +1</li>
+                </ul>
               </div>
 
-              <div className="rounded-xl border-2 border-slate-900 bg-white p-4">
-                <h3 className="text-sm font-black text-orange-600">4. Zone of Control (ZoC) & Command Spells</h3>
-                <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-800">
+              <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
+                <h3 className="text-sm font-black text-amber-400">
+                  3. สูตรต่อสู้ 1d6, Guard & ลำดับ Priority 1 → 4
+                </h3>
+                <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-300">
                   <li>
-                    <strong>ZoC:</strong> หากเริ่มเทิร์นยืนติดศัตรู 1 ช่อง การเดินหนีออกห่างลดระยะเดิน <strong>-1 MOV</strong> (ขั้นต่ำ 1 ช่อง) — <strong>Assassin ไม่ติดโทษ ZoC</strong>
+                    <strong className="text-slate-100">โจมตีปกติ:</strong> <code>ATK + 1d6</code> → 1–2 (+0), 3–4 (+1), 5–6 (<strong className="text-amber-400">+2 CRIT!</strong>) • <strong>Guard</strong> ลดดาเมจครึ่งหนึ่ง (ปัดลง)
                   </li>
                   <li>
-                    <strong>เรย์จู 1 ขีด:</strong> วาร์ปกลับฐาน / ยกเลิก ZoC หนีเต็มระยะ / โจมตีปกติซ้ำ 2 ครั้ง / บวก +3 Mana ทันที
+                    <strong className="text-slate-100">ลำดับเฉลยผล:</strong> P1 (เรย์จู/Guard/Buff/Tag-Out) → P2 (เดินพร้อมกัน + ZoC) → P3 (Combat/NP Anti-Whiff & PvE Counter) → P4 (Tile Effects & จบเทิร์น)
+                  </li>
+                </ul>
+              </div>
+
+              <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
+                <h3 className="text-sm font-black text-amber-400">
+                  4. Zone of Control (ZoC) & Command Spells
+                </h3>
+                <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-300">
+                  <li>
+                    <strong className="text-slate-100">ZoC:</strong> ยืนติดศัตรู 1 ช่อง การเดินหนีลด <strong>-1 MOV</strong> (ขั้นต่ำ 1 ช่อง) — <strong>Assassin ไม่ติดโทษ ZoC</strong>
                   </li>
                   <li>
-                    <strong>เรย์จู 2 ขีด:</strong> ฟื้นฟู HP เต็มหลอด / ใช้สิทธิ์ Emergency Re-Summon (ฝั่งละ 1 ครั้ง/เกม)
+                    <strong className="text-slate-100">เรย์จู 1 ขีด:</strong> วาร์ปกลับฐาน / ยกเลิก ZoC / ตีปกติซ้ำ 2 ครั้ง / +3 Mana
+                  </li>
+                  <li>
+                    <strong className="text-slate-100">เรย์จู 2 ขีด:</strong> ฟื้นฟู HP เต็มหลอด / Emergency Re-Summon (ฝั่งละ 1 ครั้ง/เกม)
                   </li>
                 </ul>
               </div>

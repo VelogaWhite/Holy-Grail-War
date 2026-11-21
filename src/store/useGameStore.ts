@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 import { MONSTERS_BY_ID, SERVANTS, SERVANTS_BY_ID } from '../data';
-import type { BoardUnit, Coordinates, OwnerId, RoomState, ZoneId } from '../types/game';
+import type {
+  BoardUnit,
+  Coordinates,
+  GrailBannerBroadcast,
+  OwnerId,
+  Role,
+  RoomState,
+  RulerSecretDoc,
+  ZoneId,
+} from '../types/game';
 
 function createServantUnit(
   id: string,
@@ -62,6 +71,11 @@ function createMonsterUnit(
   };
 }
 
+function randomSecretGrailTurn(): 10 | 11 | 12 {
+  const choices: (10 | 11 | 12)[] = [10, 11, 12];
+  return choices[Math.floor(Math.random() * choices.length)];
+}
+
 function createPhase1MockRoom(): RoomState {
   const teamAServants = [
     'artoria',
@@ -83,16 +97,16 @@ function createPhase1MockRoom(): RoomState {
 
   const unitsList: BoardUnit[] = [
     // Team A — Active (3)
-    createServantUnit('unit_a_1', 'artoria', 'team_a', 'active', { zone: 'central', x: 1, y: 3 }, {
+    createServantUnit('unit_a_1', 'artoria', 'team_a', 'active', { zone: 'central', x: 3, y: 3 }, {
       hp: 12,
       npReady: true,
       tags: ['ATK+1'],
     }),
-    createServantUnit('unit_a_2', 'melusine', 'team_a', 'active', { zone: 'central', x: 2, y: 1 }, {
+    createServantUnit('unit_a_2', 'melusine', 'team_a', 'active', { zone: 'central', x: 4, y: 1 }, {
       hp: 13,
-      tags: ['Invincible 1x'],
+      tags: ['Invincible'],
     }),
-    createServantUnit('unit_a_3', 'merlin', 'team_a', 'active', { zone: 'base_a', x: 2, y: 0 }, {
+    createServantUnit('unit_a_3', 'merlin', 'team_a', 'active', { zone: 'base_a', x: 3, y: 0 }, {
       hp: 12,
       tags: ['Leyline'],
     }),
@@ -102,16 +116,16 @@ function createPhase1MockRoom(): RoomState {
     createServantUnit('unit_a_6', 'king_hassan', 'team_a', 'reserve', null),
 
     // Team B — Active (3)
-    createServantUnit('unit_b_1', 'jeanne_darc_alter', 'team_b', 'active', { zone: 'central', x: 4, y: 3 }, {
+    createServantUnit('unit_b_1', 'jeanne_darc_alter', 'team_b', 'active', { zone: 'central', x: 6, y: 3 }, {
       hp: 10,
       npReady: true,
       tags: ['ATK+2', 'Guard'],
     }),
-    createServantUnit('unit_b_2', 'morgan', 'team_b', 'active', { zone: 'central', x: 3, y: 5 }, {
+    createServantUnit('unit_b_2', 'morgan', 'team_b', 'active', { zone: 'central', x: 6, y: 6 }, {
       hp: 13,
       isRevealedToEnemy: true,
     }),
-    createServantUnit('unit_b_3', 'achilles', 'team_b', 'active', { zone: 'base_b', x: 2, y: 1 }, {
+    createServantUnit('unit_b_3', 'achilles', 'team_b', 'active', { zone: 'base_b', x: 5, y: 1 }, {
       hp: 14,
       tags: ['Invincible 2x'],
     }),
@@ -120,12 +134,12 @@ function createPhase1MockRoom(): RoomState {
     createServantUnit('unit_b_5', 'heracles', 'team_b', 'reserve', null),
     createServantUnit('unit_b_6', 'bb', 'team_b', 'reserve', null),
 
-    // PvE Monsters
-    createMonsterUnit('mon_skel_a', 'skeleton', { zone: 'base_a', x: 4, y: 2 }),
-    createMonsterUnit('mon_wyvern_c', 'wyvern', { zone: 'central', x: 1, y: 2 }, { hp: 5 }),
-    createMonsterUnit('mon_chimera_c', 'chimera', { zone: 'central', x: 4, y: 2 }),
-    createMonsterUnit('mon_fafnir_c', 'fafnir', { zone: 'central', x: 3, y: 0 }),
-    createMonsterUnit('mon_homunc_b', 'homunculus', { zone: 'base_b', x: 1, y: 4 }),
+    // PvE Monsters (matching maps.json nests)
+    createMonsterUnit('mon_skel_a', 'skeleton', { zone: 'base_a', x: 6, y: 2 }),
+    createMonsterUnit('mon_wyvern_c', 'wyvern', { zone: 'central', x: 2, y: 2 }, { hp: 5 }),
+    createMonsterUnit('mon_chimera_c', 'chimera', { zone: 'central', x: 7, y: 4 }),
+    createMonsterUnit('mon_fafnir_c', 'fafnir', { zone: 'central', x: 4, y: 0 }),
+    createMonsterUnit('mon_homunc_b', 'homunculus', { zone: 'base_b', x: 3, y: 4 }),
   ];
 
   const units: Record<string, BoardUnit> = {};
@@ -146,7 +160,7 @@ function createPhase1MockRoom(): RoomState {
     draftPoolRemaining: SERVANTS.filter((s) => !drafted.has(s.id)).map((s) => s.id),
     teams: {
       team_a: {
-        name: 'Team A (Red)',
+        name: 'Team A (Mount Enzo)',
         mana: 7,
         qp: 5,
         commandSpells: 3,
@@ -155,31 +169,32 @@ function createPhase1MockRoom(): RoomState {
         readyLocked: true,
       },
       team_b: {
-        name: 'Team B (Blue)',
+        name: 'Team B (Shinto City)',
         mana: 6,
         qp: 4,
         commandSpells: 2,
         inventory: ['black_keys', 'saint_quartz'],
-        defeatedCount: 0,
+        defeatedCount: 1,
         readyLocked: false,
       },
     },
     units,
     tileOverrides: {
-      base_a_3_1: {
-        tileKey: 'base_a_3_1',
+      base_a_4_1: {
+        tileKey: 'base_a_4_1',
         cleared: true,
       },
-      central_2_3: {
-        tileKey: 'central_2_3',
+      central_4_3: {
+        tileKey: 'central_4_3',
         cleared: false,
-        customNote: 'Grail Sanctuary — เปิดใช้งานเทิร์นที่ 10',
+        customNote: 'Grail Sanctuary — วิญญาณครบ 5/5 หรือเทิร์นลับ 10–12',
       },
     },
     fogConfig: {
       enabled: false,
       revealBaseZoneToOwnerOnly: true,
       showCentralToAll: true,
+      hideUnitsInForest: true,
     },
     activeMapEvent: {
       id: 'haste_wind',
@@ -188,6 +203,10 @@ function createPhase1MockRoom(): RoomState {
     },
     wheelBroadcast: null,
     diceBroadcast: null,
+    grailAbsorbedCount: 2,
+    grailAbsorbedNames: ['Sasaki Kojiro', 'Spartacus'],
+    grailManifested: false,
+    grailBannerBroadcast: null,
     logs: [
       {
         id: 'log-1',
@@ -202,22 +221,34 @@ function createPhase1MockRoom(): RoomState {
 
 interface GameStoreState {
   roomState: RoomState;
+  rulerSecret: RulerSecretDoc;
+  previewRole: Role;
   activeZone: ZoneId;
   selectedUnitId: string | null;
+  hoveredTile: Coordinates | null;
   isCatalogOpen: boolean;
   setActiveZone: (zone: ZoneId) => void;
   selectUnit: (unitId: string | null) => void;
   locateUnit: (unitId: string) => void;
+  setHoveredTile: (coords: Coordinates | null) => void;
   setCatalogOpen: (open: boolean) => void;
+  setPreviewRole: (role: Role) => void;
+  triggerSampleGrailBanner: (manifest?: boolean) => void;
+  dismissGrailBanner: () => void;
 }
 
 export const useGameStore = create<GameStoreState>((set, get) => ({
   roomState: createPhase1MockRoom(),
+  rulerSecret: {
+    secretGrailTurn: randomSecretGrailTurn(),
+  },
+  previewRole: 'ruler',
   activeZone: 'central',
   selectedUnitId: 'unit_a_1',
+  hoveredTile: null,
   isCatalogOpen: false,
 
-  setActiveZone: (zone) => set({ activeZone: zone }),
+  setActiveZone: (zone) => set({ activeZone: zone, hoveredTile: null }),
   selectUnit: (unitId) => set({ selectedUnitId: unitId }),
   locateUnit: (unitId) => {
     const unit = get().roomState.units[unitId];
@@ -228,5 +259,45 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       set({ selectedUnitId: unitId });
     }
   },
+  setHoveredTile: (coords) => set({ hoveredTile: coords }),
   setCatalogOpen: (open) => set({ isCatalogOpen: open }),
+  setPreviewRole: (role) => set({ previewRole: role }),
+  triggerSampleGrailBanner: (manifest = false) => {
+    const current = get().roomState;
+    const nextCount = manifest ? 5 : Math.min(5, current.grailAbsorbedCount + 1);
+    const isMan = manifest || nextCount >= 5;
+    const servantName = 'EMIYA';
+    const banner: GrailBannerBroadcast = isMan
+      ? {
+          id: `grail-${Date.now()}`,
+          absorbedCount: 5,
+          isManifestation: true,
+          message:
+            'ภาชนะแห่งจอกศักดิ์สิทธิ์เติมเต็มแล้ว — Greater Grail จุติลง ณ ใจกลางฟุยุกิแล้ว!',
+          timestamp: Date.now(),
+        }
+      : {
+          id: `grail-${Date.now()}`,
+          servantName,
+          absorbedCount: nextCount,
+          isManifestation: false,
+          message: `วิญญาณวีรชน ${servantName} ถูกจอกศักดิ์สิทธิ์กลืนกินแล้ว... (${nextCount} / 5)`,
+          timestamp: Date.now(),
+        };
+    set({
+      roomState: {
+        ...current,
+        grailAbsorbedCount: nextCount,
+        grailManifested: isMan ? true : current.grailManifested,
+        grailBannerBroadcast: banner,
+      },
+    });
+  },
+  dismissGrailBanner: () =>
+    set((state) => ({
+      roomState: {
+        ...state.roomState,
+        grailBannerBroadcast: null,
+      },
+    })),
 }));
