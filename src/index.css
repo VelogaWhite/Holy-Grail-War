@@ -1,1 +1,120 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans Thai", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Cinzel", Georgia, serif;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    background-color: #090b10;
+    color: #e5e7eb;
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Tactical chamfered corners for NP cards and key panels */
+.clip-tactical {
+  clip-path: polygon(
+    0 8px,
+    8px 0,
+    100% 0,
+    100% calc(100% - 8px),
+    calc(100% - 8px) 100%,
+    0 100%
+  );
+}
+
+.clip-tactical-sm {
+  clip-path: polygon(
+    0 5px,
+    5px 0,
+    100% 0,
+    100% calc(100% - 5px),
+    calc(100% - 5px) 100%,
+    0 100%
+  );
+}
+
+/* Distinct Fuyuki Night Terrain Textures (No text labels needed inside tiles) */
+.terrain-open {
+  background-color: #0f141c;
+}
+
+.terrain-road {
+  background-color: #252c3b;
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(200, 162, 83, 0.08) 0%,
+      rgba(200, 162, 83, 0.08) 50%,
+      transparent 50%
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.03) 0px,
+      rgba(255, 255, 255, 0.03) 1px,
+      transparent 1px,
+      transparent 8px
+    );
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.16);
+}
+
+.terrain-building {
+  background-color: #1d2438;
+  background-image:
+    linear-gradient(135deg, rgba(203, 213, 225, 0.1) 0%, transparent 45%),
+    repeating-linear-gradient(
+      45deg,
+      rgba(15, 23, 42, 0.35) 0px,
+      rgba(15, 23, 42, 0.35) 4px,
+      transparent 4px,
+      transparent 8px
+    );
+  box-shadow:
+    inset 2px 2px 0 rgba(148, 163, 184, 0.22),
+    inset -2px -2px 0 rgba(2, 6, 23, 0.65);
+}
+
+.terrain-forest {
+  background-color: #10261b;
+  background-image: radial-gradient(
+    circle at 30% 35%,
+    rgba(34, 197, 94, 0.13) 0%,
+    transparent 55%
+  ),
+  radial-gradient(
+    circle at 75% 70%,
+    rgba(16, 185, 129, 0.11) 0%,
+    transparent 50%
+  );
+  box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.18);
+}
+
+.terrain-ruins {
+  background-color: #271e18;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(200, 162, 83, 0.08) 0px,
+    rgba(200, 162, 83, 0.08) 2px,
+    transparent 2px,
+    transparent 9px
+  );
+  box-shadow: inset 0 0 0 1px rgba(180, 130, 80, 0.22);
+}
+
+.terrain-water {
+  background-color: #0b2238;
+  background-image: repeating-linear-gradient(
+    180deg,
+    rgba(56, 189, 248, 0.14) 0px,
+    rgba(56, 189, 248, 0.14) 2px,
+    transparent 2px,
+    transparent 9px
+  );
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.2);
+}

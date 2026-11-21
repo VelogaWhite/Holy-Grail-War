@@ -226,11 +226,14 @@ interface GameStoreState {
   activeZone: ZoneId;
   selectedUnitId: string | null;
   hoveredTile: Coordinates | null;
+  lockedTile: Coordinates | null;
   isCatalogOpen: boolean;
   setActiveZone: (zone: ZoneId) => void;
   selectUnit: (unitId: string | null) => void;
   locateUnit: (unitId: string) => void;
   setHoveredTile: (coords: Coordinates | null) => void;
+  toggleLockTile: (coords: Coordinates) => void;
+  clearLockedTile: () => void;
   setCatalogOpen: (open: boolean) => void;
   setPreviewRole: (role: Role) => void;
   triggerSampleGrailBanner: (manifest?: boolean) => void;
@@ -246,6 +249,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   activeZone: 'central',
   selectedUnitId: 'unit_a_1',
   hoveredTile: null,
+  lockedTile: null,
   isCatalogOpen: false,
 
   setActiveZone: (zone) => set({ activeZone: zone, hoveredTile: null }),
@@ -260,6 +264,20 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
   },
   setHoveredTile: (coords) => set({ hoveredTile: coords }),
+  toggleLockTile: (coords) =>
+    set((state) => {
+      const prev = state.lockedTile;
+      if (
+        prev &&
+        prev.zone === coords.zone &&
+        prev.x === coords.x &&
+        prev.y === coords.y
+      ) {
+        return { lockedTile: null };
+      }
+      return { lockedTile: coords };
+    }),
+  clearLockedTile: () => set({ lockedTile: null }),
   setCatalogOpen: (open) => set({ isCatalogOpen: open }),
   setPreviewRole: (role) => set({ previewRole: role }),
   triggerSampleGrailBanner: (manifest = false) => {

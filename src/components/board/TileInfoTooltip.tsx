@@ -9,16 +9,33 @@ export function TileInfoTooltip() {
 
   if (!hoveredTile) {
     return (
-      <div className="flex h-10 w-full items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-900 px-3 text-[11px] text-slate-400">
+      <div className="flex h-9 w-full items-center justify-between gap-3 rounded-[2px] border border-[#C8A253]/25 bg-[#111622] px-3 text-[11px] text-slate-400">
         <span className="flex items-center gap-1.5">
-          <Info className="h-3.5 w-3.5 text-amber-500/80" />
-          ชี้เมาส์บนช่องใดก็ได้เพื่อดูรายละเอียดภูมิประเทศ (Layer 1) และช่องพิเศษ (Layer 2)
+          <Info className="h-3.5 w-3.5 text-[#C8A253]" />
+          ชี้เมาส์บนช่องใดก็ได้เพื่อดูประเภทภูมิประเทศและช่องพิเศษ
         </span>
-        <span className="hidden text-[10px] text-slate-500 xl:inline">
-          <strong className="text-slate-300">ถนน:</strong> เริ่มเดิน +1 MOV •{' '}
-          <strong className="text-emerald-400/80">ป่า:</strong> 2 MOV / ซ่อนตัว •{' '}
-          <strong className="text-sky-400/80">ตึก:</strong> High Ground +1 ATK/+1 RNG
-        </span>
+        <div className="hidden items-center gap-3 text-[10px] text-slate-400 xl:flex">
+          <span className="flex items-center gap-1">
+            <span className="terrain-road inline-block h-2.5 w-3.5 rounded-[1px] border border-slate-500/40" />
+            ถนน (+1 MOV)
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="terrain-forest inline-block h-2.5 w-3.5 rounded-[1px] border border-emerald-500/40" />
+            ป่า (2 MOV · ซ่อนตัว)
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="terrain-building inline-block h-2.5 w-3.5 rounded-[1px] border border-slate-400/40" />
+            ตึก (High Ground)
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="terrain-ruins inline-block h-2.5 w-3.5 rounded-[1px] border border-[#C8A253]/40" />
+            ซากปรักฯ (Cover)
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="terrain-water inline-block h-2.5 w-3.5 rounded-[1px] border border-sky-400/40" />
+            แม่น้ำ (2 MOV)
+          </span>
+        </div>
       </div>
     );
   }
@@ -32,16 +49,15 @@ export function TileInfoTooltip() {
   const override = tileOverrides[getTileKey(hoveredTile.zone, hoveredTile.x, hoveredTile.y)];
 
   return (
-    <div className="flex min-h-10 w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-[11px] text-slate-200">
+    <div className="flex min-h-9 w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-[2px] border border-[#C8A253]/40 bg-[#111622] px-3 py-1 text-[11px] text-slate-200">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] font-bold text-amber-200">
-          {formatCoordLabel(hoveredTile.x, hoveredTile.y)} ({hoveredTile.x},{hoveredTile.y})
+        <span className="font-display rounded-[2px] border border-[#C8A253]/30 bg-[#090B10] px-1.5 py-0.5 text-[10px] font-bold text-[#C8A253]">
+          {formatCoordLabel(hoveredTile.x, hoveredTile.y)}
         </span>
 
         {/* Layer 1: Terrain */}
         <span
-          className="rounded border border-slate-600 px-1.5 py-0.5 text-[10px] font-bold text-slate-200"
-          style={{ backgroundColor: terrain.bgColor }}
+          className={`terrain-${terrainId} rounded-[2px] border border-slate-600/80 px-1.5 py-0.5 text-[10px] font-bold text-slate-100`}
         >
           {terrain.label} ({terrain.moveCost} MOV)
         </span>
@@ -50,16 +66,16 @@ export function TileInfoTooltip() {
 
       {/* Layer 2: Special Feature */}
       {(specialTile || override?.customNote) && (
-        <div className="flex flex-wrap items-center gap-2 border-l border-slate-700 pl-2">
+        <div className="flex flex-wrap items-center gap-2 border-l border-[#C8A253]/25 pl-2">
           {specialTile && (
             <span className="flex items-center gap-1 font-medium text-slate-300">
-              <Sparkles className="h-3 w-3 shrink-0 text-amber-500/80" />
-              <strong className="text-amber-200">{specialTile.label}:</strong>{' '}
+              <Sparkles className="h-3 w-3 shrink-0 text-[#C8A253]" />
+              <strong className="text-[#E5C983]">{specialTile.label}:</strong>{' '}
               {getSpecialTileEffectText(specialTile.type, specialTile.manaBonus)}
             </span>
           )}
           {override?.customNote && (
-            <span className="flex items-center gap-1 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">
+            <span className="flex items-center gap-1 rounded-[2px] border border-[#C8A253]/30 bg-[#090B10] px-1.5 py-0.5 text-[10px] font-semibold text-[#C8A253]">
               <MapPin className="h-3 w-3" /> {override.customNote}
             </span>
           )}

@@ -7,7 +7,7 @@ import { GrailAbsorptionBanner } from './components/modals/GrailAbsorptionBanner
 
 export function App() {
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 text-slate-100">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#090B10] text-slate-100">
       <TopBarHud />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <LeftRosterSidebar />

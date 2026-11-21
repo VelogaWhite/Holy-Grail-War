@@ -28,15 +28,15 @@ function ServantCard({
 
   const badge =
     draftStatus === 'team_a'
-      ? { text: 'Team A', cls: 'bg-rose-600 text-white' }
+      ? { text: 'Team A', cls: 'bg-[#B91C1C] text-slate-100' }
       : draftStatus === 'team_b'
-        ? { text: 'Team B', cls: 'bg-sky-600 text-white' }
-        : { text: 'In Pool', cls: 'bg-slate-800 text-slate-300 border border-slate-700' };
+        ? { text: 'Team B', cls: 'bg-sky-700 text-slate-100' }
+        : { text: 'In Pool', cls: 'bg-[#090B10] text-slate-400 border border-slate-700' };
 
   return (
-    <div className="flex flex-col rounded-xl border border-slate-700 bg-slate-900 p-3 shadow-sm transition hover:border-amber-400">
+    <div className="flex flex-col rounded-[2px] border border-[#C8A253]/30 bg-[#111622] p-3 transition hover:border-[#C8A253]/70">
       <div className="flex items-start gap-2.5">
-        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 border-slate-700 bg-slate-950">
+        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[2px] border border-[#C8A253]/40 bg-[#090B10]">
           {imgUrl && !imgErr ? (
             <img
               src={imgUrl}
@@ -46,7 +46,7 @@ function ServantCard({
               loading="lazy"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-slate-800 text-xs font-black text-slate-200">
+            <div className="flex h-full w-full items-center justify-center bg-slate-800 font-display text-xs font-bold text-slate-200">
               {getInitials(servant.name)}
             </div>
           )}
@@ -54,29 +54,32 @@ function ServantCard({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-1">
-            <h4 className="truncate text-sm font-black text-slate-100" title={servant.name}>
+            <h4
+              className="font-display truncate text-sm font-bold tracking-wide text-[#E5C983]"
+              title={servant.name}
+            >
               {servant.name}
             </h4>
-            <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${badge.cls}`}>
+            <span className={`shrink-0 rounded-[2px] px-1.5 py-0.5 text-[10px] font-bold ${badge.cls}`}>
               {badge.text}
             </span>
           </div>
 
-          <div className="mt-0.5 flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
+          <div className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
             {classIconUrl && (
               <img
                 src={classIconUrl}
                 alt={servant.servantClass}
-                className="h-4 w-4 rounded-full border border-amber-400/30 bg-slate-950 object-contain p-0.5"
+                className="h-4 w-4 rounded-full border border-[#C8A253]/30 bg-[#090B10] object-contain p-0.5"
               />
             )}
             <span>
               {servant.servantClass}
-              {servant.subClass ? ` • ${servant.subClass}` : ''}
+              {servant.subClass ? ` · ${servant.subClass}` : ''}
             </span>
           </div>
 
-          <div className="mt-1.5 grid grid-cols-4 gap-1 rounded bg-slate-950 px-1.5 py-1 text-center text-[10px] font-black text-slate-200">
+          <div className="mt-1.5 grid grid-cols-4 gap-1 rounded-[2px] bg-[#090B10] px-1.5 py-1 text-center text-[10px] font-bold text-slate-200">
             <span>HP {servant.hp}</span>
             <span>ATK {servant.atk}</span>
             <span>MOV {servant.mov}</span>
@@ -86,27 +89,27 @@ function ServantCard({
       </div>
 
       {/* Skill */}
-      <div className="mt-2.5 rounded-md border border-slate-800 bg-slate-950/70 p-2 text-[11px]">
-        <div className="flex items-center justify-between gap-1 font-extrabold text-cyan-300">
-          <span className="flex items-center gap-1 truncate">
-            <Sparkles className="h-3 w-3 shrink-0 text-cyan-400" />
+      <div className="mt-2.5 rounded-[2px] border border-slate-800 bg-[#090B10] p-2 text-[11px]">
+        <div className="flex items-center justify-between gap-1 font-bold text-sky-300">
+          <span className="font-display flex items-center gap-1 truncate tracking-wide">
+            <Sparkles className="h-3 w-3 shrink-0 text-sky-400" />
             {servant.skillName}
           </span>
-          <span className="shrink-0 text-[10px] text-cyan-400">{servant.skillCost}M</span>
+          <span className="shrink-0 text-[10px] text-sky-400">{servant.skillCost}M</span>
         </div>
         <p className="mt-0.5 leading-snug text-slate-300">{servant.skillDesc}</p>
       </div>
 
       {/* NP */}
-      <div className="mt-1.5 rounded-md border border-amber-400/40 bg-amber-950/25 p-2 text-[11px]">
-        <div className="flex items-center justify-between gap-1 font-extrabold text-amber-300">
-          <span className="flex items-center gap-1 truncate">
-            <Flame className="h-3 w-3 shrink-0 text-amber-400" />
+      <div className="clip-tactical-sm mt-1.5 border border-[#C8A253]/35 bg-[#090B10] p-2 text-[11px]">
+        <div className="flex items-center justify-between gap-1 font-bold text-[#E5C983]">
+          <span className="font-display flex items-center gap-1 truncate tracking-wide">
+            <Flame className="h-3 w-3 shrink-0 text-[#B91C1C]" />
             {servant.npName}
           </span>
-          <span className="shrink-0 text-[10px] text-amber-400">{servant.npCost}M</span>
+          <span className="shrink-0 text-[10px] text-[#C8A253]">{servant.npCost}M</span>
         </div>
-        <p className="mt-0.5 leading-snug text-amber-100/90">{servant.npDesc}</p>
+        <p className="mt-0.5 leading-snug text-slate-200">{servant.npDesc}</p>
       </div>
     </div>
   );
@@ -117,8 +120,8 @@ function ItemCard({ item }: { item: ItemTemplate }) {
   const iconUrl = resolveAssetUrl(item.icon);
 
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-slate-700 bg-slate-900 p-3">
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-700 bg-slate-950">
+    <div className="flex items-start gap-3 rounded-[2px] border border-[#C8A253]/30 bg-[#111622] p-3">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[2px] border border-[#C8A253]/30 bg-[#090B10]">
         {iconUrl && !imgErr ? (
           <img
             src={iconUrl}
@@ -127,14 +130,16 @@ function ItemCard({ item }: { item: ItemTemplate }) {
             className="h-10 w-10 object-contain"
           />
         ) : (
-          <Package className="h-6 w-6 text-amber-400" />
+          <Package className="h-6 w-6 text-[#C8A253]" />
         )}
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <h4 className="text-sm font-black text-slate-100">{item.name}</h4>
-          <span className="flex shrink-0 items-center gap-1 rounded-md border border-amber-400/40 bg-amber-400/15 px-2 py-0.5 text-xs font-black text-amber-300">
+          <h4 className="font-display text-sm font-bold tracking-wide text-slate-100">
+            {item.name}
+          </h4>
+          <span className="flex shrink-0 items-center gap-1 rounded-[2px] border border-[#C8A253]/40 bg-[#090B10] px-2 py-0.5 text-xs font-bold text-[#C8A253]">
             <img
               src="/assets/items/qp.webp"
               alt="QP"
@@ -147,9 +152,9 @@ function ItemCard({ item }: { item: ItemTemplate }) {
           </span>
         </div>
         <span
-          className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${
+          className={`mt-1 inline-block rounded-[2px] px-1.5 py-0.5 text-[10px] font-bold uppercase ${
             item.rarity === 'rare'
-              ? 'bg-amber-400 text-slate-950'
+              ? 'bg-[#B91C1C] text-slate-100'
               : 'bg-slate-800 text-slate-300'
           }`}
         >
@@ -202,21 +207,21 @@ export function CatalogModal() {
       role="dialog"
       aria-modal="true"
       aria-label="Servant Catalog & Holy Grail Reference"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#090B10]/85 p-4"
       onClick={() => setCatalogOpen(false)}
     >
       <div
-        className="flex h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border-2 border-amber-400/60 bg-slate-950 text-slate-100 shadow-2xl"
+        className="clip-tactical flex h-[88vh] w-full max-w-6xl flex-col overflow-hidden border border-[#C8A253]/45 bg-[#090B10] text-slate-100 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-5 py-3">
+        <div className="flex items-center justify-between border-b border-[#C8A253]/25 bg-[#111622] px-5 py-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-amber-400 text-slate-950">
+            <div className="flex h-8 w-8 items-center justify-center rounded-[2px] border border-[#C8A253]/50 bg-[#B91C1C] text-slate-100">
               <BookOpen className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-base font-black text-amber-300">
+              <h2 className="font-display text-base font-bold tracking-wider text-[#E5C983]">
                 Servant Catalog & Holy Grail Reference
               </h2>
               <p className="text-xs text-slate-400">
@@ -229,20 +234,20 @@ export function CatalogModal() {
             type="button"
             onClick={() => setCatalogOpen(false)}
             aria-label="ปิดหน้าต่าง"
-            className="rounded-lg border border-slate-700 bg-slate-800 p-1.5 text-slate-300 transition hover:border-amber-400 hover:text-amber-300"
+            className="rounded-[2px] border border-[#C8A253]/30 bg-[#090B10] p-1.5 text-slate-300 transition hover:border-[#C8A253] hover:text-[#C8A253]"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Sub-Tabs */}
-        <div className="flex items-center gap-2 border-b border-slate-800 bg-slate-900 px-5 pt-2">
+        <div className="flex items-center gap-2 border-b border-[#C8A253]/20 bg-[#111622] px-5 pt-2">
           <button
             type="button"
             onClick={() => setActiveTab('servants')}
-            className={`flex items-center gap-1.5 border-b-4 px-4 py-2 text-xs font-black transition ${
+            className={`font-display flex items-center gap-1.5 border-b-2 px-4 py-2 text-xs font-bold tracking-wider transition ${
               activeTab === 'servants'
-                ? 'border-amber-400 text-amber-400'
+                ? 'border-[#C8A253] text-[#E5C983]'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -252,9 +257,9 @@ export function CatalogModal() {
           <button
             type="button"
             onClick={() => setActiveTab('shop')}
-            className={`flex items-center gap-1.5 border-b-4 px-4 py-2 text-xs font-black transition ${
+            className={`font-display flex items-center gap-1.5 border-b-2 px-4 py-2 text-xs font-bold tracking-wider transition ${
               activeTab === 'shop'
-                ? 'border-amber-400 text-amber-400'
+                ? 'border-[#C8A253] text-[#E5C983]'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -264,9 +269,9 @@ export function CatalogModal() {
           <button
             type="button"
             onClick={() => setActiveTab('rules')}
-            className={`flex items-center gap-1.5 border-b-4 px-4 py-2 text-xs font-black transition ${
+            className={`font-display flex items-center gap-1.5 border-b-2 px-4 py-2 text-xs font-bold tracking-wider transition ${
               activeTab === 'rules'
-                ? 'border-amber-400 text-amber-400'
+                ? 'border-[#C8A253] text-[#E5C983]'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -282,13 +287,13 @@ export function CatalogModal() {
               {/* Search & Class Filter Bar */}
               <div className="mb-4 flex flex-wrap items-center gap-2.5">
                 <div className="relative min-w-[240px] flex-1">
-                  <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-500" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="ค้นหาชื่อ Servant, สกิล, โฮกุ หรือคลาสย่อย..."
-                    className="w-full rounded-lg border border-slate-700 bg-slate-900 py-1.5 pr-3 pl-9 text-xs font-semibold text-slate-100 placeholder:text-slate-500 focus:border-amber-400 focus:outline-none"
+                    className="w-full rounded-[2px] border border-[#C8A253]/30 bg-[#111622] py-1.5 pr-3 pl-9 text-xs font-medium text-slate-100 placeholder:text-slate-500 focus:border-[#C8A253] focus:outline-none"
                   />
                 </div>
 
@@ -296,10 +301,10 @@ export function CatalogModal() {
                   <button
                     type="button"
                     onClick={() => setSelectedClass('ALL')}
-                    className={`rounded-md border px-2.5 py-1 text-xs font-bold transition ${
+                    className={`rounded-[2px] border px-2.5 py-1 text-xs font-bold transition ${
                       selectedClass === 'ALL'
-                        ? 'border-amber-400 bg-amber-400 text-slate-950'
-                        : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500'
+                        ? 'border-[#C8A253] bg-[#B91C1C] text-slate-100'
+                        : 'border-slate-700 bg-[#111622] text-slate-300 hover:border-[#C8A253]/50'
                     }`}
                   >
                     All ({SERVANTS.length})
@@ -309,16 +314,16 @@ export function CatalogModal() {
                       key={cls.id}
                       type="button"
                       onClick={() => setSelectedClass(cls.id)}
-                      className={`flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-bold transition ${
+                      className={`flex items-center gap-1 rounded-[2px] border px-2.5 py-1 text-xs font-bold transition ${
                         selectedClass === cls.id
-                          ? 'border-amber-400 bg-amber-400 text-slate-950'
-                          : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500'
+                          ? 'border-[#C8A253] bg-[#B91C1C] text-slate-100'
+                          : 'border-slate-700 bg-[#111622] text-slate-300 hover:border-[#C8A253]/50'
                       }`}
                     >
                       <img
                         src={cls.icon}
                         alt={cls.label}
-                        className="h-3.5 w-3.5 rounded-full bg-slate-950 object-contain p-0.5"
+                        className="h-3.5 w-3.5 rounded-full bg-[#090B10] object-contain p-0.5"
                       />
                       <span>{cls.label}</span>
                     </button>
@@ -346,7 +351,7 @@ export function CatalogModal() {
 
           {activeTab === 'shop' && (
             <div>
-              <p className="mb-3 text-xs font-semibold text-slate-400">
+              <p className="mb-3 text-xs font-medium text-slate-400">
                 สามารถซื้อไอเทมได้เมื่อ Servant ยืนอยู่ที่ช่อง{' '}
                 <strong className="text-emerald-400">Safe House / Fuyuki Church</strong>{' '}
                 หรือได้รับจากการกำจัดมอนสเตอร์ PvE / Personal Events
@@ -361,8 +366,8 @@ export function CatalogModal() {
 
           {activeTab === 'rules' && (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
-                <h3 className="text-sm font-black text-amber-400">
+              <div className="rounded-[2px] border border-[#C8A253]/30 bg-[#111622] p-4">
+                <h3 className="text-sm font-bold text-[#E5C983]">
                   1. เงื่อนไขการชนะ & จอกศักดิ์สิทธิ์จุติ
                 </h3>
                 <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-300">
@@ -371,34 +376,36 @@ export function CatalogModal() {
                     เมื่อมี Servant ถูกกำจัดรวมทั้ง 2 ฝั่งครบ <strong>5 ตน</strong> จอกจุติทันทีที่ Central (4,3)/(5,3)
                   </li>
                   <li>
-                    <strong className="text-slate-100">Secret Turn Trigger:</strong> สุ่มเทิร์นลับ <strong>10, 11 หรือ 12</strong> (เห็นเฉพาะ Ruler) หากถึงเทิร์นลับจอกจุติทันที
+                    <strong className="text-slate-100">Secret Turn Trigger:</strong> สุ่มเทิร์นลับ{' '}
+                    <strong>10, 11 หรือ 12</strong> (เห็นเฉพาะ Ruler) หากถึงเทิร์นลับจอกจุติทันที
                   </li>
                   <li>
-                    <strong className="text-slate-100">ยึดครองจอก / Wipeout:</strong> ยืนคุมช่องจอกครบ <strong>2 เทิร์นติด</strong> หรือสังหารศัตรูครบ <strong>6/6 ตน</strong> ชนะทันที
+                    <strong className="text-slate-100">ยึดครองจอก / Wipeout:</strong> ยืนคุมช่องจอกครบ{' '}
+                    <strong>2 เทิร์นติด</strong> หรือสังหารศัตรูครบ <strong>6/6 ตน</strong> ชนะทันที
                   </li>
                 </ul>
               </div>
 
-              <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
-                <h3 className="text-sm font-black text-amber-400">
+              <div className="rounded-[2px] border border-[#C8A253]/30 bg-[#111622] p-4">
+                <h3 className="text-sm font-bold text-[#E5C983]">
                   2. ระบบภูมิประเทศ 2 ชั้น (10×7)
                 </h3>
                 <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-300">
-                  <li><strong className="text-slate-100">ถนน (Road):</strong> 1 MOV • เริ่มเคลื่อนที่จากถนนได้ <strong>+1 MOV</strong></li>
-                  <li><strong className="text-slate-100">ตึก (Building):</strong> ปีน 2 MOV / ข้ามตึก 1 MOV • High Ground <strong>+1 ATK</strong>, ตีไกล <strong>+1 Range</strong></li>
-                  <li><strong className="text-emerald-400">ป่า (Forest):</strong> 2 MOV • <strong>Stealth</strong> ซ่อนตัวจากศัตรูนอกป่า & ลดดาเมจตีไกล -1</li>
-                  <li><strong className="text-amber-300">ซากปรักฯ (Ruins):</strong> 1 MOV • Cover ลดดาเมจโจมตีปกติ -1</li>
-                  <li><strong className="text-sky-400">แม่น้ำ (Water):</strong> 2 MOV • Exposed รับดาเมจเพิ่ม +1</li>
+                  <li><strong className="text-slate-100">ถนน (Road):</strong> 1 MOV · เริ่มเคลื่อนที่จากถนนได้ <strong>+1 MOV</strong></li>
+                  <li><strong className="text-slate-100">ตึก (Building):</strong> ปีน 2 MOV / ข้ามตึก 1 MOV · High Ground <strong>+1 ATK</strong>, ตีไกล <strong>+1 Range</strong></li>
+                  <li><strong className="text-emerald-400">ป่า (Forest):</strong> 2 MOV · <strong>Stealth</strong> ซ่อนตัวจากศัตรูนอกป่า & ลดดาเมจตีไกล -1</li>
+                  <li><strong className="text-[#C8A253]">ซากปรักฯ (Ruins):</strong> 1 MOV · Cover ลดดาเมจโจมตีปกติ -1</li>
+                  <li><strong className="text-sky-400">แม่น้ำ (Water):</strong> 2 MOV · Exposed รับดาเมจเพิ่ม +1</li>
                 </ul>
               </div>
 
-              <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
-                <h3 className="text-sm font-black text-amber-400">
+              <div className="rounded-[2px] border border-[#C8A253]/30 bg-[#111622] p-4">
+                <h3 className="text-sm font-bold text-[#E5C983]">
                   3. สูตรต่อสู้ 1d6, Guard & ลำดับ Priority 1 → 4
                 </h3>
                 <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-300">
                   <li>
-                    <strong className="text-slate-100">โจมตีปกติ:</strong> <code>ATK + 1d6</code> → 1–2 (+0), 3–4 (+1), 5–6 (<strong className="text-amber-400">+2 CRIT!</strong>) • <strong>Guard</strong> ลดดาเมจครึ่งหนึ่ง (ปัดลง)
+                    <strong className="text-slate-100">โจมตีปกติ:</strong> <code>ATK + 1d6</code> → 1–2 (+0), 3–4 (+1), 5–6 (<strong className="text-[#E5C983]">+2 CRIT!</strong>) · <strong>Guard</strong> ลดดาเมจครึ่งหนึ่ง (ปัดลง)
                   </li>
                   <li>
                     <strong className="text-slate-100">ลำดับเฉลยผล:</strong> P1 (เรย์จู/Guard/Buff/Tag-Out) → P2 (เดินพร้อมกัน + ZoC) → P3 (Combat/NP Anti-Whiff & PvE Counter) → P4 (Tile Effects & จบเทิร์น)
@@ -406,13 +413,14 @@ export function CatalogModal() {
                 </ul>
               </div>
 
-              <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
-                <h3 className="text-sm font-black text-amber-400">
+              <div className="rounded-[2px] border border-[#C8A253]/30 bg-[#111622] p-4">
+                <h3 className="text-sm font-bold text-[#E5C983]">
                   4. Zone of Control (ZoC) & Command Spells
                 </h3>
                 <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-300">
                   <li>
-                    <strong className="text-slate-100">ZoC:</strong> ยืนติดศัตรู 1 ช่อง การเดินหนีลด <strong>-1 MOV</strong> (ขั้นต่ำ 1 ช่อง) — <strong>Assassin ไม่ติดโทษ ZoC</strong>
+                    <strong className="text-slate-100">ZoC:</strong> ยืนติดศัตรู 1 ช่อง การเดินหนีลด{' '}
+                    <strong>-1 MOV</strong> (ขั้นต่ำ 1 ช่อง) — <strong>Assassin ไม่ติดโทษ ZoC</strong>
                   </li>
                   <li>
                     <strong className="text-slate-100">เรย์จู 1 ขีด:</strong> วาร์ปกลับฐาน / ยกเลิก ZoC / ตีปกติซ้ำ 2 ครั้ง / +3 Mana
