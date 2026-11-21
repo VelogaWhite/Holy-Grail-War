@@ -71,32 +71,32 @@ export function getFactionStyle(owner: OwnerId): FactionStyle {
   switch (owner) {
     case 'team_a':
       return {
-        border: 'border-rose-500',
-        bg: 'bg-rose-600',
-        softBg: 'bg-rose-950/50',
-        text: 'text-rose-400',
-        badgeBg: 'bg-rose-600 text-white',
-        ring: 'ring-rose-500',
+        border: 'border-rose-600/90',
+        bg: 'bg-rose-700',
+        softBg: 'bg-rose-950/40',
+        text: 'text-rose-300',
+        badgeBg: 'bg-rose-700 text-rose-50',
+        ring: 'ring-rose-600',
         label: 'Team A',
       };
     case 'team_b':
       return {
-        border: 'border-sky-500',
-        bg: 'bg-sky-600',
-        softBg: 'bg-sky-950/50',
-        text: 'text-sky-400',
-        badgeBg: 'bg-sky-600 text-white',
-        ring: 'ring-sky-500',
+        border: 'border-sky-600/90',
+        bg: 'bg-sky-700',
+        softBg: 'bg-sky-950/40',
+        text: 'text-sky-300',
+        badgeBg: 'bg-sky-700 text-sky-50',
+        ring: 'ring-sky-600',
         label: 'Team B',
       };
     default:
       return {
-        border: 'border-amber-600',
+        border: 'border-amber-700/80',
         bg: 'bg-stone-700',
         softBg: 'bg-stone-900/70',
-        text: 'text-amber-400',
-        badgeBg: 'bg-stone-700 text-amber-200',
-        ring: 'ring-amber-500',
+        text: 'text-amber-300',
+        badgeBg: 'bg-stone-700 text-amber-100',
+        ring: 'ring-amber-600',
         label: 'PvE',
       };
   }

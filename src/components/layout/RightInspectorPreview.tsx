@@ -92,12 +92,12 @@ export function RightInspectorPreview() {
               {unit.status}
             </span>
             {unit.position && (
-              <span className="rounded border border-cyan-400/40 bg-cyan-950/60 px-1.5 py-0.5 text-cyan-300">
+              <span className="rounded border border-slate-700 bg-slate-800 px-1.5 py-0.5 text-slate-300">
                 {unit.position.zone.toUpperCase()} {formatCoordLabel(unit.position.x, unit.position.y)}
               </span>
             )}
             {unit.npReady && (
-              <span className="rounded bg-amber-400 px-1.5 py-0.5 font-black text-slate-950">
+              <span className="rounded bg-amber-600 px-1.5 py-0.5 font-bold text-slate-950">
                 NP READY
               </span>
             )}

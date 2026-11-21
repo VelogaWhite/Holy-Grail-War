@@ -37,8 +37,8 @@ function MiniUnitRow({
       onClick={onClick}
       className={`flex w-full items-center gap-2 rounded-lg border p-1.5 text-left transition ${
         isSelected
-          ? 'border-amber-400 bg-amber-400/10 ring-1 ring-amber-400/70'
-          : 'border-slate-800 bg-slate-950/60 hover:border-slate-600 hover:bg-slate-800/70'
+          ? 'border-amber-600/80 bg-slate-800/90'
+          : 'border-slate-800 bg-slate-950/60 hover:border-slate-700 hover:bg-slate-800/60'
       }`}
     >
       {/* Thumbnail */}
