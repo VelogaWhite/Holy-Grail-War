@@ -1,5 +1,13 @@
 import { create } from 'zustand';
-import { EVENTS, MAP_DATA, MONSTERS_BY_ID, SERVANTS, SERVANTS_BY_ID } from '../data';
+import {
+  EVENTS,
+  ITEMS,
+  ITEMS_BY_ID,
+  MAP_DATA,
+  MONSTERS_BY_ID,
+  SERVANTS,
+  SERVANTS_BY_ID,
+} from '../data';
 import {
   broadcastDiceRoll,
   clearAllSecretOrders,
@@ -27,7 +35,7 @@ import type {
   WheelBroadcast,
   ZoneId,
 } from '../types/game';
-import { getTileKey } from '../utils/assetHelper';
+import { formatCoordLabel, getTileKey } from '../utils/assetHelper';
 
 const MAX_UNDO_HISTORY = 15;
 
@@ -386,6 +394,112 @@ export interface TilePopoverState {
   clientY: number;
 }
 
+export interface PendingPickupToast {
+  id: string;
+  tileKey: string;
+  coords: Coordinates;
+  itemId: string;
+  unitId: string;
+  unitName: string;
+  teamId: TeamId;
+}
+
+export interface EndTurnTileReward {
+  unitId: string;
+  unitName: string;
+  teamId: TeamId;
+  tileType: 'leyline' | 'safe_house';
+  tileLabel: string;
+  amount: number;
+  detail: string;
+}
+
+export function scanEndTurnTileRewards(roomState: RoomState): EndTurnTileReward[] {
+  const rewards: EndTurnTileReward[] = [];
+  for (const unit of Object.values(roomState.units)) {
+    if (
+      unit.unitType !== 'servant' ||
+      unit.status !== 'active' ||
+      !unit.position ||
+      (unit.owner !== 'team_a' && unit.owner !== 'team_b')
+    ) {
+      continue;
+    }
+    const zoneDef = MAP_DATA.zones[unit.position.zone];
+    if (!zoneDef) continue;
+    const special = zoneDef.specialTiles.find(
+      (t) => t.x === unit.position!.x && t.y === unit.position!.y
+    );
+    if (!special) continue;
+
+    if (special.type === 'leyline') {
+      const amount = special.manaBonus ?? 2;
+      rewards.push({
+        unitId: unit.id,
+        unitName: unit.name,
+        teamId: unit.owner,
+        tileType: 'leyline',
+        tileLabel: special.label,
+        amount,
+        detail: `+${amount} Mana`,
+      });
+    } else if (special.type === 'safe_house') {
+      const healAmount = Math.min(2, Math.max(0, unit.maxHp - unit.hp));
+      rewards.push({
+        unitId: unit.id,
+        unitName: unit.name,
+        teamId: unit.owner,
+        tileType: 'safe_house',
+        tileLabel: special.label,
+        amount: healAmount,
+        detail: healAmount > 0 ? `+${healAmount} HP` : 'HP เต็มแล้ว',
+      });
+    }
+  }
+  return rewards;
+}
+
+function handleServantDefeatedEffects(draft: RoomState, unit: BoardUnit) {
+  unit.isTrueNameRevealed = true;
+  const nextCount = Math.min(5, draft.grailAbsorbedCount + 1);
+  draft.grailAbsorbedCount = nextCount;
+  if (!draft.grailAbsorbedNames.includes(unit.name)) {
+    draft.grailAbsorbedNames.push(unit.name);
+  }
+
+  if (unit.owner === 'team_a') {
+    draft.teams.team_b.defeatedCount = Math.min(6, draft.teams.team_b.defeatedCount + 1);
+  } else if (unit.owner === 'team_b') {
+    draft.teams.team_a.defeatedCount = Math.min(6, draft.teams.team_a.defeatedCount + 1);
+  }
+
+  const manifestedNow = nextCount >= 5 && !draft.grailManifested;
+  if (manifestedNow) {
+    draft.grailManifested = true;
+  }
+
+  const banner: GrailBannerBroadcast = manifestedNow
+    ? {
+        id: `grail-${Date.now()}`,
+        servantName: unit.name,
+        absorbedCount: nextCount,
+        isManifestation: true,
+        message: `วิญญาณวีรชน ${unit.name} เติมเต็มภาชนะครบ 5/5 — Greater Grail จุติลง ณ ใจกลางฟุยุกิแล้ว!`,
+        timestamp: Date.now(),
+      }
+    : {
+        id: `grail-${Date.now()}`,
+        servantName: unit.name,
+        absorbedCount: nextCount,
+        isManifestation: false,
+        message: `วิญญาณวีรชน ${unit.name} ถูกจอกศักดิ์สิทธิ์กลืนกินแล้ว... (${nextCount} / 5)`,
+        timestamp: Date.now(),
+      };
+
+  draft.grailBannerBroadcast = banner;
+  draft.logs = appendLog(draft, 'system', banner.message);
+}
+
 interface GameStoreState {
   // Session / Online Sync State
   sessionMode: SessionMode;
@@ -419,6 +533,9 @@ interface GameStoreState {
   isWheelOpen: boolean;
   isDiceOpen: boolean;
   isLogsOpen: boolean;
+  isCombatHelperOpen: boolean;
+  combatPreselectedAttackerId: string | null;
+  pendingPickupToast: PendingPickupToast | null;
 
   // Session Lifecycle Actions
   setAuthUid: (uid: string | null) => void;
@@ -451,6 +568,8 @@ interface GameStoreState {
   setWheelOpen: (open: boolean) => void;
   setDiceOpen: (open: boolean) => void;
   setLogsOpen: (open: boolean) => void;
+  setCombatHelperOpen: (open: boolean, attackerUnitId?: string | null) => void;
+  dismissPickupToast: () => void;
   setPreviewRole: (role: Role) => void;
 
   // Phase 4: Shared Wheels & 1d6 Dice
@@ -492,12 +611,33 @@ interface GameStoreState {
   // Ruler God-Mode Actions (sync to Firestore once per explicit user action)
   undo: () => void;
   setPhase: (phase: TurnPhase) => void;
-  endTurnAndNext: (skipManaUpkeep?: boolean) => void;
+  endTurnAndNext: (skipManaUpkeep?: boolean, grantSpecialTileRewards?: boolean) => void;
   applySkillOrder: (
     unitId: string,
     teamId: TeamId,
     skillName: string,
     skillCost: number
+  ) => void;
+  applyMoveOrder: (unitId: string, target: Coordinates) => void;
+  applyNpOrder: (
+    unitId: string,
+    teamId: TeamId,
+    npName: string,
+    npCost: number
+  ) => void;
+  applyGuardOrder: (unitId: string) => void;
+  applyUseItemOrder: (teamId: TeamId, itemId: string, unitName?: string) => void;
+  applyCombatDamage: (
+    targetUnitId: string,
+    damage: number,
+    attackerName: string
+  ) => void;
+  grantServantKillBounty: (killerTeamId: TeamId, victimName: string) => void;
+  grantMonsterReward: (
+    killerTeamId: TeamId,
+    monsterTemplateId: string,
+    killerUnitId?: string,
+    tier1Choice?: 'mana' | 'qp'
   ) => void;
   setSecretGrailTurn: (turn: 10 | 11 | 12) => void;
   toggleFogOfWar: () => void;
@@ -524,6 +664,14 @@ interface GameStoreState {
   spawnGreaterGrail: () => void;
   toggleTileCleared: (coords: Coordinates) => void;
   setTileCustomNote: (coords: Coordinates, note: string) => void;
+  dropItemOnTile: (coords: Coordinates, itemId: string, isMysteryDrop?: boolean) => void;
+  dropRandomItemOnTile: (
+    coords: Coordinates,
+    rarity: 'common' | 'rare',
+    isMysteryDrop?: boolean
+  ) => void;
+  pickupItemFromTile: (coords: Coordinates, teamId: TeamId) => void;
+  removeItemFromTile: (coords: Coordinates) => void;
   resetAllClearedTiles: () => void;
 
   triggerSampleGrailBanner: (manifest?: boolean) => void;
@@ -581,6 +729,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     isWheelOpen: false,
     isDiceOpen: false,
     isLogsOpen: false,
+    isCombatHelperOpen: false,
+    combatPreselectedAttackerId: null,
+    pendingPickupToast: null,
 
     setAuthUid: (uid) => set({ authUid: uid }),
 
@@ -703,6 +854,13 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     setWheelOpen: (open) => set({ isWheelOpen: open }),
     setDiceOpen: (open) => set({ isDiceOpen: open }),
     setLogsOpen: (open) => set({ isLogsOpen: open }),
+    setCombatHelperOpen: (open, attackerUnitId = undefined) =>
+      set((s) => ({
+        isCombatHelperOpen: open,
+        combatPreselectedAttackerId:
+          attackerUnitId !== undefined ? attackerUnitId : s.combatPreselectedAttackerId,
+      })),
+    dismissPickupToast: () => set({ pendingPickupToast: null }),
     setPreviewRole: (role) => {
       if (get().sessionMode === 'online') return; // Role is locked to seat in online mode
       set({
@@ -851,12 +1009,37 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         draft.logs = appendLog(draft, 'ruler', `เปลี่ยนเฟสเป็น ${phase.toUpperCase()}`);
       }),
 
-    endTurnAndNext: (skipManaUpkeep = false) => {
+    endTurnAndNext: (skipManaUpkeep = false, grantSpecialTileRewards = false) => {
       const { rulerSecret, sessionMode, activeRoomId } = get();
       const secretTurn = rulerSecret.secretGrailTurn;
       const nextTurnNumber = get().roomState.turn + 1;
 
       commitRoomMutation((draft) => {
+        // Optional: Grant End-of-Turn Leyline Mana & Safe House Heal before advancing turn
+        if (grantSpecialTileRewards) {
+          const specialRewards = scanEndTurnTileRewards(draft);
+          const summaryParts: string[] = [];
+          for (const rew of specialRewards) {
+            if (rew.tileType === 'leyline') {
+              draft.teams[rew.teamId].mana += rew.amount;
+              summaryParts.push(`${rew.unitName} (${rew.tileLabel} +${rew.amount}M)`);
+            } else if (rew.tileType === 'safe_house' && rew.amount > 0) {
+              const u = draft.units[rew.unitId];
+              if (u) {
+                u.hp = Math.min(u.maxHp, u.hp + rew.amount);
+                summaryParts.push(`${rew.unitName} (${rew.tileLabel} +${rew.amount} HP)`);
+              }
+            }
+          }
+          if (summaryParts.length > 0) {
+            draft.logs = appendLog(
+              draft,
+              'ruler',
+              `รางวัลช่องพิเศษจบเทิร์น ${draft.turn}: ${summaryParts.join(', ')}`
+            );
+          }
+        }
+
         draft.turn += 1;
         draft.phase = 'event';
         draft.teams.team_a.readyLocked = false;
@@ -917,6 +1100,131 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           draft,
           'ruler',
           `ใช้สกิล ${skillName} (${unit.name}) — หัก ${skillCost} Mana, ติด Cooldown 2 เทิร์น`
+        );
+      }),
+
+    applyMoveOrder: (unitId, target) => {
+      get().moveUnit(unitId, target);
+    },
+
+    applyNpOrder: (unitId, teamId, npName, npCost) =>
+      commitRoomMutation((draft) => {
+        const unit = draft.units[unitId];
+        const team = draft.teams[teamId];
+        if (!unit || !team) return;
+        team.mana = Math.max(0, team.mana - npCost);
+        unit.npReady = false;
+        draft.logs = appendLog(
+          draft,
+          'ruler',
+          `ปลดปล่อย Noble Phantasm: ${npName} (${unit.name}) — หัก ${npCost} Mana`
+        );
+      }),
+
+    applyGuardOrder: (unitId) =>
+      commitRoomMutation((draft) => {
+        const unit = draft.units[unitId];
+        if (!unit) return;
+        if (!unit.tags.includes('Guard')) {
+          unit.tags.push('Guard');
+        }
+        draft.logs = appendLog(draft, 'ruler', `ติดป้าย [Guard] ให้ ${unit.name}`);
+      }),
+
+    applyUseItemOrder: (teamId, itemId, unitName) =>
+      commitRoomMutation((draft) => {
+        const team = draft.teams[teamId];
+        const idx = team.inventory.indexOf(itemId);
+        if (idx === -1) return;
+        team.inventory.splice(idx, 1);
+        const itemName = ITEMS_BY_ID[itemId]?.name ?? itemId;
+        draft.logs = appendLog(
+          draft,
+          'ruler',
+          `${team.name} ใช้ไอเทม [${itemName}]${unitName ? ` (${unitName})` : ''}`
+        );
+      }),
+
+    applyCombatDamage: (targetUnitId, damage, attackerName) =>
+      commitRoomMutation((draft) => {
+        const unit = draft.units[targetUnitId];
+        if (!unit) return;
+        const dmg = Math.max(0, Math.floor(damage));
+        const prevStatus = unit.status;
+        unit.hp = Math.max(0, unit.hp - dmg);
+        draft.logs = appendLog(
+          draft,
+          'ruler',
+          `Combat: ${attackerName} โจมตี ${unit.name} สร้างความเสียหาย ${dmg} หน่วย (HP เหลือ ${unit.hp}/${unit.maxHp})`
+        );
+
+        if (unit.hp === 0 && prevStatus !== 'defeated') {
+          unit.status = 'defeated';
+          unit.position = null;
+          if (unit.unitType === 'servant') {
+            handleServantDefeatedEffects(draft, unit);
+          } else {
+            draft.logs = appendLog(
+              draft,
+              'system',
+              `มอนสเตอร์ ${unit.name} ถูกกำจัดโดย ${attackerName}!`
+            );
+          }
+        }
+      }),
+
+    grantServantKillBounty: (killerTeamId, victimName) =>
+      commitRoomMutation((draft) => {
+        const team = draft.teams[killerTeamId];
+        team.mana += 4;
+        team.qp += 3;
+        draft.logs = appendLog(
+          draft,
+          'ruler',
+          `จ่าย Bounty สังหาร ${victimName}: ${team.name} ได้รับ +4 Mana, +3 QP`
+        );
+      }),
+
+    grantMonsterReward: (killerTeamId, monsterTemplateId, killerUnitId, tier1Choice) =>
+      commitRoomMutation((draft) => {
+        const tpl = MONSTERS_BY_ID[monsterTemplateId];
+        const team = draft.teams[killerTeamId];
+        if (!tpl || !team) return;
+
+        let manaGain = tpl.rewardMana;
+        let qpGain = tpl.rewardQp;
+        if (tpl.tier === 1 && tier1Choice) {
+          manaGain = tier1Choice === 'mana' ? 2 : 0;
+          qpGain = tier1Choice === 'qp' ? 2 : 0;
+        }
+        team.mana += manaGain;
+        team.qp += qpGain;
+
+        const rewardParts: string[] = [];
+        if (manaGain > 0) rewardParts.push(`+${manaGain} Mana`);
+        if (qpGain > 0) rewardParts.push(`+${qpGain} QP`);
+
+        if (tpl.dropItemRarity) {
+          const pool = ITEMS.filter((it) => it.rarity === tpl.dropItemRarity);
+          if (pool.length > 0) {
+            const picked = pool[Math.floor(Math.random() * pool.length)];
+            team.inventory.push(picked.id);
+            rewardParts.push(`ไอเทม [${picked.name}]`);
+          }
+        }
+
+        if (tpl.id === 'fafnir' && killerUnitId && draft.units[killerUnitId]) {
+          draft.units[killerUnitId].atk += 1;
+          if (!draft.units[killerUnitId].tags.includes('Dragon Slayer +1 ATK')) {
+            draft.units[killerUnitId].tags.push('Dragon Slayer +1 ATK');
+          }
+          rewardParts.push(`${draft.units[killerUnitId].name} +1 ATK ถาวร`);
+        }
+
+        draft.logs = appendLog(
+          draft,
+          'ruler',
+          `รางวัลสังหาร ${tpl.name} ให้ ${team.name}: ${rewardParts.join(', ')}`
         );
       }),
 
@@ -1008,7 +1316,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       }
     },
 
-    moveUnit: (unitId, target) =>
+    moveUnit: (unitId, target) => {
+      let toastCandidate: PendingPickupToast | null = null;
+      const isRulerNow = get().previewRole === 'ruler';
+
       commitRoomMutation((draft) => {
         const unit = draft.units[unitId];
         if (!unit) return;
@@ -1026,7 +1337,32 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         if (occupant && oldPos) {
           occupant.position = oldPos;
         }
-      }),
+
+        // Check for dropped item on landing tile -> trigger Quick Pickup Toast for Ruler
+        const targetKey = getTileKey(target.zone, target.x, target.y);
+        const droppedId = draft.tileOverrides[targetKey]?.droppedItemId;
+        if (
+          isRulerNow &&
+          droppedId &&
+          unit.unitType === 'servant' &&
+          (unit.owner === 'team_a' || unit.owner === 'team_b')
+        ) {
+          toastCandidate = {
+            id: `pickup-${Date.now()}`,
+            tileKey: targetKey,
+            coords: { ...target },
+            itemId: droppedId,
+            unitId: unit.id,
+            unitName: unit.name,
+            teamId: unit.owner,
+          };
+        }
+      });
+
+      if (toastCandidate) {
+        set({ pendingPickupToast: toastCandidate });
+      }
+    },
 
     updateUnit: (unitId, patch) =>
       commitRoomMutation((draft) => {
@@ -1056,45 +1392,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           prevStatus !== 'defeated' &&
           unit.status === 'defeated'
         ) {
-          // Automatically reveal True Name on defeat for authentic Grail Vessel absorption banner
-          unit.isTrueNameRevealed = true;
-          const nextCount = Math.min(5, draft.grailAbsorbedCount + 1);
-          draft.grailAbsorbedCount = nextCount;
-          if (!draft.grailAbsorbedNames.includes(unit.name)) {
-            draft.grailAbsorbedNames.push(unit.name);
-          }
-
-          if (unit.owner === 'team_a') {
-            draft.teams.team_b.defeatedCount = Math.min(6, draft.teams.team_b.defeatedCount + 1);
-          } else if (unit.owner === 'team_b') {
-            draft.teams.team_a.defeatedCount = Math.min(6, draft.teams.team_a.defeatedCount + 1);
-          }
-
-          const manifestedNow = nextCount >= 5 && !draft.grailManifested;
-          if (manifestedNow) {
-            draft.grailManifested = true;
-          }
-
-          const banner: GrailBannerBroadcast = manifestedNow
-            ? {
-                id: `grail-${Date.now()}`,
-                servantName: unit.name,
-                absorbedCount: nextCount,
-                isManifestation: true,
-                message: `วิญญาณวีรชน ${unit.name} เติมเต็มภาชนะครบ 5/5 — Greater Grail จุติลง ณ ใจกลางฟุยุกิแล้ว!`,
-                timestamp: Date.now(),
-              }
-            : {
-                id: `grail-${Date.now()}`,
-                servantName: unit.name,
-                absorbedCount: nextCount,
-                isManifestation: false,
-                message: `วิญญาณวีรชน ${unit.name} ถูกจอกศักดิ์สิทธิ์กลืนกินแล้ว... (${nextCount} / 5)`,
-                timestamp: Date.now(),
-              };
-
-          draft.grailBannerBroadcast = banner;
-          draft.logs = appendLog(draft, 'system', banner.message);
+          handleServantDefeatedEffects(draft, unit);
         }
       }),
 
@@ -1203,11 +1501,16 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       commitRoomMutation((draft) => {
         const key = getTileKey(coords.zone, coords.x, coords.y);
         const existing = draft.tileOverrides[key];
-        draft.tileOverrides[key] = {
-          tileKey: key,
-          cleared: !(existing?.cleared ?? false),
-          customNote: existing?.customNote,
-        };
+        const nextCleared = !(existing?.cleared ?? false);
+        if (!nextCleared && !existing?.customNote && !existing?.droppedItemId) {
+          delete draft.tileOverrides[key];
+        } else {
+          draft.tileOverrides[key] = {
+            ...existing,
+            tileKey: key,
+            cleared: nextCleared,
+          };
+        }
       }),
 
     setTileCustomNote: (coords, note) =>
@@ -1215,10 +1518,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         const key = getTileKey(coords.zone, coords.x, coords.y);
         const trimmed = note.trim();
         const existing = draft.tileOverrides[key];
-        if (!trimmed && !existing?.cleared) {
+        if (!trimmed && !existing?.cleared && !existing?.droppedItemId) {
           delete draft.tileOverrides[key];
         } else {
           draft.tileOverrides[key] = {
+            ...existing,
             tileKey: key,
             cleared: existing?.cleared ?? false,
             customNote: trimmed || undefined,
@@ -1226,11 +1530,94 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         }
       }),
 
+    dropItemOnTile: (coords, itemId, isMysteryDrop = false) =>
+      commitRoomMutation((draft) => {
+        const item = ITEMS_BY_ID[itemId];
+        if (!item) return;
+        const key = getTileKey(coords.zone, coords.x, coords.y);
+        const existing = draft.tileOverrides[key];
+        draft.tileOverrides[key] = {
+          ...existing,
+          tileKey: key,
+          cleared: existing?.cleared ?? false,
+          droppedItemId: itemId,
+          isMysteryDrop,
+        };
+        const label = formatCoordLabel(coords.x, coords.y);
+        draft.logs = appendLog(
+          draft,
+          'ruler',
+          isMysteryDrop
+            ? `วางหีบสมบัติปริศนา (?) ที่ ${coords.zone.toUpperCase()} ${label}`
+            : `ดรอปไอเทม [${item.name}] ที่ ${coords.zone.toUpperCase()} ${label}`
+        );
+      }),
+
+    dropRandomItemOnTile: (coords, rarity, isMysteryDrop = false) => {
+      const pool = ITEMS.filter((it) => it.rarity === rarity);
+      if (pool.length === 0) return;
+      const picked = pool[Math.floor(Math.random() * pool.length)];
+      get().dropItemOnTile(coords, picked.id, isMysteryDrop);
+    },
+
+    pickupItemFromTile: (coords, teamId) => {
+      const key = getTileKey(coords.zone, coords.x, coords.y);
+      commitRoomMutation((draft) => {
+        const existing = draft.tileOverrides[key];
+        const itemId = existing?.droppedItemId;
+        if (!itemId) return;
+        const itemName = ITEMS_BY_ID[itemId]?.name ?? itemId;
+        draft.teams[teamId].inventory.push(itemId);
+        if (!existing.cleared && !existing.customNote) {
+          delete draft.tileOverrides[key];
+        } else {
+          draft.tileOverrides[key] = {
+            ...existing,
+            droppedItemId: null,
+            isMysteryDrop: false,
+          };
+        }
+        draft.logs = appendLog(
+          draft,
+          'ruler',
+          `${draft.teams[teamId].name} เก็บไอเทม [${itemName}] จาก ${coords.zone.toUpperCase()} ${formatCoordLabel(coords.x, coords.y)}`
+        );
+      });
+      if (get().pendingPickupToast?.tileKey === key) {
+        set({ pendingPickupToast: null });
+      }
+    },
+
+    removeItemFromTile: (coords) => {
+      const key = getTileKey(coords.zone, coords.x, coords.y);
+      commitRoomMutation((draft) => {
+        const existing = draft.tileOverrides[key];
+        if (!existing?.droppedItemId) return;
+        if (!existing.cleared && !existing.customNote) {
+          delete draft.tileOverrides[key];
+        } else {
+          draft.tileOverrides[key] = {
+            ...existing,
+            droppedItemId: null,
+            isMysteryDrop: false,
+          };
+        }
+        draft.logs = appendLog(
+          draft,
+          'ruler',
+          `ลบไอเทมดรอปออกจากช่อง ${coords.zone.toUpperCase()} ${formatCoordLabel(coords.x, coords.y)}`
+        );
+      });
+      if (get().pendingPickupToast?.tileKey === key) {
+        set({ pendingPickupToast: null });
+      }
+    },
+
     resetAllClearedTiles: () =>
       commitRoomMutation((draft) => {
         for (const key of Object.keys(draft.tileOverrides)) {
           draft.tileOverrides[key].cleared = false;
-          if (!draft.tileOverrides[key].customNote) {
+          if (!draft.tileOverrides[key].customNote && !draft.tileOverrides[key].droppedItemId) {
             delete draft.tileOverrides[key];
           }
         }

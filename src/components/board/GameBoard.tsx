@@ -13,7 +13,11 @@ import { MAP_DATA, MONSTERS_BY_ID } from '../../data';
 import { useGameStore } from '../../store/useGameStore';
 import type { BoardUnit, Coordinates, SpecialTile, TeamId } from '../../types/game';
 import { getTileKey } from '../../utils/assetHelper';
-import { computeMovementAnalysis, formatMpCost } from '../../utils/gridMath';
+import {
+  computeAttackRangeTiles,
+  computeMovementAnalysis,
+  formatMpCost,
+} from '../../utils/gridMath';
 import { isUnitIdentityHidden } from '../../utils/visibilityHelper';
 import { CommandArrowsSvg } from './CommandArrowsSvg';
 import { FogOverlay } from './FogOverlay';
@@ -47,6 +51,7 @@ export function GameBoard() {
   const setTilePopover = useGameStore((s) => s.setTilePopover);
   const moveUnit = useGameStore((s) => s.moveUnit);
   const spawnMonster = useGameStore((s) => s.spawnMonster);
+  const setPickingOrderForUnitId = useGameStore((s) => s.setPickingOrderForUnitId);
   const applyPickedTarget = useGameStore((s) => s.applyPickedTarget);
 
   const isRuler = previewRole === 'ruler';
@@ -220,6 +225,17 @@ export function GameBoard() {
     myTeam,
   ]);
 
+  const attackRangeAnalysis = useMemo(() => {
+    if (!analysisTargetUnit || analysisTargetUnit.unitType !== 'servant') {
+      return null;
+    }
+    if (!pickingUnit && !showMoveHelper) {
+      return null;
+    }
+    if (!isRuler && myTeam && analysisTargetUnit.owner !== myTeam) return null;
+    return computeAttackRangeTiles(analysisTargetUnit);
+  }, [pickingUnit, showMoveHelper, analysisTargetUnit, isRuler, myTeam]);
+
   // Hover Path Preview coordinates inside activeZone
   const hoverPathPoints = useMemo(() => {
     if (!movementAnalysis || !hoveredTile || hoveredTile.zone !== activeZone) {
@@ -294,18 +310,52 @@ export function GameBoard() {
   };
 
   const handleUnitSelect = (unit: BoardUnit) => {
-    if (!isRuler && pickingOrderForUnitId && unit.position) {
-      if (isStrictMovePick) {
-        setPickWarning({
-          unitId: pickingOrderForUnitId,
-          message:
-            'ช่องนี้มีตัวละครยืนอยู่แล้ว — เลือกช่องว่างในระยะเดินสีเขียว/ส้ม หรือติ๊ก "ปลดล็อกระยะ"',
-        });
+    if (!isRuler && myTeam) {
+      const isOwnActiveServant =
+        unit.unitType === 'servant' &&
+        unit.owner === myTeam &&
+        unit.status === 'active';
+      const canPlanNow =
+        roomState.phase === 'planning' && !roomState.teams[myTeam].readyLocked;
+
+      // Board-First Command Selection: clicking own active Servant in Planning immediately opens Smart Target Picker
+      if (!pickingOrderForUnitId) {
+        selectUnit(unit.id);
+        if (isOwnActiveServant && canPlanNow) {
+          setPickWarning(null);
+          setPickingOrderForUnitId(unit.id);
+        }
         return;
       }
-      setPickWarning(null);
-      applyPickedTarget(unit.position, unit.id, null);
-      return;
+
+      // Clicking the same Servant currently being picked toggles picker off cleanly
+      if (pickingOrderForUnitId === unit.id) {
+        setPickWarning(null);
+        setPickingOrderForUnitId(null);
+        return;
+      }
+
+      // Clicking another own Servant while in strict Move pick seamlessly switches to ordering that Servant
+      if (isOwnActiveServant && isStrictMovePick && canPlanNow) {
+        setPickWarning(null);
+        selectUnit(unit.id);
+        setPickingOrderForUnitId(unit.id);
+        return;
+      }
+
+      if (unit.position) {
+        if (isStrictMovePick) {
+          setPickWarning({
+            unitId: pickingOrderForUnitId,
+            message:
+              'ช่องนี้มีตัวละครยืนอยู่แล้ว — เลือกช่องว่างในระยะเดินสีเขียว/ส้ม หรือติ๊ก "ปลดล็อกระยะ"',
+          });
+          return;
+        }
+        setPickWarning(null);
+        applyPickedTarget(unit.position, unit.id, null);
+        return;
+      }
     }
     selectUnit(unit.id);
   };
@@ -316,8 +366,8 @@ export function GameBoard() {
   };
 
   const maxBoardWidth = isRuler
-    ? 'min(100%, calc((100vh - 165px) * 10 / 7))'
-    : 'min(100%, calc((100vh - 125px) * 10 / 7))';
+    ? 'min(100%, calc((100vh - 205px) * 10 / 7))'
+    : 'min(100%, calc((100vh - 165px) * 10 / 7))';
 
   // Command Arrow sources: Ruler sees both submitted teams; Master sees only own draft arrows
   const arrowTeamA = isRuler
@@ -369,6 +419,12 @@ export function GameBoard() {
               <strong className="font-display text-slate-200">{selectedUnit.name}</strong> ·{' '}
               {formatMpCost(movementAnalysis.maxMP)} MP
               {hasteBonus > 0 ? ' (Event +1.0)' : ''}
+              {attackRangeAnalysis ? (
+                <span className="ml-1 text-red-400">
+                  · RNG {attackRangeAnalysis.effectiveRange}
+                  {attackRangeAnalysis.highGroundBonus ? ' (+1 ตึก)' : ''}
+                </span>
+              ) : null}
             </span>
             {movementAnalysis.isEngaged && (
               <span
@@ -450,6 +506,7 @@ export function GameBoard() {
                       lockedTile.y === y
                   );
                   const reachableInfo = movementAnalysis?.reachable[tileKey];
+                  const isInAttackRange = Boolean(attackRangeAnalysis?.tiles.has(tileKey));
                   const isBlockedPick = isStrictMovePick && !reachableInfo;
                   const hiddenIdentity = unit
                     ? isUnitIdentityHidden(unit, previewRole, roomState)
@@ -470,9 +527,11 @@ export function GameBoard() {
                       isSelectedUnit={unit?.id === selectedUnitId}
                       isLockedTile={isLockedTile}
                       canDragUnit={canDrag}
+                      isRuler={isRuler}
                       isUnitIdentityHidden={hiddenIdentity}
                       deploymentPreview={deploymentPreview}
                       reachableInfo={reachableInfo}
+                      isInAttackRange={isInAttackRange}
                       isBlockedPick={isBlockedPick}
                       isSpawnMode={Boolean(
                         (isRuler && pendingSpawnMonsterId) ||

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   CloudFog,
   Crown,
@@ -6,10 +6,14 @@ import {
   FastForward,
   Footprints,
   Hand,
+  Heart,
   Navigation,
+  Sparkles,
+  Swords,
   Undo2,
+  X,
 } from 'lucide-react';
-import { useGameStore } from '../../store/useGameStore';
+import { scanEndTurnTileRewards, useGameStore } from '../../store/useGameStore';
 import type { TurnPhase } from '../../types/game';
 
 const PHASES: { id: TurnPhase; label: string }[] = [
@@ -38,9 +42,16 @@ export function RulerControlStrip() {
   const setFreeDragEnabled = useGameStore((s) => s.setFreeDragEnabled);
   const setShowMoveHelper = useGameStore((s) => s.setShowMoveHelper);
   const setShowCommandArrows = useGameStore((s) => s.setShowCommandArrows);
+  const setCombatHelperOpen = useGameStore((s) => s.setCombatHelperOpen);
   const undo = useGameStore((s) => s.undo);
 
   const [skipMana, setSkipMana] = useState(false);
+  const [showEndTurnMenu, setShowEndTurnMenu] = useState(false);
+
+  const endTurnRewards = useMemo(
+    () => (showEndTurnMenu ? scanEndTurnTileRewards(roomState) : []),
+    [showEndTurnMenu, roomState]
+  );
 
   if (previewRole !== 'ruler') return null;
 
@@ -72,13 +83,114 @@ export function RulerControlStrip() {
           })}
         </div>
 
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowEndTurnMenu((v) => !v)}
+            className="flex items-center gap-1 rounded-[2px] border border-[#C8A253]/50 bg-[#B91C1C] px-2.5 py-0.5 font-display text-[10px] font-bold tracking-wider text-slate-100 transition hover:bg-red-700"
+          >
+            <FastForward className="h-3 w-3" />
+            <span>End Turn → T{roomState.turn + 1}</span>
+          </button>
+
+          {showEndTurnMenu && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setShowEndTurnMenu(false)}
+              />
+              <div className="clip-tactical-sm absolute top-full left-0 z-50 mt-1.5 w-72 border border-[#C8A253]/60 bg-[#111622] p-2.5 text-slate-100 shadow-2xl">
+                <div className="mb-1.5 flex items-center justify-between border-b border-slate-800 pb-1">
+                  <span className="font-display text-[10.5px] font-bold tracking-wider text-[#E5C983]">
+                    จบเทิร์น {roomState.turn} → T{roomState.turn + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowEndTurnMenu(false)}
+                    className="text-slate-400 hover:text-white"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                <div className="mb-2 text-[10px] text-slate-400">
+                  สแกน Servant ที่ยืนบนช่อง Leyline / Safe House:
+                </div>
+
+                {endTurnRewards.length === 0 ? (
+                  <div className="mb-2.5 rounded-[2px] border border-dashed border-slate-800 bg-[#090B10] px-2 py-2 text-center text-[10.5px] text-slate-500">
+                    ไม่มี Servant ยืนบน Leyline หรือ Safe House ในเทิร์นนี้
+                  </div>
+                ) : (
+                  <div className="mb-2.5 max-h-36 space-y-1 overflow-y-auto">
+                    {endTurnRewards.map((r) => (
+                      <div
+                        key={`${r.unitId}-${r.tileType}`}
+                        className="flex items-center justify-between rounded-[2px] border border-slate-800 bg-[#090B10] px-2 py-1 text-[10.5px]"
+                      >
+                        <div className="min-w-0 truncate">
+                          <span
+                            className={`mr-1 font-bold ${
+                              r.teamId === 'team_a' ? 'text-red-400' : 'text-sky-400'
+                            }`}
+                          >
+                            [{r.teamId === 'team_a' ? 'A' : 'B'}]
+                          </span>
+                          <span className="font-semibold text-slate-200">{r.unitName}</span>
+                        </div>
+                        <span
+                          className={`ml-1.5 flex shrink-0 items-center gap-0.5 font-bold ${
+                            r.tileType === 'leyline' ? 'text-teal-300' : 'text-emerald-300'
+                          }`}
+                        >
+                          {r.tileType === 'leyline' ? (
+                            <Sparkles className="h-2.5 w-2.5" />
+                          ) : (
+                            <Heart className="h-2.5 w-2.5" />
+                          )}
+                          {r.detail}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      endTurnAndNext(skipMana, true);
+                      setShowEndTurnMenu(false);
+                    }}
+                    className="flex w-full items-center justify-center gap-1 rounded-[2px] border border-[#C8A253]/70 bg-[#B91C1C] py-1.5 text-[10.5px] font-bold text-white transition hover:bg-red-700"
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    <span>แจกรางวัลช่องพิเศษ & จบเทิร์น</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      endTurnAndNext(skipMana, false);
+                      setShowEndTurnMenu(false);
+                    }}
+                    className="flex w-full items-center justify-center gap-1 rounded-[2px] border border-slate-700 bg-[#090B10] py-1 text-[10px] font-semibold text-slate-300 transition hover:border-[#C8A253] hover:text-white"
+                  >
+                    <span>จบเทิร์นแบบไม่แจกช่องพิเศษ</span>
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
         <button
           type="button"
-          onClick={() => endTurnAndNext(skipMana)}
-          className="flex items-center gap-1 rounded-[2px] border border-[#C8A253]/50 bg-[#B91C1C] px-2.5 py-0.5 font-display text-[10px] font-bold tracking-wider text-slate-100 transition hover:bg-red-700"
+          onClick={() => setCombatHelperOpen(true)}
+          title="เปิด Quick Combat Helper (คำนวณดาเมจภูมิประเทศ + ทอย 1d6 + หัก HP/จ่าย Bounty)"
+          className="flex items-center gap-1 rounded-[2px] border border-[#C8A253]/60 bg-[#C8A253]/15 px-2 py-0.5 font-display text-[10px] font-bold tracking-wider text-[#E5C983] transition hover:bg-[#C8A253]/30"
         >
-          <FastForward className="h-3 w-3" />
-          <span>End Turn → T{roomState.turn + 1}</span>
+          <Swords className="h-3 w-3" />
+          <span>Combat</span>
         </button>
 
         <label

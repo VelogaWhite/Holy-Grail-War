@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import {
   ArrowLeft,
@@ -8,6 +9,7 @@ import {
   Crown,
   Droplet,
   Eye,
+  Gift,
   Hammer,
   HelpCircle,
   Hexagon,
@@ -19,6 +21,7 @@ import {
   Trees,
   Waves,
 } from 'lucide-react';
+import { ITEMS_BY_ID } from '../../data';
 import type {
   BoardUnit,
   SpecialTile,
@@ -26,7 +29,7 @@ import type {
   TileOverride,
   ZoneId,
 } from '../../types/game';
-import { getTileKey } from '../../utils/assetHelper';
+import { getTileKey, resolveAssetUrl } from '../../utils/assetHelper';
 import { formatMpCost, type ReachableTileInfo } from '../../utils/gridMath';
 import { UnitToken } from './UnitToken';
 
@@ -41,9 +44,11 @@ interface GridTileProps {
   isSelectedUnit: boolean;
   isLockedTile: boolean;
   canDragUnit: boolean;
+  isRuler?: boolean;
   isUnitIdentityHidden?: boolean;
   deploymentPreview?: { name: string; team: 'team_a' | 'team_b' } | null;
   reachableInfo?: ReachableTileInfo;
+  isInAttackRange?: boolean;
   isBlockedPick?: boolean;
   isSpawnMode: boolean;
   onSelectUnit: (unitId: string) => void;
@@ -79,9 +84,11 @@ export function GridTile({
   isSelectedUnit,
   isLockedTile,
   canDragUnit,
+  isRuler = false,
   isUnitIdentityHidden = false,
   deploymentPreview = null,
   reachableInfo,
+  isInAttackRange = false,
   isBlockedPick = false,
   isSpawnMode,
   onSelectUnit,
@@ -98,6 +105,15 @@ export function GridTile({
 
   const isCleared = tileOverride?.cleared ?? false;
   const customNote = tileOverride?.customNote;
+  const droppedItem = tileOverride?.droppedItemId
+    ? ITEMS_BY_ID[tileOverride.droppedItemId] ?? null
+    : null;
+  const isMysteryDropHidden = Boolean(
+    droppedItem && tileOverride?.isMysteryDrop && !isRuler
+  );
+  const droppedItemIconUrl =
+    droppedItem && !isMysteryDropHidden ? resolveAssetUrl(droppedItem.icon) : null;
+  const [dropIconErrUrl, setDropIconErrUrl] = useState<string | null>(null);
 
   const isGateRight = specialTile?.type === 'gate' && x === 9;
   const isGateLeft = specialTile?.type === 'gate' && x === 0;
@@ -234,6 +250,11 @@ export function GridTile({
       {isBlockedPick && (
         <div className="pointer-events-none absolute inset-0 z-[5] bg-[#090B10]/45" />
       )}
+      {/* Attack Range Visual Helper Overlay (subtle crimson frame) */}
+      {isInAttackRange && (
+        <div className="pointer-events-none absolute inset-0 z-[4] rounded-[2px] border border-red-500/55 bg-red-500/10" />
+      )}
+
       {/* Movement & ZoC Visual Helper Overlay (non-blocking) */}
       {reachableInfo && !unit && (
         <div
@@ -301,6 +322,56 @@ export function GridTile({
 
       {/* Layer 2: Special Feature Marker */}
       <div className={unit ? 'opacity-10' : 'opacity-95'}>{renderSpecialMarker()}</div>
+
+      {/* Dropped Item / Mystery Chest Glowing Marker */}
+      {droppedItem && !unit && (
+        <div
+          title={
+            isMysteryDropHidden
+              ? 'หีบสมบัติปริศนา (?)'
+              : `${droppedItem.name}: ${droppedItem.effectDesc}`
+          }
+          className="pointer-events-none absolute inset-1 z-[12] flex flex-col items-center justify-center rounded-[2px] border border-[#C8A253] bg-[#090B10]/85 shadow-[0_0_12px_rgba(200,162,83,0.55)]"
+        >
+          {isMysteryDropHidden ? (
+            <>
+              <Gift className="h-4 w-4 text-[#E5C983]" />
+              <span className="mt-0.5 font-display text-[8px] font-black leading-none text-[#E5C983]">
+                ? ITEM
+              </span>
+            </>
+          ) : droppedItemIconUrl && dropIconErrUrl !== droppedItemIconUrl ? (
+            <>
+              <img
+                src={droppedItemIconUrl}
+                alt={droppedItem.name}
+                onError={() => setDropIconErrUrl(droppedItemIconUrl)}
+                className="h-6 w-6 object-contain"
+              />
+              <span className="mt-0.5 max-w-[92%] truncate font-display text-[7px] font-bold leading-none text-[#E5C983]">
+                {droppedItem.name.split(' ')[0]}
+              </span>
+            </>
+          ) : (
+            <>
+              <Gift className="h-4 w-4 text-[#E5C983]" />
+              <span className="mt-0.5 max-w-[92%] truncate font-display text-[7px] font-bold leading-none text-[#E5C983]">
+                {droppedItem.name.split(' ')[0]}
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Dropped Item Corner Pip when a Unit is standing on the tile */}
+      {droppedItem && unit && (
+        <div
+          title={isMysteryDropHidden ? 'หีบสมบัติปริศนา (?)' : `ไอเทมบนพื้น: ${droppedItem.name}`}
+          className="pointer-events-none absolute bottom-0.5 left-0.5 z-20 flex h-4 w-4 items-center justify-center rounded-full border border-[#090B10] bg-[#C8A253] text-[#090B10] shadow-[0_0_8px_rgba(200,162,83,0.9)]"
+        >
+          <Gift className="h-2.5 w-2.5" />
+        </div>
+      )}
 
       {/* Cleared Overlay */}
       {isCleared && (

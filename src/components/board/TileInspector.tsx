@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Compass, Lock, MapPin, Sparkles, Unlock, Waves } from 'lucide-react';
-import { MAP_DATA, TERRAINS_BY_ID } from '../../data';
+import { Compass, Gift, Lock, MapPin, Sparkles, Unlock, Waves } from 'lucide-react';
+import { ITEMS_BY_ID, MAP_DATA, TERRAINS_BY_ID } from '../../data';
 import { useGameStore } from '../../store/useGameStore';
 import type { TerrainId } from '../../types/game';
 import {
@@ -54,6 +54,7 @@ const ZONE_SHORT_LABEL: Record<string, string> = {
 };
 
 export function TileInspector() {
+  const previewRole = useGameStore((s) => s.previewRole);
   const hoveredTile = useGameStore((s) => s.hoveredTile);
   const lockedTile = useGameStore((s) => s.lockedTile);
   const clearLockedTile = useGameStore((s) => s.clearLockedTile);
@@ -91,8 +92,16 @@ export function TileInspector() {
     (t) => t.x === activeTile.x && t.y === activeTile.y
   );
   const override = tileOverrides[getTileKey(activeTile.zone, activeTile.x, activeTile.y)];
+  const droppedItem = override?.droppedItemId
+    ? ITEMS_BY_ID[override.droppedItemId] ?? null
+    : null;
+  const hideDroppedItem = Boolean(
+    droppedItem && override?.isMysteryDrop && previewRole !== 'ruler'
+  );
   const coordLabel = formatCoordLabel(activeTile.x, activeTile.y);
-  const hasLayer2 = Boolean(specialTile || override?.cleared || override?.customNote);
+  const hasLayer2 = Boolean(
+    specialTile || override?.cleared || override?.customNote || droppedItem
+  );
 
   return (
     <section className="mt-3 border-t border-[#C8A253]/25 pt-3">
@@ -204,6 +213,24 @@ export function TileInspector() {
                   </div>
                   <p className="mt-0.5 text-[11px] leading-relaxed text-slate-300">
                     {getSpecialTileEffectText(specialTile.type, specialTile.manaBonus)}
+                  </p>
+                </div>
+              )}
+
+              {droppedItem && (
+                <div className="mt-1.5 rounded-[2px] border border-[#C8A253]/60 bg-[#C8A253]/10 p-1.5">
+                  <div className="flex items-center gap-1 text-[10.5px] font-bold text-[#E5C983]">
+                    <Gift className="h-3 w-3 shrink-0 text-[#C8A253]" />
+                    <span>
+                      {hideDroppedItem
+                        ? 'หีบสมบัติปริศนา (?)'
+                        : `ไอเทมบนพื้น: ${droppedItem.name}`}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[10px] leading-snug text-slate-300">
+                    {hideDroppedItem
+                      ? 'เดินลงช่องนี้เพื่อเปิดเผยและเก็บไอเทมด้านใน'
+                      : droppedItem.effectDesc}
                   </p>
                 </div>
               )}

@@ -1,9 +1,10 @@
-import { Info, MapPin, Sparkles } from 'lucide-react';
-import { MAP_DATA, TERRAINS_BY_ID } from '../../data';
+import { Gift, Info, MapPin, Sparkles } from 'lucide-react';
+import { ITEMS_BY_ID, MAP_DATA, TERRAINS_BY_ID } from '../../data';
 import { useGameStore } from '../../store/useGameStore';
 import { formatCoordLabel, getSpecialTileEffectText, getTileKey } from '../../utils/assetHelper';
 
 export function TileInfoTooltip() {
+  const previewRole = useGameStore((s) => s.previewRole);
   const hoveredTile = useGameStore((s) => s.hoveredTile);
   const tileOverrides = useGameStore((s) => s.roomState.tileOverrides);
 
@@ -51,6 +52,12 @@ export function TileInfoTooltip() {
     (t) => t.x === hoveredTile.x && t.y === hoveredTile.y
   );
   const override = tileOverrides[getTileKey(hoveredTile.zone, hoveredTile.x, hoveredTile.y)];
+  const droppedItem = override?.droppedItemId
+    ? ITEMS_BY_ID[override.droppedItemId] ?? null
+    : null;
+  const hideDroppedItem = Boolean(
+    droppedItem && override?.isMysteryDrop && previewRole !== 'ruler'
+  );
 
   return (
     <div className="flex min-h-9 w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-[2px] border border-[#C8A253]/40 bg-[#111622] px-3 py-1 text-[11px] text-slate-200">
@@ -69,13 +76,21 @@ export function TileInfoTooltip() {
       </div>
 
       {/* Layer 2: Special Feature */}
-      {(specialTile || override?.customNote) && (
+      {(specialTile || override?.customNote || droppedItem) && (
         <div className="flex flex-wrap items-center gap-2 border-l border-[#C8A253]/25 pl-2">
           {specialTile && (
             <span className="flex items-center gap-1 font-medium text-slate-300">
               <Sparkles className="h-3 w-3 shrink-0 text-[#C8A253]" />
               <strong className="text-[#E5C983]">{specialTile.label}:</strong>{' '}
               {getSpecialTileEffectText(specialTile.type, specialTile.manaBonus)}
+            </span>
+          )}
+          {droppedItem && (
+            <span className="flex items-center gap-1 rounded-[2px] border border-[#C8A253]/50 bg-[#C8A253]/15 px-1.5 py-0.5 text-[10px] font-bold text-[#E5C983]">
+              <Gift className="h-3 w-3 shrink-0 text-[#C8A253]" />
+              {hideDroppedItem
+                ? 'หีบสมบัติปริศนา (?)'
+                : `${droppedItem.name} — ${droppedItem.effectDesc}`}
             </span>
           )}
           {override?.customNote && (

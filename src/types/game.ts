@@ -66,6 +66,8 @@ export interface TileOverride {
   tileKey: string; // "{zone}_{x}_{y}" e.g. "central_4_3"
   cleared: boolean;
   customNote?: string;
+  droppedItemId?: string | null;
+  isMysteryDrop?: boolean;
 }
 
 export type CommandActionType =
@@ -86,6 +88,7 @@ export interface CommandOrder {
   useSkill?: boolean;
   overrideMoveRange?: boolean;
   estimatedMoveCost?: number | null;
+  itemId?: string;
   note: string;
 }
 

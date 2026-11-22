@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { GameBoard } from './components/board/GameBoard';
+import { PhaseGuideBanner } from './components/layout/PhaseGuideBanner';
 import { TopBarHud } from './components/layout/TopBarHud';
 import { LobbyView } from './components/lobby/LobbyView';
 import { CatalogModal } from './components/modals/CatalogModal';
@@ -8,6 +9,8 @@ import { DiceToast } from './components/modals/DiceToast';
 import { GameLogDrawer } from './components/modals/GameLogDrawer';
 import { GrailAbsorptionBanner } from './components/modals/GrailAbsorptionBanner';
 import { WheelModal } from './components/modals/WheelModal';
+import { QuickCombatModal } from './components/ruler/QuickCombatModal';
+import { QuickPickupToast } from './components/ruler/QuickPickupToast';
 import { RulerControlStrip } from './components/ruler/RulerControlStrip';
 import { RulerToolsSidebar } from './components/ruler/RulerToolsSidebar';
 import { TilePopover } from './components/ruler/TilePopover';
@@ -90,6 +93,7 @@ export function App() {
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#090B10] text-slate-100">
       <TopBarHud />
+      <PhaseGuideBanner />
       <RulerControlStrip />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <RulerToolsSidebar />
@@ -102,6 +106,8 @@ export function App() {
       <DiceToast />
       <GameLogDrawer />
       <GrailAbsorptionBanner />
+      <QuickCombatModal />
+      <QuickPickupToast />
       <TilePopover />
     </div>
   );

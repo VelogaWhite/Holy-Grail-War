@@ -36,8 +36,45 @@ export function formatMpCost(cost: number): string {
   return roundHalf(cost).toFixed(1);
 }
 
-function getTerrainAt(zone: ZoneId, x: number, y: number): TerrainId {
+export function getTerrainAt(zone: ZoneId, x: number, y: number): TerrainId {
   return MAP_DATA.zones[zone]?.terrainGrid[y]?.[x] ?? 'open';
+}
+
+export interface AttackRangeAnalysis {
+  tiles: Set<string>;
+  baseRange: number;
+  effectiveRange: number;
+  highGroundBonus: boolean;
+}
+
+/**
+ * Computes attack range tiles (Manhattan distance 1..effectiveRange within the same zone).
+ * Ranged classes (base range >= 2) standing on a 'building' tile receive +1 Range (High Ground).
+ */
+export function computeAttackRangeTiles(unit: BoardUnit): AttackRangeAnalysis {
+  const classDef = unit.servantClass ? CLASSES_BY_ID[unit.servantClass] : undefined;
+  const baseRange = unit.range ?? classDef?.baseRange ?? 1;
+  const tiles = new Set<string>();
+
+  if (unit.status !== 'active' || !unit.position || baseRange <= 0) {
+    return { tiles, baseRange, effectiveRange: baseRange, highGroundBonus: false };
+  }
+
+  const { zone, x: ux, y: uy } = unit.position;
+  const terrain = getTerrainAt(zone, ux, uy);
+  const highGroundBonus = terrain === 'building' && baseRange >= 2;
+  const effectiveRange = baseRange + (highGroundBonus ? 1 : 0);
+
+  for (let y = 0; y < MAP_DATA.rows; y++) {
+    for (let x = 0; x < MAP_DATA.cols; x++) {
+      const dist = Math.abs(x - ux) + Math.abs(y - uy);
+      if (dist >= 1 && dist <= effectiveRange) {
+        tiles.add(getTileKey(zone, x, y));
+      }
+    }
+  }
+
+  return { tiles, baseRange, effectiveRange, highGroundBonus };
 }
 
 function getMoveStepCost(fromTerrain: TerrainId, toTerrain: TerrainId): number {

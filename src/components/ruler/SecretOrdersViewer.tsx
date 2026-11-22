@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
   CheckSquare,
+  Flame,
+  Footprints,
   LockOpen,
   MapPin,
+  Package,
   Play,
   Shield,
   Square,
@@ -12,7 +16,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import { SERVANTS_BY_ID } from '../../data';
+import { ITEMS_BY_ID, SERVANTS_BY_ID } from '../../data';
 import { useGameStore } from '../../store/useGameStore';
 import type { SecretCommandsDoc } from '../../types/game';
 import { formatCoordLabel } from '../../utils/assetHelper';
@@ -171,6 +175,14 @@ function TeamOrdersBlock({
   const toggleCheckedOrder = useGameStore((s) => s.toggleCheckedOrder);
   const unlockMasterOrders = useGameStore((s) => s.unlockMasterOrders);
   const applySkillOrder = useGameStore((s) => s.applySkillOrder);
+  const applyMoveOrder = useGameStore((s) => s.applyMoveOrder);
+  const applyNpOrder = useGameStore((s) => s.applyNpOrder);
+  const applyGuardOrder = useGameStore((s) => s.applyGuardOrder);
+  const applyUseItemOrder = useGameStore((s) => s.applyUseItemOrder);
+  const [appliedShortcuts, setAppliedShortcuts] = useState<Record<string, boolean>>({});
+
+  const markApplied = (key: string) =>
+    setAppliedShortcuts((prev) => ({ ...prev, [key]: true }));
 
   const isTeamA = teamKey === 'team_a';
   const isLocked = roomState.teams[teamKey].readyLocked;
@@ -242,6 +254,20 @@ function TeamOrdersBlock({
               ord.overrideMoveRange && ord.estimatedMoveCost === null
             );
             const alreadyAppliedCd = (unit?.skillCooldown ?? 0) >= 2;
+            const attachedItem = ord.itemId ? ITEMS_BY_ID[ord.itemId] ?? null : null;
+            const moveKey = `${checkKey}-move`;
+            const npKey = `${checkKey}-np`;
+            const guardKey = `${checkKey}-guard`;
+            const itemKey = `${checkKey}-item`;
+
+            const showMoveBtn = Boolean(
+              unit &&
+                ord.targetPosition &&
+                (ord.actionType === 'move' || ord.actionType === 'move_and_attack')
+            );
+            const showNpBtn = Boolean(unit && tpl && ord.actionType === 'np');
+            const showGuardBtn = Boolean(unit && ord.actionType === 'guard');
+            const showItemBtn = Boolean(attachedItem && ord.itemId);
 
             return (
               <div
@@ -338,9 +364,101 @@ function TeamOrdersBlock({
                     </div>
                   )}
 
+                  {attachedItem && (
+                    <div className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-amber-200">
+                      <Package className="h-3 w-3 shrink-0 text-[#C8A253]" />
+                      <span className="truncate">ไอเทมแนบ: {attachedItem.name}</span>
+                    </div>
+                  )}
+
                   {ord.note && (
                     <div className="mt-0.5 text-[10.5px] text-slate-300">
                       “{ord.note}”
+                    </div>
+                  )}
+
+                  {/* 1-Click Ruler Execution Shortcuts */}
+                  {(showMoveBtn || showNpBtn || showGuardBtn || showItemBtn) && (
+                    <div className="mt-1.5 flex flex-wrap gap-1 border-t border-slate-800/80 pt-1.5">
+                      {showMoveBtn && unit && ord.targetPosition && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            applyMoveOrder(unit.id, ord.targetPosition!);
+                            markApplied(moveKey);
+                          }}
+                          className={`flex items-center gap-1 rounded-[2px] border px-2 py-0.5 text-[9.5px] font-bold transition ${
+                            appliedShortcuts[moveKey]
+                              ? 'border-emerald-700/70 bg-emerald-950/50 text-emerald-300'
+                              : 'border-emerald-600/70 bg-emerald-950/40 text-emerald-200 hover:bg-emerald-700 hover:text-white'
+                          }`}
+                        >
+                          <Footprints className="h-2.5 w-2.5" />
+                          <span>{appliedShortcuts[moveKey] ? 'Moved ✓' : 'Apply Move'}</span>
+                        </button>
+                      )}
+
+                      {showNpBtn && unit && tpl && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            applyNpOrder(unit.id, teamKey, tpl.npName, tpl.npCost);
+                            markApplied(npKey);
+                          }}
+                          className={`flex items-center gap-1 rounded-[2px] border px-2 py-0.5 text-[9.5px] font-bold transition ${
+                            appliedShortcuts[npKey]
+                              ? 'border-emerald-700/70 bg-emerald-950/50 text-emerald-300'
+                              : 'border-[#B91C1C]/80 bg-[#B91C1C]/30 text-red-200 hover:bg-[#B91C1C] hover:text-white'
+                          }`}
+                        >
+                          <Flame className="h-2.5 w-2.5" />
+                          <span>
+                            {appliedShortcuts[npKey]
+                              ? 'NP Applied ✓'
+                              : `Apply NP (-${tpl.npCost}M)`}
+                          </span>
+                        </button>
+                      )}
+
+                      {showGuardBtn && unit && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            applyGuardOrder(unit.id);
+                            markApplied(guardKey);
+                          }}
+                          className={`flex items-center gap-1 rounded-[2px] border px-2 py-0.5 text-[9.5px] font-bold transition ${
+                            appliedShortcuts[guardKey]
+                              ? 'border-emerald-700/70 bg-emerald-950/50 text-emerald-300'
+                              : 'border-sky-600/70 bg-sky-950/40 text-sky-200 hover:bg-sky-700 hover:text-white'
+                          }`}
+                        >
+                          <Shield className="h-2.5 w-2.5" />
+                          <span>{appliedShortcuts[guardKey] ? 'Guard ✓' : 'Apply Guard'}</span>
+                        </button>
+                      )}
+
+                      {showItemBtn && ord.itemId && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            applyUseItemOrder(teamKey, ord.itemId!, unit?.name);
+                            markApplied(itemKey);
+                          }}
+                          className={`flex items-center gap-1 rounded-[2px] border px-2 py-0.5 text-[9.5px] font-bold transition ${
+                            appliedShortcuts[itemKey]
+                              ? 'border-emerald-700/70 bg-emerald-950/50 text-emerald-300'
+                              : 'border-[#C8A253]/70 bg-[#C8A253]/15 text-[#E5C983] hover:bg-[#C8A253] hover:text-[#090B10]'
+                          }`}
+                        >
+                          <Package className="h-2.5 w-2.5" />
+                          <span>{appliedShortcuts[itemKey] ? 'Item Used ✓' : 'Use Item'}</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

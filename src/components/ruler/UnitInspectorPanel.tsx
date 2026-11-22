@@ -109,6 +109,7 @@ export function UnitInspectorPanel() {
   const addUnitTag = useGameStore((s) => s.addUnitTag);
   const removeUnitTag = useGameStore((s) => s.removeUnitTag);
   const toggleUnitTrueNameRevealed = useGameStore((s) => s.toggleUnitTrueNameRevealed);
+  const setCombatHelperOpen = useGameStore((s) => s.setCombatHelperOpen);
 
   const [imgErr, setImgErr] = useState(false);
   const [customTagInput, setCustomTagInput] = useState('');
@@ -452,6 +453,18 @@ export function UnitInspectorPanel() {
                       <span>เปิดเผยนามแท้ (Reveal True Name)</span>
                     </>
                   )}
+                </button>
+              )}
+
+              {/* Quick Combat Helper Launch Button */}
+              {unit.status === 'active' && (
+                <button
+                  type="button"
+                  onClick={() => setCombatHelperOpen(true, unit.id)}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-[2px] border border-[#B91C1C]/70 bg-[#B91C1C]/25 py-1 text-[10px] font-bold text-red-200 transition hover:bg-[#B91C1C] hover:text-white"
+                >
+                  <Swords className="h-3 w-3" />
+                  <span>Quick Combat (ใช้ตัวนี้เป็นผู้โจมตี)</span>
                 </button>
               )}
             </div>

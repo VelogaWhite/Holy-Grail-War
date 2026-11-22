@@ -1,16 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
   Crosshair,
   Lock,
+  Package,
   Send,
+  ShoppingBag,
   Sparkles,
   Unlock,
   X,
   Zap,
 } from 'lucide-react';
-import { SERVANTS_BY_ID } from '../../data';
+import { ITEMS, ITEMS_BY_ID, MAP_DATA, SERVANTS_BY_ID } from '../../data';
 import { useGameStore } from '../../store/useGameStore';
 import type { CommandActionType, TeamId } from '../../types/game';
 import { formatCoordLabel } from '../../utils/assetHelper';
@@ -26,13 +28,14 @@ const ACTION_OPTIONS: { id: CommandActionType; label: string }[] = [
   { id: 'guard', label: 'Guard' },
   { id: 'explore', label: 'Explore/Shop' },
   { id: 'tag_out', label: 'Tag-Out (1M)' },
-  { id: 'custom', label: 'Custom/CS' },
+  { id: 'custom', label: 'Custom/CS/Item' },
 ];
 
 export function SecretCommandPanel() {
   const previewRole = useGameStore((s) => s.previewRole);
   const roomState = useGameStore((s) => s.roomState);
   const draftOrders = useGameStore((s) => s.draftOrders);
+  const selectedUnitId = useGameStore((s) => s.selectedUnitId);
   const pickingOrderForUnitId = useGameStore((s) => s.pickingOrderForUnitId);
   const setDraftOrder = useGameStore((s) => s.setDraftOrder);
   const clearDraftOrderTarget = useGameStore((s) => s.clearDraftOrderTarget);
@@ -40,6 +43,8 @@ export function SecretCommandPanel() {
   const locateUnit = useGameStore((s) => s.locateUnit);
   const lockMasterTurn = useGameStore((s) => s.lockMasterTurn);
   const [submitting, setSubmitting] = useState(false);
+  const [openShopUnitId, setOpenShopUnitId] = useState<string | null>(null);
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const teamId: TeamId = previewRole === 'master_b' ? 'team_b' : 'team_a';
   const team = roomState.teams[teamId];
@@ -48,6 +53,29 @@ export function SecretCommandPanel() {
   const activeServants = Object.values(roomState.units)
     .filter((u) => u.unitType === 'servant' && u.owner === teamId && u.status === 'active')
     .slice(0, 3);
+
+  // Deduplicated team inventory list with counts for dropdown
+  const inventoryCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const id of team.inventory) {
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    return Array.from(counts.entries()).map(([id, count]) => ({
+      id,
+      count,
+      item: ITEMS_BY_ID[id],
+    }));
+  }, [team.inventory]);
+
+  // Smoothly scroll highlighted Servant command card into view on board-first selection
+  const focusedUnitId = pickingOrderForUnitId ?? selectedUnitId;
+  useEffect(() => {
+    if (!focusedUnitId) return;
+    const el = cardRefs.current[focusedUnitId];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [focusedUnitId]);
 
   // Estimate total Mana usage for this turn (Skill Bonus Action + NP + Tag-Out)
   const estimatedMana = activeServants.reduce((sum, unit) => {
@@ -102,6 +130,7 @@ export function SecretCommandPanel() {
           const tpl = SERVANTS_BY_ID[unit.templateId];
           const cd = unit.skillCooldown ?? 0;
           const isPicking = pickingOrderForUnitId === unit.id;
+          const isHighlighted = isPicking || selectedUnitId === unit.id;
           const targetUnit = order.targetUnitId
             ? roomState.units[order.targetUnitId]
             : null;
@@ -111,13 +140,30 @@ export function SecretCommandPanel() {
               order.estimatedMoveCost === null
           );
 
+          // Check if unit is standing on a Safe House (Church) for QP Shop shortcut
+          const isOnSafeHouse = Boolean(
+            unit.position &&
+              MAP_DATA.zones[unit.position.zone]?.specialTiles.some(
+                (t) =>
+                  t.x === unit.position!.x &&
+                  t.y === unit.position!.y &&
+                  t.type === 'safe_house'
+              )
+          );
+          const isShopOpen = openShopUnitId === unit.id;
+
           return (
             <div
               key={unit.id}
+              ref={(el) => {
+                cardRefs.current[unit.id] = el;
+              }}
               className={`rounded-[2px] border p-2 transition ${
                 isPicking
-                  ? 'border-[#C8A253] bg-[#C8A253]/12'
-                  : 'border-slate-800 bg-[#090B10]'
+                  ? 'border-[#C8A253] bg-[#C8A253]/14 shadow-[0_0_12px_rgba(200,162,83,0.22)]'
+                  : isHighlighted
+                    ? 'border-[#C8A253]/70 bg-[#C8A253]/8'
+                    : 'border-slate-800 bg-[#090B10]'
               } ${isLocked ? 'opacity-75' : ''}`}
             >
               <div className="mb-1.5 flex items-center justify-between gap-1">
@@ -188,16 +234,22 @@ export function SecretCommandPanel() {
                 <select
                   disabled={isLocked}
                   value={order.actionType}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const nextType = e.target.value as CommandActionType;
                     setDraftOrder(unit.id, {
-                      actionType: e.target.value as CommandActionType,
-                    })
-                  }
+                      actionType: nextType,
+                      ...(nextType !== 'custom' && nextType !== 'explore'
+                        ? { itemId: undefined }
+                        : {}),
+                    });
+                  }}
                   className="flex-1 rounded-[2px] border border-slate-700 bg-[#111622] px-2 py-1 text-[11px] font-semibold text-slate-100 focus:border-[#C8A253] focus:outline-none disabled:cursor-not-allowed"
                 >
                   {ACTION_OPTIONS.map((opt) => (
                     <option key={opt.id} value={opt.id}>
-                      {opt.id === 'np' && tpl ? `NP: ${tpl.npName} (${tpl.npCost}M)` : opt.label}
+                      {opt.id === 'np' && tpl
+                        ? `NP: ${tpl.npName} (${tpl.npCost}M)`
+                        : opt.label}
                     </option>
                   ))}
                 </select>
@@ -224,6 +276,107 @@ export function SecretCommandPanel() {
                   <span>{isPicking ? 'จิ้มบนแมพ...' : 'Pick Tile'}</span>
                 </button>
               </div>
+
+              {/* Interactive Inventory Item Dropdown for 'custom' Action */}
+              {order.actionType === 'custom' && (
+                <div className="mt-1.5 rounded-[2px] border border-[#C8A253]/30 bg-[#111622] p-1.5">
+                  <label className="mb-1 flex items-center gap-1 text-[9.5px] font-bold text-[#E5C983]">
+                    <Package className="h-3 w-3 text-[#C8A253]" />
+                    เลือกใช้ไอเทมจากกระเป๋าทีม ({team.inventory.length} ชิ้น):
+                  </label>
+                  <select
+                    disabled={isLocked || inventoryCounts.length === 0}
+                    value={order.itemId ?? ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) {
+                        setDraftOrder(unit.id, { itemId: undefined });
+                        return;
+                      }
+                      const chosen = ITEMS_BY_ID[val];
+                      setDraftOrder(unit.id, {
+                        itemId: val,
+                        note: chosen ? `ใช้ไอเทม: ${chosen.name}` : order.note,
+                      });
+                    }}
+                    className="w-full rounded-[2px] border border-slate-700 bg-[#090B10] px-1.5 py-1 text-[10.5px] text-slate-100 focus:border-[#C8A253] focus:outline-none disabled:opacity-50"
+                  >
+                    <option value="">
+                      {inventoryCounts.length === 0
+                        ? '-- ไม่มีไอเทมในกระเป๋า --'
+                        : '-- ไม่ใช้ไอเทม (คำสั่ง/เรย์จูทั่วไป) --'}
+                    </option>
+                    {inventoryCounts.map(({ id, count, item }) => (
+                      <option key={id} value={id}>
+                        {item?.name ?? id} {count > 1 ? `(x${count})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Safe House QP Shop Shortcut */}
+              {isOnSafeHouse && (
+                <div className="mt-1.5">
+                  <button
+                    type="button"
+                    disabled={isLocked}
+                    onClick={() =>
+                      setOpenShopUnitId(isShopOpen ? null : unit.id)
+                    }
+                    className="flex w-full items-center justify-between rounded-[2px] border border-emerald-600/60 bg-emerald-950/40 px-2 py-1 text-[10.5px] font-bold text-emerald-300 transition hover:bg-emerald-950/70 disabled:opacity-50"
+                  >
+                    <span className="flex items-center gap-1">
+                      <ShoppingBag className="h-3 w-3" />
+                      <span>ดูร้านค้า QP (Safe House)</span>
+                    </span>
+                    <span className="font-mono text-[10px] text-[#E5C983]">
+                      มี {team.qp} QP
+                    </span>
+                  </button>
+
+                  {isShopOpen && !isLocked && (
+                    <div className="mt-1 max-h-44 space-y-1 overflow-y-auto rounded-[2px] border border-[#C8A253]/40 bg-[#111622] p-1.5">
+                      {ITEMS.map((it) => {
+                        const affordable = team.qp >= it.qpCost;
+                        return (
+                          <button
+                            key={it.id}
+                            type="button"
+                            onClick={() => {
+                              setDraftOrder(unit.id, {
+                                actionType: 'explore',
+                                itemId: undefined,
+                                note: `ซื้อร้านค้า QP: ${it.name} (${it.qpCost} QP)`,
+                              });
+                              setOpenShopUnitId(null);
+                            }}
+                            className={`flex w-full flex-col rounded-[2px] border px-2 py-1 text-left transition ${
+                              affordable
+                                ? 'border-slate-700 bg-[#090B10] hover:border-[#C8A253]'
+                                : 'border-slate-800/70 bg-[#090B10]/50 opacity-60 hover:border-amber-700'
+                            }`}
+                          >
+                            <div className="flex w-full items-center justify-between gap-1 text-[10.5px] font-bold">
+                              <span className="truncate text-slate-100">{it.name}</span>
+                              <span
+                                className={`shrink-0 font-mono text-[10px] ${
+                                  affordable ? 'text-[#E5C983]' : 'text-red-400'
+                                }`}
+                              >
+                                {it.qpCost} QP
+                              </span>
+                            </div>
+                            <span className="line-clamp-2 text-[9.5px] text-slate-400">
+                              {it.effectDesc}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Unlock Range Override Checkbox */}
               <label
