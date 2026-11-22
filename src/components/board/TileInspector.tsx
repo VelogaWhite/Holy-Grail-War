@@ -146,9 +146,9 @@ export function TileInspector() {
             <span>{coordLabel}</span>
           </div>
 
-          {/* Top-Right MOV Cost Pill */}
+          {/* Top-Right MP Cost Pill */}
           <div className="absolute top-2 right-2 rounded-[2px] border border-slate-700/80 bg-[#090B10]/85 px-1.5 py-0.5 text-[10px] font-bold text-slate-200">
-            {terrain.moveCost} MOV
+            {terrain.moveCost.toFixed(1)} MP
           </div>
 
           {/* Bottom-Left Terrain Title (Cinzel Gold + Thai) */}
@@ -170,7 +170,12 @@ export function TileInspector() {
           <div className="rounded-[2px] border border-slate-800 bg-[#090B10]/80 p-2">
             <div className="mb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400">
               <span>Layer 1 · ผลภูมิประเทศ</span>
-              <span className="text-[#C8A253]">Cost {terrain.moveCost} MOV</span>
+              <span className="text-[#C8A253]">
+                Cost {terrain.moveCost.toFixed(1)} MP
+                {typeof terrain.sameTerrainMoveCost === 'number'
+                  ? ` (${terrain.sameTerrainMoveCost.toFixed(1)} ข้ามตึก)`
+                  : ''}
+              </span>
             </div>
             <p className="text-[11px] leading-relaxed text-slate-300">
               {terrain.combatNote}

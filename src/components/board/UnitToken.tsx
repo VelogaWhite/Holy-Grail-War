@@ -123,6 +123,18 @@ export function UnitToken({
           />
         </div>
 
+        {/* Compact Skill Cooldown badge tucked into bottom-left corner */}
+        {unit.unitType === 'servant' &&
+          (unit.skillCooldown ?? 0) > 0 &&
+          !isIdentityHidden && (
+            <span
+              title={`Skill Cooldown: อีก ${unit.skillCooldown} เทิร์น`}
+              className="pointer-events-none absolute left-0.5 bottom-[6px] rounded-[2px] border border-violet-500/70 bg-violet-950/90 px-1 py-px font-mono text-[7.5px] font-bold leading-none text-violet-200"
+            >
+              CD{unit.skillCooldown}
+            </span>
+          )}
+
         {/* Compact numeric HP badge tucked into bottom-right corner */}
         <span className="pointer-events-none absolute right-0.5 bottom-[6px] rounded-[2px] bg-[#090B10]/85 px-1 py-px font-mono text-[8px] font-bold leading-none text-slate-100">
           {unit.hp}/{unit.maxHp}

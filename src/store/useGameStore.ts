@@ -80,6 +80,7 @@ function createServantUnit(
     mov: tpl.mov,
     range: tpl.range,
     npReady: false,
+    skillCooldown: 0,
     tags: [],
     isRevealedToEnemy: false,
     isTrueNameRevealed: true,
@@ -109,6 +110,7 @@ function createMonsterUnit(
     mov: tpl.mov,
     range: tpl.range,
     npReady: false,
+    skillCooldown: 0,
     tags: [`Tier ${tpl.tier}`],
     isRevealedToEnemy: true,
     isTrueNameRevealed: true,
@@ -480,13 +482,23 @@ interface GameStoreState {
   ) => void;
   clearDraftOrderTarget: (unitId: string) => void;
   setPickingOrderForUnitId: (unitId: string | null) => void;
-  applyPickedTarget: (targetPosition: Coordinates, targetUnitId?: string) => void;
+  applyPickedTarget: (
+    targetPosition: Coordinates,
+    targetUnitId?: string,
+    estimatedMoveCost?: number | null
+  ) => void;
   lockMasterTurn: () => Promise<void>;
 
   // Ruler God-Mode Actions (sync to Firestore once per explicit user action)
   undo: () => void;
   setPhase: (phase: TurnPhase) => void;
   endTurnAndNext: (skipManaUpkeep?: boolean) => void;
+  applySkillOrder: (
+    unitId: string,
+    teamId: TeamId,
+    skillName: string,
+    skillCost: number
+  ) => void;
   setSecretGrailTurn: (turn: 10 | 11 | 12) => void;
   toggleFogOfWar: () => void;
   toggleGrailManifested: () => void;
@@ -728,6 +740,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               ...existing,
               targetPosition: undefined,
               targetUnitId: undefined,
+              estimatedMoveCost: undefined,
             },
           },
         };
@@ -735,7 +748,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
     setPickingOrderForUnitId: (unitId) => set({ pickingOrderForUnitId: unitId }),
 
-    applyPickedTarget: (targetPosition, targetUnitId) =>
+    applyPickedTarget: (targetPosition, targetUnitId, estimatedMoveCost = null) =>
       set((state) => {
         const unitId = state.pickingOrderForUnitId;
         if (!unitId) return state;
@@ -752,6 +765,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               ...existing,
               targetPosition,
               targetUnitId,
+              estimatedMoveCost,
             },
           },
         };
@@ -851,10 +865,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           draft.teams.team_a.mana += 2;
           draft.teams.team_b.mana += 2;
         }
+        // Tick down Skill Cooldowns on all units automatically
+        for (const u of Object.values(draft.units)) {
+          u.skillCooldown = Math.max(0, (u.skillCooldown ?? 0) - 1);
+        }
         draft.logs = appendLog(
           draft,
           'ruler',
-          `เริ่มเทิร์น ${draft.turn}${skipManaUpkeep ? ' (งดแจก Mana)' : ' (+2 Mana ทั้งสองฝ่าย)'}`
+          `เริ่มเทิร์น ${draft.turn}${skipManaUpkeep ? ' (งดแจก Mana)' : ' (+2 Mana ทั้งสองฝ่าย)'} · ลด Skill CD ทุกตัว -1`
         );
 
         if (!draft.grailManifested && draft.turn >= secretTurn) {
@@ -887,6 +905,20 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         );
       }
     },
+
+    applySkillOrder: (unitId, teamId, skillName, skillCost) =>
+      commitRoomMutation((draft) => {
+        const unit = draft.units[unitId];
+        const team = draft.teams[teamId];
+        if (!unit || !team) return;
+        team.mana = Math.max(0, team.mana - skillCost);
+        unit.skillCooldown = 2;
+        draft.logs = appendLog(
+          draft,
+          'ruler',
+          `ใช้สกิล ${skillName} (${unit.name}) — หัก ${skillCost} Mana, ติด Cooldown 2 เทิร์น`
+        );
+      }),
 
     setSecretGrailTurn: (turn) => {
       const nextSecret: RulerSecretDoc = {

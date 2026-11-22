@@ -27,7 +27,7 @@ import type {
   ZoneId,
 } from '../../types/game';
 import { getTileKey } from '../../utils/assetHelper';
-import type { ReachableTileInfo } from '../../utils/gridMath';
+import { formatMpCost, type ReachableTileInfo } from '../../utils/gridMath';
 import { UnitToken } from './UnitToken';
 
 interface GridTileProps {
@@ -44,6 +44,7 @@ interface GridTileProps {
   isUnitIdentityHidden?: boolean;
   deploymentPreview?: { name: string; team: 'team_a' | 'team_b' } | null;
   reachableInfo?: ReachableTileInfo;
+  isBlockedPick?: boolean;
   isSpawnMode: boolean;
   onSelectUnit: (unitId: string) => void;
   onGateJump: (targetZone: ZoneId) => void;
@@ -81,6 +82,7 @@ export function GridTile({
   isUnitIdentityHidden = false,
   deploymentPreview = null,
   reachableInfo,
+  isBlockedPick = false,
   isSpawnMode,
   onSelectUnit,
   onGateJump,
@@ -212,8 +214,12 @@ export function GridTile({
         e.preventDefault();
         onRightClickTile(e.clientX, e.clientY);
       }}
-      className={`terrain-${terrainId} relative flex items-center justify-center border border-slate-800/70 transition hover:z-10 hover:ring-1 hover:ring-[#C8A253]/70 ${
-        isSpawnMode ? 'cursor-crosshair' : 'cursor-pointer'
+      className={`terrain-${terrainId} relative flex items-center justify-center border border-slate-800/70 transition ${
+        isBlockedPick
+          ? 'cursor-not-allowed'
+          : isSpawnMode
+            ? 'cursor-crosshair hover:z-10 hover:ring-1 hover:ring-[#C8A253]/70'
+            : 'cursor-pointer hover:z-10 hover:ring-1 hover:ring-[#C8A253]/70'
       } ${isOver ? 'z-20 ring-2 ring-[#E5C983] bg-[#C8A253]/25' : ''} ${
         isLockedTile && !isOver ? 'z-10 ring-2 ring-[#C8A253]' : ''
       } ${isGateRight ? 'border-r-[3px] border-r-teal-500/80' : ''} ${
@@ -224,23 +230,29 @@ export function GridTile({
           : ''
       }`}
     >
+      {/* Out-of-range Dimmer during Strict Move Pick */}
+      {isBlockedPick && (
+        <div className="pointer-events-none absolute inset-0 z-[5] bg-[#090B10]/45" />
+      )}
       {/* Movement & ZoC Visual Helper Overlay (non-blocking) */}
       {reachableInfo && !unit && (
         <div
           className={`pointer-events-none absolute inset-0.5 rounded-[2px] border ${
-            reachableInfo.isZocRetreat
+            reachableInfo.zocPenalized
               ? 'border-amber-500/90 bg-amber-500/18'
               : 'border-emerald-400/75 bg-emerald-500/15'
           }`}
         >
           <span
             className={`absolute top-0.5 left-0.5 rounded-[2px] px-1 py-px font-mono text-[7.5px] font-bold leading-none ${
-              reachableInfo.isZocRetreat
+              reachableInfo.zocPenalized
                 ? 'bg-amber-600 text-slate-950'
                 : 'bg-emerald-950/90 text-emerald-300'
             }`}
           >
-            {reachableInfo.isZocRetreat ? `ZoC` : `${reachableInfo.cost}`}
+            {reachableInfo.zocPenalized
+              ? `ZoC ${formatMpCost(reachableInfo.cost)}`
+              : formatMpCost(reachableInfo.cost)}
           </span>
         </div>
       )}

@@ -7,7 +7,8 @@ export interface ReachableTileInfo {
   x: number;
   y: number;
   cost: number;
-  isZocRetreat: boolean;
+  path: Coordinates[];
+  zocPenalized: boolean;
   crossZone: boolean;
 }
 
@@ -15,9 +16,9 @@ export interface MovementAnalysis {
   reachable: Record<string, ReachableTileInfo>;
   isEngaged: boolean;
   ignoreZoC: boolean;
-  roadBonusApplied: boolean;
   baseMov: number;
-  effectiveMov: number;
+  maxMP: number;
+  zocRetreatMP: number;
 }
 
 const ORTHO_DIRS: [number, number][] = [
@@ -27,13 +28,21 @@ const ORTHO_DIRS: [number, number][] = [
   [1, 0],
 ];
 
+function roundHalf(val: number): number {
+  return Math.round(val * 2) / 2;
+}
+
+export function formatMpCost(cost: number): string {
+  return roundHalf(cost).toFixed(1);
+}
+
 function getTerrainAt(zone: ZoneId, x: number, y: number): TerrainId {
   return MAP_DATA.zones[zone]?.terrainGrid[y]?.[x] ?? 'open';
 }
 
 function getMoveStepCost(fromTerrain: TerrainId, toTerrain: TerrainId): number {
   const toDef = TERRAINS_BY_ID[toTerrain];
-  if (!toDef) return 1;
+  if (!toDef) return 1.0;
   if (fromTerrain === toTerrain && typeof toDef.sameTerrainMoveCost === 'number') {
     return toDef.sameTerrainMoveCost;
   }
@@ -51,35 +60,35 @@ function manhattan(x1: number, y1: number, x2: number, y2: number): number {
 }
 
 /**
- * Computes reachable tiles using Weighted BFS (Dijkstra) supporting:
- * - 10x7 horizontal 3-zone grid + bidirectional Gate Crossing (1 MOV)
- * - Terrain costs (road +1 MOV start bonus, forest/water 2 MOV, building 2 MOV climb / 1 MOV rooftop)
- * - Zone of Control (ZoC): -1 MOV penalty when retreating from adjacent enemy Servant (min 1 MOV), exempt for Assassin (ignoreZoC: true)
+ * Computes reachable tiles using Civilization-style Movement Points (0.5 MP base) Dijkstra:
+ * - Road: 0.5 MP | Open / Ruins: 1.0 MP | Forest: 1.5 MP | Building: 1.5 MP (1.0 MP rooftop-to-rooftop) | Water: 2.0 MP
+ * - Gate Crossing (x=9 <-> x=0 at y=1, 3, 5): fixed 1.0 MP
+ * - Strict MP: totalCost + stepCost <= maxMP; cannot pass through enemies/monsters or stop on occupied tiles
+ * - Zone of Control (ZoC): Engaged at turn start -> retreating reduces maxMP by 1.0 (min 1.0 MP), exempt for Assassin (ignoreZoC: true)
  *
- * NOTE: Visual Helper only — never blocks Ruler Free Drag!
+ * NOTE: Visual / Picker helper — never blocks Ruler Free Drag!
  */
 export function computeMovementAnalysis(
   unit: BoardUnit,
   allUnits: Record<string, BoardUnit>,
   hasteBonus = 0
 ): MovementAnalysis {
+  const baseMaxMP = roundHalf(Math.max(0, unit.mov + hasteBonus));
   const empty: MovementAnalysis = {
     reachable: {},
     isEngaged: false,
     ignoreZoC: false,
-    roadBonusApplied: false,
     baseMov: unit.mov,
-    effectiveMov: unit.mov,
+    maxMP: baseMaxMP,
+    zocRetreatMP: Math.max(1.0, roundHalf(baseMaxMP - 1.0)),
   };
 
-  if (unit.status !== 'active' || !unit.position || unit.mov <= 0) {
+  if (unit.status !== 'active' || !unit.position || baseMaxMP <= 0) {
     return empty;
   }
 
   const start = unit.position;
-  const startTerrain = getTerrainAt(start.zone, start.x, start.y);
-  const roadBonusApplied = (TERRAINS_BY_ID[startTerrain]?.startRoadBonus ?? 0) > 0;
-  const effectiveMov = unit.mov + (roadBonusApplied ? 1 : 0) + hasteBonus;
+  const maxMP = baseMaxMP;
 
   const classDef = unit.servantClass ? CLASSES_BY_ID[unit.servantClass] : undefined;
   const ignoreZoC = Boolean(classDef?.ignoreZoC);
@@ -107,7 +116,7 @@ export function computeMovementAnalysis(
   }
 
   const isEngaged = adjacentEnemyServants.length > 0;
-  const zocRetreatBudget = Math.max(1, effectiveMov - 1);
+  const zocRetreatMP = Math.max(1.0, roundHalf(maxMP - 1.0));
 
   // Build bidirectional gate lookup
   const gateNeighbors = new Map<string, Coordinates[]>();
@@ -118,17 +127,20 @@ export function computeMovementAnalysis(
     gateNeighbors.set(kTo, [...(gateNeighbors.get(kTo) ?? []), gate.from]);
   }
 
-  // Dijkstra priority queue (small grid, simple sorted array is super fast)
   interface Node {
     zone: ZoneId;
     x: number;
     y: number;
     cost: number;
+    path: Coordinates[];
   }
 
+  const startCoord: Coordinates = { zone: start.zone, x: start.x, y: start.y };
   const startKey = getTileKey(start.zone, start.x, start.y);
   const bestCost = new Map<string, number>([[startKey, 0]]);
-  const queue: Node[] = [{ zone: start.zone, x: start.x, y: start.y, cost: 0 }];
+  const queue: Node[] = [
+    { zone: start.zone, x: start.x, y: start.y, cost: 0, path: [startCoord] },
+  ];
   const reachable: Record<string, ReachableTileInfo> = {};
 
   while (queue.length > 0) {
@@ -140,26 +152,26 @@ export function computeMovementAnalysis(
 
     // Record reachable (cannot stop on occupied tile or start tile)
     if (curKey !== startKey && !occupiedAll.has(curKey)) {
-      let isZocRetreat = false;
+      let zocPenalized = false;
       if (isEngaged && !ignoreZoC) {
-        // Retreating = moving to another zone OR increasing distance from any engaged enemy
         if (cur.zone !== start.zone) {
-          isZocRetreat = true;
+          zocPenalized = true;
         } else {
-          isZocRetreat = adjacentEnemyServants.some(
+          zocPenalized = adjacentEnemyServants.some(
             (e) => manhattan(cur.x, cur.y, e.x, e.y) > 1
           );
         }
       }
 
-      const maxAllowed = isZocRetreat ? zocRetreatBudget : effectiveMov;
+      const maxAllowed = zocPenalized ? zocRetreatMP : maxMP;
       if (cur.cost <= maxAllowed) {
         reachable[curKey] = {
           zone: cur.zone,
           x: cur.x,
           y: cur.y,
           cost: cur.cost,
-          isZocRetreat,
+          path: cur.path,
+          zocPenalized,
           crossZone: cur.zone !== start.zone,
         };
       }
@@ -177,24 +189,36 @@ export function computeMovementAnalysis(
 
       const nextTerrain = getTerrainAt(cur.zone, nx, ny);
       const stepCost = getMoveStepCost(curTerrain, nextTerrain);
-      const nextCost = cur.cost + stepCost;
+      const nextCost = roundHalf(cur.cost + stepCost);
 
-      if (nextCost <= effectiveMov && nextCost < (bestCost.get(nKey) ?? Infinity)) {
+      if (nextCost <= maxMP && nextCost < (bestCost.get(nKey) ?? Infinity)) {
         bestCost.set(nKey, nextCost);
-        queue.push({ zone: cur.zone, x: nx, y: ny, cost: nextCost });
+        queue.push({
+          zone: cur.zone,
+          x: nx,
+          y: ny,
+          cost: nextCost,
+          path: [...cur.path, { zone: cur.zone, x: nx, y: ny }],
+        });
       }
     }
 
-    // 2. Gate crossing neighbors (1 MOV)
+    // 2. Gate crossing neighbors (fixed 1.0 MP)
     const gates = gateNeighbors.get(curKey);
     if (gates) {
       for (const dest of gates) {
         const dKey = getTileKey(dest.zone, dest.x, dest.y);
         if (blockingEnemies.has(dKey)) continue;
-        const nextCost = cur.cost + 1;
-        if (nextCost <= effectiveMov && nextCost < (bestCost.get(dKey) ?? Infinity)) {
+        const nextCost = roundHalf(cur.cost + 1.0);
+        if (nextCost <= maxMP && nextCost < (bestCost.get(dKey) ?? Infinity)) {
           bestCost.set(dKey, nextCost);
-          queue.push({ zone: dest.zone, x: dest.x, y: dest.y, cost: nextCost });
+          queue.push({
+            zone: dest.zone,
+            x: dest.x,
+            y: dest.y,
+            cost: nextCost,
+            path: [...cur.path, { zone: dest.zone, x: dest.x, y: dest.y }],
+          });
         }
       }
     }
@@ -204,8 +228,8 @@ export function computeMovementAnalysis(
     reachable,
     isEngaged,
     ignoreZoC,
-    roadBonusApplied,
     baseMov: unit.mov,
-    effectiveMov,
+    maxMP,
+    zocRetreatMP,
   };
 }

@@ -14,26 +14,30 @@ export function TileInfoTooltip() {
           <Info className="h-3.5 w-3.5 text-[#C8A253]" />
           ชี้เมาส์บนช่องใดก็ได้เพื่อดูประเภทภูมิประเทศและช่องพิเศษ
         </span>
-        <div className="hidden items-center gap-3 text-[10px] text-slate-400 xl:flex">
+        <div className="hidden items-center gap-2.5 text-[10px] text-slate-400 xl:flex">
           <span className="flex items-center gap-1">
             <span className="terrain-road inline-block h-2.5 w-3.5 rounded-[1px] border border-slate-500/40" />
-            ถนน (+1 MOV)
+            ถนน (0.5 MP)
           </span>
           <span className="flex items-center gap-1">
-            <span className="terrain-forest inline-block h-2.5 w-3.5 rounded-[1px] border border-emerald-500/40" />
-            ป่า (2 MOV · ซ่อนตัว)
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="terrain-building inline-block h-2.5 w-3.5 rounded-[1px] border border-slate-400/40" />
-            ตึก (High Ground)
+            <span className="terrain-open inline-block h-2.5 w-3.5 rounded-[1px] border border-emerald-700/40" />
+            ที่โล่ง (1.0 MP)
           </span>
           <span className="flex items-center gap-1">
             <span className="terrain-ruins inline-block h-2.5 w-3.5 rounded-[1px] border border-[#C8A253]/40" />
-            ซากปรักฯ (Cover)
+            ซากปรักฯ (1.0 MP)
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="terrain-forest inline-block h-2.5 w-3.5 rounded-[1px] border border-emerald-500/40" />
+            ป่า (1.5 MP)
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="terrain-building inline-block h-2.5 w-3.5 rounded-[1px] border border-slate-400/40" />
+            ตึก (1.5/1.0 MP)
           </span>
           <span className="flex items-center gap-1">
             <span className="terrain-water inline-block h-2.5 w-3.5 rounded-[1px] border border-sky-400/40" />
-            แม่น้ำ (2 MOV)
+            แม่น้ำ (2.0 MP)
           </span>
         </div>
       </div>
@@ -59,7 +63,7 @@ export function TileInfoTooltip() {
         <span
           className={`terrain-${terrainId} rounded-[2px] border border-slate-600/80 px-1.5 py-0.5 text-[10px] font-bold text-slate-100`}
         >
-          {terrain.label} ({terrain.moveCost} MOV)
+          {terrain.label} ({terrain.moveCost.toFixed(1)} MP)
         </span>
         <span className="text-slate-300">{terrain.combatNote}</span>
       </div>

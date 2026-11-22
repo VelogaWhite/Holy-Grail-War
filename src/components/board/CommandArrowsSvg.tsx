@@ -10,6 +10,7 @@ interface ArrowSpec {
   toY: number;
   actionLabel: string;
   dashed?: boolean;
+  isOverRangeOverride?: boolean;
 }
 
 interface CommandArrowsSvgProps {
@@ -24,7 +25,6 @@ const ACTION_SHORT: Record<string, string> = {
   move: 'MOV',
   attack: 'ATK',
   move_and_attack: 'M+A',
-  skill: 'SKL',
   np: 'NP',
   guard: 'GRD',
   explore: 'EXP',
@@ -58,6 +58,10 @@ export function CommandArrowsSvg({
       // Only draw arrow line if origin is also in this activeZone
       if (unit.position.zone !== activeZone) continue;
 
+      const isOverRangeOverride = Boolean(
+        order.overrideMoveRange && order.estimatedMoveCost === null
+      );
+
       arrows.push({
         id: `${team}-${order.unitId}`,
         team,
@@ -65,8 +69,11 @@ export function CommandArrowsSvg({
         fromY: unit.position.y + 0.5,
         toX: order.targetPosition.x + 0.5,
         toY: order.targetPosition.y + 0.5,
-        actionLabel: ACTION_SHORT[order.actionType] ?? 'CMD',
-        dashed,
+        actionLabel: isOverRangeOverride
+          ? `!${ACTION_SHORT[order.actionType] ?? 'CMD'}`
+          : ACTION_SHORT[order.actionType] ?? 'CMD',
+        dashed: dashed || isOverRangeOverride,
+        isOverRangeOverride,
       });
     }
   };
@@ -112,12 +119,30 @@ export function CommandArrowsSvg({
         >
           <path d="M0,0 L6,3 L0,6 Z" fill="#38BDF8" />
         </marker>
+        <marker
+          id="arrow-overrange"
+          markerWidth="6"
+          markerHeight="6"
+          refX="5"
+          refY="3"
+          orient="auto"
+        >
+          <path d="M0,0 L6,3 L0,6 Z" fill="#F59E0B" />
+        </marker>
       </defs>
 
       {/* Command Arrows */}
       {arrows.map((a) => {
-        const stroke = a.team === 'team_a' ? '#EF4444' : '#38BDF8';
-        const marker = a.team === 'team_a' ? 'url(#arrow-team-a)' : 'url(#arrow-team-b)';
+        const stroke = a.isOverRangeOverride
+          ? '#F59E0B'
+          : a.team === 'team_a'
+            ? '#EF4444'
+            : '#38BDF8';
+        const marker = a.isOverRangeOverride
+          ? 'url(#arrow-overrange)'
+          : a.team === 'team_a'
+            ? 'url(#arrow-team-a)'
+            : 'url(#arrow-team-b)';
         const dx = a.toX - a.fromX;
         const dy = a.toY - a.fromY;
         const len = Math.hypot(dx, dy);

@@ -15,6 +15,7 @@ import {
   Target,
   Trash2,
   X,
+  Zap,
 } from 'lucide-react';
 import { MONSTERS_BY_ID, SERVANTS_BY_ID } from '../../data';
 import { useGameStore } from '../../store/useGameStore';
@@ -313,6 +314,27 @@ export function UnitInspectorPanel() {
               onMinus={() => updateUnit(unit.id, { mov: Math.max(0, unit.mov - 1) })}
               onPlus={() => updateUnit(unit.id, { mov: unit.mov + 1 })}
             />
+            {unit.unitType === 'servant' && (
+              <div className="col-span-2">
+                <StatAdjuster
+                  label="SKILL CD"
+                  value={unit.skillCooldown ?? 0}
+                  subValue="/2T"
+                  icon={<Zap className="h-3 w-3 text-violet-400" />}
+                  canEdit={isRuler}
+                  onMinus={() =>
+                    updateUnit(unit.id, {
+                      skillCooldown: Math.max(0, (unit.skillCooldown ?? 0) - 1),
+                    })
+                  }
+                  onPlus={() =>
+                    updateUnit(unit.id, {
+                      skillCooldown: Math.min(2, (unit.skillCooldown ?? 0) + 1),
+                    })
+                  }
+                />
+              </div>
+            )}
           </div>
 
           {/* Ruler God-Mode Controls: Zone Teleport, Status, Toggles */}

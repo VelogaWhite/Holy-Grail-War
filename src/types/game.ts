@@ -45,6 +45,7 @@ export interface BoardUnit {
   mov: number;
   range?: number;
   npReady: boolean;
+  skillCooldown: number; // 0 = ready, 1-2 = turns remaining
   tags: string[];
   isRevealedToEnemy: boolean;
   isTrueNameRevealed: boolean;
@@ -71,7 +72,6 @@ export type CommandActionType =
   | 'move'
   | 'attack'
   | 'move_and_attack'
-  | 'skill'
   | 'np'
   | 'guard'
   | 'explore'
@@ -83,6 +83,9 @@ export interface CommandOrder {
   actionType: CommandActionType;
   targetPosition?: Coordinates;
   targetUnitId?: string;
+  useSkill?: boolean;
+  overrideMoveRange?: boolean;
+  estimatedMoveCost?: number | null;
   note: string;
 }
 
@@ -258,7 +261,6 @@ export interface TerrainDefinition {
   label: string;
   moveCost: number;
   sameTerrainMoveCost?: number;
-  startRoadBonus: number;
   combatNote: string;
   stealth: boolean;
   highGround: boolean;

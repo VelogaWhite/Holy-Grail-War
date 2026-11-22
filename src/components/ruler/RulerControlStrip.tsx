@@ -148,7 +148,7 @@ export function RulerControlStrip() {
         <button
           type="button"
           onClick={() => setShowMoveHelper(!showMoveHelper)}
-          title="แสดงไฮไลต์ระยะเดิน MOV (Weighted BFS + โบนัสถนน + ZoC)"
+          title="แสดงไฮไลต์ระยะเดิน MP (Dijkstra 0.5 MP + ZoC)"
           className={`flex items-center gap-1 rounded-[2px] border px-2 py-0.5 text-[10px] font-bold transition ${
             showMoveHelper
               ? 'border-sky-700/80 bg-sky-950/50 text-sky-300'

@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   CheckCircle2,
   CheckSquare,
   LockOpen,
@@ -9,10 +10,13 @@ import {
   Swords,
   UserPlus,
   X,
+  Zap,
 } from 'lucide-react';
+import { SERVANTS_BY_ID } from '../../data';
 import { useGameStore } from '../../store/useGameStore';
 import type { SecretCommandsDoc } from '../../types/game';
 import { formatCoordLabel } from '../../utils/assetHelper';
+import { formatMpCost } from '../../utils/gridMath';
 
 function ReinforcementRequestCard({
   masterKey,
@@ -166,6 +170,7 @@ function TeamOrdersBlock({
   const checkedOrderIds = useGameStore((s) => s.checkedOrderIds);
   const toggleCheckedOrder = useGameStore((s) => s.toggleCheckedOrder);
   const unlockMasterOrders = useGameStore((s) => s.unlockMasterOrders);
+  const applySkillOrder = useGameStore((s) => s.applySkillOrder);
 
   const isTeamA = teamKey === 'team_a';
   const isLocked = roomState.teams[teamKey].readyLocked;
@@ -227,21 +232,35 @@ function TeamOrdersBlock({
         <div className="space-y-1.5">
           {orders.map((ord) => {
             const unit = roomState.units[ord.unitId];
+            const tpl = unit ? SERVANTS_BY_ID[unit.templateId] : null;
             const targetUnit = ord.targetUnitId
               ? roomState.units[ord.targetUnitId]
               : null;
             const checkKey = `${masterKey}-${roomState.turn}-${ord.unitId}`;
             const checked = Boolean(checkedOrderIds[checkKey]);
+            const isOverRange = Boolean(
+              ord.overrideMoveRange && ord.estimatedMoveCost === null
+            );
+            const alreadyAppliedCd = (unit?.skillCooldown ?? 0) >= 2;
 
             return (
-              <button
+              <div
                 key={ord.unitId}
-                type="button"
                 onClick={() => toggleCheckedOrder(checkKey)}
-                className={`flex w-full items-start gap-2 rounded-[2px] border p-2 text-left transition ${
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggleCheckedOrder(checkKey);
+                  }
+                }}
+                className={`flex w-full cursor-pointer items-start gap-2 rounded-[2px] border p-2 text-left transition ${
                   checked
                     ? 'border-emerald-800/70 bg-emerald-950/25 opacity-65'
-                    : 'border-slate-800 bg-[#090B10] hover:border-[#C8A253]/40'
+                    : isOverRange
+                      ? 'border-amber-600/70 bg-[#090B10] hover:border-amber-500'
+                      : 'border-slate-800 bg-[#090B10] hover:border-[#C8A253]/40'
                 }`}
               >
                 {checked ? (
@@ -260,11 +279,62 @@ function TeamOrdersBlock({
                     </span>
                   </div>
 
+                  {/* Bonus Action Skill Badge + 1-Click Apply */}
+                  {ord.useSkill && tpl && (
+                    <div className="mt-1 space-y-1 rounded-[2px] border border-violet-500/60 bg-violet-950/40 p-1.5">
+                      <div className="flex items-center gap-1 text-[10px] font-bold text-violet-200">
+                        <Zap className="h-3 w-3 shrink-0 text-amber-300" />
+                        <span className="truncate">
+                          SKILL: {tpl.skillName} (-{tpl.skillCost} Mana)
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={alreadyAppliedCd}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (unit) {
+                            applySkillOrder(
+                              unit.id,
+                              teamKey,
+                              tpl.skillName,
+                              tpl.skillCost
+                            );
+                          }
+                        }}
+                        className={`flex w-full items-center justify-center gap-1 rounded-[2px] border py-0.5 text-[9.5px] font-bold transition ${
+                          alreadyAppliedCd
+                            ? 'cursor-default border-emerald-700/60 bg-emerald-950/50 text-emerald-300'
+                            : 'border-[#C8A253]/60 bg-violet-800/80 text-white hover:bg-violet-700'
+                        }`}
+                      >
+                        <Zap className="h-2.5 w-2.5" />
+                        <span>
+                          {alreadyAppliedCd
+                            ? 'Applied (หัก Mana & ติด CD 2T แล้ว)'
+                            : 'Apply Skill (หัก Mana & ติด CD 2T)'}
+                        </span>
+                      </button>
+                    </div>
+                  )}
+
                   {ord.targetPosition && (
-                    <div className="mt-0.5 text-[10.5px] font-semibold text-[#C8A253]">
-                      → {ord.targetPosition.zone.toUpperCase()}{' '}
-                      {formatCoordLabel(ord.targetPosition.x, ord.targetPosition.y)}
-                      {targetUnit ? ` (${targetUnit.name})` : ''}
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[10.5px] font-semibold text-[#C8A253]">
+                      <span>
+                        → {ord.targetPosition.zone.toUpperCase()}{' '}
+                        {formatCoordLabel(ord.targetPosition.x, ord.targetPosition.y)}
+                        {ord.estimatedMoveCost != null
+                          ? ` (${formatMpCost(ord.estimatedMoveCost)} MP)`
+                          : ''}
+                        {targetUnit ? ` (${targetUnit.name})` : ''}
+                      </span>
+                    </div>
+                  )}
+
+                  {isOverRange && (
+                    <div className="mt-1 inline-flex items-center gap-1 rounded-[2px] border border-amber-500/70 bg-amber-950/60 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-300">
+                      <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                      <span>⚠️ เกินระยะปกติ</span>
                     </div>
                   )}
 
@@ -274,7 +344,7 @@ function TeamOrdersBlock({
                     </div>
                   )}
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>

@@ -13,7 +13,7 @@ import { MAP_DATA, MONSTERS_BY_ID } from '../../data';
 import { useGameStore } from '../../store/useGameStore';
 import type { BoardUnit, Coordinates, SpecialTile, TeamId } from '../../types/game';
 import { getTileKey } from '../../utils/assetHelper';
-import { computeMovementAnalysis } from '../../utils/gridMath';
+import { computeMovementAnalysis, formatMpCost } from '../../utils/gridMath';
 import { isUnitIdentityHidden } from '../../utils/visibilityHelper';
 import { CommandArrowsSvg } from './CommandArrowsSvg';
 import { FogOverlay } from './FogOverlay';
@@ -31,6 +31,7 @@ export function GameBoard() {
   const roomState = useGameStore((s) => s.roomState);
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
   const selectUnit = useGameStore((s) => s.selectUnit);
+  const hoveredTile = useGameStore((s) => s.hoveredTile);
   const lockedTile = useGameStore((s) => s.lockedTile);
   const freeDragEnabled = useGameStore((s) => s.freeDragEnabled);
   const showMoveHelper = useGameStore((s) => s.showMoveHelper);
@@ -58,6 +59,10 @@ export function GameBoard() {
   const canDrag = isRuler && freeDragEnabled;
 
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [pickWarning, setPickWarning] = useState<{
+    unitId: string;
+    message: string;
+  } | null>(null);
   const activeDragUnit = activeDragId ? roomState.units[activeDragId] ?? null : null;
 
   const sensors = useSensors(
@@ -173,16 +178,64 @@ export function GameBoard() {
   ]);
 
   const selectedUnit = selectedUnitId ? roomState.units[selectedUnitId] : null;
+  const pickingUnit =
+    !isRuler && pickingOrderForUnitId
+      ? roomState.units[pickingOrderForUnitId] ?? null
+      : null;
+  const pickingOrder = pickingOrderForUnitId
+    ? draftOrders[pickingOrderForUnitId]
+    : undefined;
+  const pickingActionType = pickingOrder?.actionType ?? 'move';
+  const isMoveConstrainedAction =
+    pickingActionType === 'move' || pickingActionType === 'move_and_attack';
+  const isOverrideUnlocked = Boolean(pickingOrder?.overrideMoveRange);
+  const isStrictMovePick = Boolean(
+    pickingUnit &&
+      pickingUnit.unitType === 'servant' &&
+      isMoveConstrainedAction &&
+      !isOverrideUnlocked
+  );
   const hasteBonus = roomState.activeMapEvent?.id === 'haste_wind' ? 1 : 0;
 
+  const analysisTargetUnit = pickingUnit ?? selectedUnit;
+
   const movementAnalysis = useMemo(() => {
-    if (!showMoveHelper || !selectedUnit || selectedUnit.unitType !== 'servant') {
+    if (!analysisTargetUnit || analysisTargetUnit.unitType !== 'servant') {
+      return null;
+    }
+    // Always show movement analysis while picking a target (even if unlocked/NP/custom as a guide)
+    if (!pickingUnit && !showMoveHelper) {
       return null;
     }
     // Master only sees MOV helper for own Servants
-    if (!isRuler && myTeam && selectedUnit.owner !== myTeam) return null;
-    return computeMovementAnalysis(selectedUnit, roomState.units, hasteBonus);
-  }, [showMoveHelper, selectedUnit, roomState.units, hasteBonus, isRuler, myTeam]);
+    if (!isRuler && myTeam && analysisTargetUnit.owner !== myTeam) return null;
+    return computeMovementAnalysis(analysisTargetUnit, roomState.units, hasteBonus);
+  }, [
+    pickingUnit,
+    showMoveHelper,
+    analysisTargetUnit,
+    roomState.units,
+    hasteBonus,
+    isRuler,
+    myTeam,
+  ]);
+
+  // Hover Path Preview coordinates inside activeZone
+  const hoverPathPoints = useMemo(() => {
+    if (!movementAnalysis || !hoveredTile || hoveredTile.zone !== activeZone) {
+      return null;
+    }
+    const key = getTileKey(hoveredTile.zone, hoveredTile.x, hoveredTile.y);
+    const info = movementAnalysis.reachable[key];
+    if (!info || info.path.length < 2) return null;
+    const inZone = info.path.filter((p) => p.zone === activeZone);
+    if (inZone.length < 2) return null;
+    return {
+      points: inZone.map((p) => `${p.x + 0.5},${p.y + 0.5}`).join(' '),
+      end: inZone[inZone.length - 1],
+      zocPenalized: info.zocPenalized,
+    };
+  }, [movementAnalysis, hoveredTile, activeZone]);
 
   const cells: { x: number; y: number }[] = [];
   for (let y = 0; y < rows; y++) {
@@ -219,7 +272,18 @@ export function GameBoard() {
 
   const handleTileClick = (coords: Coordinates, unitOnTile?: BoardUnit) => {
     if (!isRuler && pickingOrderForUnitId) {
-      applyPickedTarget(coords, unitOnTile?.id);
+      const key = getTileKey(coords.zone, coords.x, coords.y);
+      const reachable = movementAnalysis?.reachable[key];
+      if (isStrictMovePick && !reachable) {
+        setPickWarning({
+          unitId: pickingOrderForUnitId,
+          message:
+            'อยู่นอกระยะเดิน (MP) — เลือกได้เฉพาะช่องสีเขียว/ส้ม หรือติ๊ก "ปลดล็อกระยะ" หากใช้สกิล/บัฟ/วาร์ป',
+        });
+        return;
+      }
+      setPickWarning(null);
+      applyPickedTarget(coords, unitOnTile?.id, reachable ? reachable.cost : null);
       return;
     }
     if (isRuler && pendingSpawnMonsterId) {
@@ -231,7 +295,16 @@ export function GameBoard() {
 
   const handleUnitSelect = (unit: BoardUnit) => {
     if (!isRuler && pickingOrderForUnitId && unit.position) {
-      applyPickedTarget(unit.position, unit.id);
+      if (isStrictMovePick) {
+        setPickWarning({
+          unitId: pickingOrderForUnitId,
+          message:
+            'ช่องนี้มีตัวละครยืนอยู่แล้ว — เลือกช่องว่างในระยะเดินสีเขียว/ส้ม หรือติ๊ก "ปลดล็อกระยะ"',
+        });
+        return;
+      }
+      setPickWarning(null);
+      applyPickedTarget(unit.position, unit.id, null);
       return;
     }
     selectUnit(unit.id);
@@ -268,11 +341,21 @@ export function GameBoard() {
       {/* Contextual Tactical Banner */}
       <div className="mb-1 flex h-5 w-full items-center justify-center gap-2 text-[10.5px]">
         {!isRuler && pickingOrderForUnitId ? (
-          <span className="flex items-center gap-1.5 rounded-[2px] border border-[#C8A253] bg-[#C8A253]/20 px-2.5 py-0.5 font-bold text-[#E5C983]">
-            <Crosshair className="h-3 w-3" />
-            โหมดเลือกเป้าหมายคำสั่งลับ: คลิกช่องหรือยูนิตบนกระดานสำหรับ{' '}
-            {roomState.units[pickingOrderForUnitId]?.name}
-          </span>
+          pickWarning && pickWarning.unitId === pickingOrderForUnitId ? (
+            <span className="flex items-center gap-1.5 rounded-[2px] border border-red-500/80 bg-red-950/70 px-2.5 py-0.5 font-bold text-red-200">
+              <AlertTriangle className="h-3 w-3 shrink-0 text-red-400" />
+              {pickWarning.message}
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 rounded-[2px] border border-[#C8A253] bg-[#C8A253]/20 px-2.5 py-0.5 font-bold text-[#E5C983]">
+              <Crosshair className="h-3 w-3" />
+              {isStrictMovePick
+                ? `เลือกช่องเดินสำหรับ ${roomState.units[pickingOrderForUnitId]?.name} (เฉพาะช่องสีเขียว/ส้มในระยะ ${formatMpCost(movementAnalysis?.maxMP ?? 0)} MP)`
+                : isOverrideUnlocked
+                  ? `ปลดล็อกระยะแล้ว: คลิกช่องใดก็ได้บนกระดานสำหรับ ${roomState.units[pickingOrderForUnitId]?.name} (⚠️ หากเกินระยะปกติจะแจ้งเตือน Ruler)`
+                  : `โหมดเลือกเป้าหมายคำสั่งลับ: คลิกช่องหรือยูนิตบนกระดานสำหรับ ${roomState.units[pickingOrderForUnitId]?.name}`}
+            </span>
+          )
         ) : isRuler && pendingSpawnMonsterId ? (
           <span className="flex items-center gap-1.5 rounded-[2px] border border-[#C8A253] bg-[#C8A253]/20 px-2.5 py-0.5 font-bold text-[#E5C983]">
             <Skull className="h-3 w-3" />
@@ -283,10 +366,9 @@ export function GameBoard() {
           <div className="flex items-center gap-2 text-slate-400">
             <span className="flex items-center gap-1 text-emerald-400">
               <Footprints className="h-3 w-3" />
-              <strong className="font-display text-slate-200">{selectedUnit.name}</strong> · MOV{' '}
-              {movementAnalysis.effectiveMov}
-              {movementAnalysis.roadBonusApplied ? ' (ถนน +1)' : ''}
-              {hasteBonus > 0 ? ' (Event +1)' : ''}
+              <strong className="font-display text-slate-200">{selectedUnit.name}</strong> ·{' '}
+              {formatMpCost(movementAnalysis.maxMP)} MP
+              {hasteBonus > 0 ? ' (Event +1.0)' : ''}
             </span>
             {movementAnalysis.isEngaged && (
               <span
@@ -299,7 +381,7 @@ export function GameBoard() {
                 <AlertTriangle className="h-3 w-3" />
                 {movementAnalysis.ignoreZoC
                   ? 'Engaged (Assassin ยกเว้น ZoC)'
-                  : 'Engaged · ZoC (-1 MOV เมื่อถอยหนี)'}
+                  : `Engaged · ZoC (ถอยเหลือ ${formatMpCost(movementAnalysis.zocRetreatMP)} MP)`}
               </span>
             )}
           </div>
@@ -368,6 +450,7 @@ export function GameBoard() {
                       lockedTile.y === y
                   );
                   const reachableInfo = movementAnalysis?.reachable[tileKey];
+                  const isBlockedPick = isStrictMovePick && !reachableInfo;
                   const hiddenIdentity = unit
                     ? isUnitIdentityHidden(unit, previewRole, roomState)
                     : false;
@@ -390,9 +473,10 @@ export function GameBoard() {
                       isUnitIdentityHidden={hiddenIdentity}
                       deploymentPreview={deploymentPreview}
                       reachableInfo={reachableInfo}
+                      isBlockedPick={isBlockedPick}
                       isSpawnMode={Boolean(
                         (isRuler && pendingSpawnMonsterId) ||
-                          (!isRuler && pickingOrderForUnitId)
+                          (!isRuler && pickingOrderForUnitId && !isBlockedPick)
                       )}
                       onSelectUnit={() => unit && handleUnitSelect(unit)}
                       onGateJump={setActiveZone}
@@ -407,6 +491,33 @@ export function GameBoard() {
                   );
                 })}
 
+                {/* Hover Path Preview SVG (Dijkstra Shortest Path) */}
+                {hoverPathPoints && (
+                  <svg
+                    viewBox={`0 0 ${cols} ${rows}`}
+                    preserveAspectRatio="none"
+                    className="pointer-events-none absolute inset-0 z-20 h-full w-full overflow-visible"
+                  >
+                    <polyline
+                      points={hoverPathPoints.points}
+                      fill="none"
+                      stroke={hoverPathPoints.zocPenalized ? '#F59E0B' : '#34D399'}
+                      strokeWidth="0.1"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeDasharray="0.18 0.1"
+                      opacity="0.95"
+                    />
+                    <circle
+                      cx={hoverPathPoints.end.x + 0.5}
+                      cy={hoverPathPoints.end.y + 0.5}
+                      r="0.14"
+                      fill={hoverPathPoints.zocPenalized ? '#F59E0B' : '#34D399'}
+                      opacity="0.95"
+                    />
+                  </svg>
+                )}
+
                 {/* SVG Command Arrows Overlay (Ruler: solid Red+Blue + COLLISION!; Master: own dashed draft) */}
                 <CommandArrowsSvg
                   activeZone={activeZone}
@@ -420,6 +531,37 @@ export function GameBoard() {
                 {isEnemyBaseFogged && <FogOverlay zoneName={zoneDef.name} />}
               </div>
             </div>
+          </div>
+
+          {/* Compact Terrain MP Legend Bar */}
+          <div className="mt-1 flex w-full flex-wrap items-center justify-center gap-x-3 gap-y-0.5 text-[9.5px] text-slate-400">
+            <span className="flex items-center gap-1">
+              <span className="terrain-road inline-block h-2 w-3 rounded-[1px] border border-slate-500/50" />
+              ถนน <strong className="text-slate-200">0.5</strong>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="terrain-open inline-block h-2 w-3 rounded-[1px] border border-emerald-700/50" />
+              โล่ง <strong className="text-slate-200">1.0</strong>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="terrain-ruins inline-block h-2 w-3 rounded-[1px] border border-[#C8A253]/50" />
+              ซากปรักฯ <strong className="text-slate-200">1.0</strong>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="terrain-forest inline-block h-2 w-3 rounded-[1px] border border-emerald-500/50" />
+              ป่า <strong className="text-slate-200">1.5</strong>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="terrain-building inline-block h-2 w-3 rounded-[1px] border border-slate-400/50" />
+              ตึก <strong className="text-slate-200">1.5/1.0</strong>
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="terrain-water inline-block h-2 w-3 rounded-[1px] border border-sky-400/50" />
+              แม่น้ำ <strong className="text-slate-200">2.0</strong>
+            </span>
+            <span className="text-teal-400/80">
+              Gate <strong className="text-teal-300">1.0 MP</strong>
+            </span>
           </div>
 
           <DragOverlay dropAnimation={null} zIndex={100}>
