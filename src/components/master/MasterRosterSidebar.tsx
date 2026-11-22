@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Crosshair, Package, Shield, Sparkles, Swords } from 'lucide-react';
-import { ITEMS_BY_ID } from '../../data';
+import { useMemo, useState } from 'react';
+import { Crosshair, Package, Send, Shield, Sparkles, Swords, UserPlus } from 'lucide-react';
+import { ITEMS_BY_ID, MAP_DATA } from '../../data';
 import { useGameStore } from '../../store/useGameStore';
-import type { BoardUnit, TeamId } from '../../types/game';
+import type { BoardUnit, TeamId, ZoneId } from '../../types/game';
 import {
   formatCoordLabel,
   getFactionStyle,
@@ -93,10 +93,15 @@ function MasterUnitCard({
 export function MasterRosterSidebar() {
   const previewRole = useGameStore((s) => s.previewRole);
   const roomState = useGameStore((s) => s.roomState);
+  const masterAOrders = useGameStore((s) => s.masterAOrders);
+  const masterBOrders = useGameStore((s) => s.masterBOrders);
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
   const locateUnit = useGameStore((s) => s.locateUnit);
+  const requestMasterReinforcement = useGameStore((s) => s.requestMasterReinforcement);
 
   const teamId: TeamId = previewRole === 'master_b' ? 'team_b' : 'team_a';
+  const baseZone: ZoneId = teamId === 'team_a' ? 'base_a' : 'base_b';
+  const spawnType = teamId === 'team_a' ? 'spawn_a' : 'spawn_b';
   const team = roomState.teams[teamId];
   const isTeamA = teamId === 'team_a';
 
@@ -106,6 +111,54 @@ export function MasterRosterSidebar() {
   const activeServants = myServants.filter((u) => u.status === 'active');
   const reserveServants = myServants.filter((u) => u.status === 'reserve');
   const defeatedServants = myServants.filter((u) => u.status === 'defeated');
+
+  const pendingReq =
+    (teamId === 'team_a' ? masterAOrders : masterBOrders)?.reinforcementRequest ?? null;
+
+  // Empty spawn tiles in own base for mid-game reinforcement
+  const emptySpawnTiles = useMemo(() => {
+    const occupied = new Set(
+      Object.values(roomState.units)
+        .filter((u) => u.status === 'active' && u.position?.zone === baseZone)
+        .map((u) => `${u.position!.x}_${u.position!.y}`)
+    );
+    return MAP_DATA.zones[baseZone].specialTiles.filter(
+      (t) => t.type === spawnType && !occupied.has(`${t.x}_${t.y}`)
+    );
+  }, [roomState.units, baseZone, spawnType]);
+
+  const [reinforceUnitId, setReinforceUnitId] = useState<string>('');
+  const [reinforceSpawnKey, setReinforceSpawnKey] = useState<string>('');
+  const [sendingReq, setSendingReq] = useState(false);
+
+  const canReinforce =
+    roomState.phase !== 'draft' &&
+    roomState.phase !== 'deployment' &&
+    activeServants.length < 3 &&
+    reserveServants.length > 0 &&
+    emptySpawnTiles.length > 0;
+
+  const chosenUnitId =
+    reinforceUnitId && reserveServants.some((u) => u.id === reinforceUnitId)
+      ? reinforceUnitId
+      : reserveServants[0]?.id ?? '';
+  const chosenTile =
+    emptySpawnTiles.find((t) => `${t.x}_${t.y}` === reinforceSpawnKey) ??
+    emptySpawnTiles[0];
+
+  const handleRequestReinforcement = async () => {
+    if (!chosenUnitId || !chosenTile) return;
+    setSendingReq(true);
+    try {
+      await requestMasterReinforcement(chosenUnitId, {
+        zone: baseZone,
+        x: chosenTile.x,
+        y: chosenTile.y,
+      });
+    } finally {
+      setSendingReq(false);
+    }
+  };
 
   return (
     <aside className="flex w-[248px] shrink-0 flex-col overflow-y-auto border-r border-[#C8A253]/25 bg-[#111622] p-2.5 text-slate-100">
@@ -181,6 +234,62 @@ export function MasterRosterSidebar() {
               </div>
             ))}
           </div>
+        </section>
+      )}
+
+      {/* Mid-Game Player Reinforcement Request Box (Active < 3 & Reserve > 0) */}
+      {canReinforce && (
+        <section className="mb-3 rounded-[2px] border border-[#C8A253]/50 bg-[#090B10] p-2">
+          <div className="mb-1.5 flex items-center gap-1 text-[10.5px] font-bold text-[#E5C983]">
+            <UserPlus className="h-3.5 w-3.5 text-[#C8A253]" />
+            <span>ส่งตัวสำรองลงจุดเกิด</span>
+          </div>
+
+          {pendingReq ? (
+            <div className="rounded-[2px] border border-emerald-800/70 bg-emerald-950/30 p-2 text-[10.5px] text-emerald-300">
+              ส่งคำขอส่ง <strong>{roomState.units[pendingReq.unitId]?.name}</strong> ลงจุด{' '}
+              <strong>
+                {formatCoordLabel(pendingReq.position.x, pendingReq.position.y)}
+              </strong>{' '}
+              แล้ว — รอ Ruler อนุมัติ
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <select
+                value={chosenUnitId}
+                onChange={(e) => setReinforceUnitId(e.target.value)}
+                className="w-full rounded-[2px] border border-slate-700 bg-[#111622] px-2 py-1 text-[10.5px] text-slate-100 focus:border-[#C8A253] focus:outline-none"
+              >
+                {reserveServants.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} ({u.servantClass})
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={chosenTile ? `${chosenTile.x}_${chosenTile.y}` : ''}
+                onChange={(e) => setReinforceSpawnKey(e.target.value)}
+                className="w-full rounded-[2px] border border-slate-700 bg-[#111622] px-2 py-1 text-[10.5px] text-slate-100 focus:border-[#C8A253] focus:outline-none"
+              >
+                {emptySpawnTiles.map((t) => (
+                  <option key={`${t.x}_${t.y}`} value={`${t.x}_${t.y}`}>
+                    {t.label} ({formatCoordLabel(t.x, t.y)})
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                disabled={sendingReq}
+                onClick={handleRequestReinforcement}
+                className="flex w-full items-center justify-center gap-1 rounded-[2px] bg-[#C8A253] py-1 text-[10.5px] font-bold text-[#090B10] hover:bg-[#E5C983] disabled:opacity-50"
+              >
+                <Send className="h-3 w-3" />
+                <span>{sendingReq ? 'กำลังส่งคำขอ...' : 'ขอส่งลงสนาม'}</span>
+              </button>
+            </div>
+          )}
         </section>
       )}
 

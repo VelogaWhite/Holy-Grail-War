@@ -14,6 +14,7 @@ interface UnitTokenProps {
   isSelected: boolean;
   canDrag: boolean;
   isOverlay?: boolean;
+  isIdentityHidden?: boolean;
   onSelect: () => void;
 }
 
@@ -22,6 +23,7 @@ export function UnitToken({
   isSelected,
   canDrag,
   isOverlay = false,
+  isIdentityHidden = false,
   onSelect,
 }: UnitTokenProps) {
   const [imgError, setImgError] = useState(false);
@@ -70,9 +72,26 @@ export function UnitToken({
               : ''
       }`}
     >
-      {/* Full-Bleed Portrait */}
+      {/* Full-Bleed Portrait OR Concealed Class Emblem */}
       <div className="relative h-full w-full overflow-hidden rounded-[2px]">
-        {imageUrl && !imgError ? (
+        {isIdentityHidden ? (
+          <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-b from-[#161D2E] to-[#090B10] pb-2">
+            {classIconUrl && !classIconError ? (
+              <img
+                src={classIconUrl}
+                alt={unit.servantClass ?? 'Servant'}
+                onError={() => setClassIconError(true)}
+                className="h-7 w-7 object-contain opacity-95"
+                draggable={false}
+              />
+            ) : (
+              <span className="font-display text-xs font-bold text-[#C8A253]">???</span>
+            )}
+            <span className="mt-0.5 font-display text-[7.5px] font-bold tracking-wider text-[#E5C983]">
+              {unit.servantClass ?? 'Servant'} ???
+            </span>
+          </div>
+        ) : imageUrl && !imgError ? (
           <img
             src={imageUrl}
             alt={unit.name}
@@ -147,18 +166,36 @@ export function UnitToken({
 
       {/* Hover Tactical Tooltip (hidden while dragging or inside DragOverlay) */}
       {!isDragging && !isOverlay && (
-        <div className="pointer-events-none absolute bottom-full left-1/2 z-40 mb-2 hidden w-44 -translate-x-1/2 rounded-[2px] border border-[#C8A253]/40 bg-[#111622] p-2 text-left text-[11px] text-slate-100 shadow-xl group-hover:block">
-          <div className="font-display font-bold leading-tight text-[#E5C983]">{unit.name}</div>
-          <div className="mt-0.5 text-[10px] font-medium text-slate-400">
-            {unit.unitType === 'servant'
-              ? `${unit.servantClass}${unit.subClass ? ` • ${unit.subClass}` : ''}`
-              : 'Neutral PvE Monster'}
-          </div>
-          <div className="mt-1.5 grid grid-cols-3 gap-1 rounded-[2px] bg-[#090B10] px-1.5 py-1 text-center text-[10px] font-bold text-slate-200">
-            <span>ATK {unit.atk}</span>
-            <span>MOV {unit.mov}</span>
-            <span>RNG {unit.range ?? 1}</span>
-          </div>
+        <div className="pointer-events-none absolute bottom-full left-1/2 z-40 mb-2 hidden w-48 -translate-x-1/2 rounded-[2px] border border-[#C8A253]/40 bg-[#111622] p-2 text-left text-[11px] text-slate-100 shadow-xl group-hover:block">
+          {isIdentityHidden ? (
+            <>
+              <div className="font-display font-bold leading-tight text-[#E5C983]">
+                {unit.servantClass ?? 'Servant'} ???
+              </div>
+              <div className="mt-0.5 text-[10px] font-medium text-amber-300/80">
+                ยังไม่เปิดเผยนามแท้ (True Name Concealed)
+              </div>
+              <div className="mt-1.5 rounded-[2px] bg-[#090B10] px-2 py-1 text-center text-[10px] font-bold text-slate-200">
+                HP {unit.hp}/{unit.maxHp}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="font-display font-bold leading-tight text-[#E5C983]">
+                {unit.name}
+              </div>
+              <div className="mt-0.5 text-[10px] font-medium text-slate-400">
+                {unit.unitType === 'servant'
+                  ? `${unit.servantClass}${unit.subClass ? ` • ${unit.subClass}` : ''}`
+                  : 'Neutral PvE Monster'}
+              </div>
+              <div className="mt-1.5 grid grid-cols-3 gap-1 rounded-[2px] bg-[#090B10] px-1.5 py-1 text-center text-[10px] font-bold text-slate-200">
+                <span>ATK {unit.atk}</span>
+                <span>MOV {unit.mov}</span>
+                <span>RNG {unit.range ?? 1}</span>
+              </div>
+            </>
+          )}
           {unit.tags.length > 0 && (
             <div className="mt-1.5 flex flex-wrap gap-1">
               {unit.tags.map((t) => (

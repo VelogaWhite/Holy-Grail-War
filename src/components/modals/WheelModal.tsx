@@ -211,9 +211,11 @@ function getEventCategory(eventId: string): EventCategory {
 function ServantTapeCard({
   servant,
   isWinner,
+  masked = false,
 }: {
   servant: ServantTemplate;
   isWinner: boolean;
+  masked?: boolean;
 }) {
   const [imgErr, setImgErr] = useState(false);
   const imgUrl = resolveAssetUrl(servant.image);
@@ -229,9 +231,22 @@ function ServantTapeCard({
           : 'border-slate-700/80'
       }`}
     >
-      {/* Portrait Area */}
+      {/* Portrait Area (or Masked Class Emblem under True Name Concealment) */}
       <div className="relative h-[108px] w-full overflow-hidden bg-[#090B10]">
-        {imgUrl && !imgErr ? (
+        {masked ? (
+          <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-b from-[#172033] to-[#090B10]">
+            {classIconUrl ? (
+              <img
+                src={classIconUrl}
+                alt={servant.servantClass}
+                className="h-12 w-12 object-contain opacity-95"
+                draggable={false}
+              />
+            ) : (
+              <span className="font-display text-xl font-bold text-[#C8A253]">???</span>
+            )}
+          </div>
+        ) : imgUrl && !imgErr ? (
           <img
             src={imgUrl}
             alt={servant.name}
@@ -246,8 +261,8 @@ function ServantTapeCard({
         )}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-[#111622] to-transparent" />
 
-        {/* Class Icon Top-Left */}
-        {classIconUrl && (
+        {/* Class Icon Top-Left (when unmasked) */}
+        {!masked && classIconUrl && (
           <div className="absolute top-1.5 left-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-[#C8A253]/60 bg-[#090B10]/90 p-0.5">
             <img
               src={classIconUrl}
@@ -261,10 +276,10 @@ function ServantTapeCard({
       {/* Name & Class Label */}
       <div className="flex flex-1 flex-col justify-between px-2 pt-1 pb-2 text-center">
         <div className="font-display line-clamp-1 text-[11px] font-bold tracking-wide text-slate-100">
-          {servant.name}
+          {masked ? '???' : servant.name}
         </div>
         <div className={`text-[9.5px] font-bold uppercase tracking-wider ${clsStyle.badgeText}`}>
-          {servant.subClass ?? servant.servantClass}
+          {masked ? servant.servantClass : servant.subClass ?? servant.servantClass}
         </div>
       </div>
 
@@ -356,6 +371,7 @@ export function WheelModal() {
   const broadcastSpinning = broadcast?.isSpinning ?? false;
 
   const [selectedMode, setSelectedMode] = useState<WheelMode>('servant_draft');
+  const [draftTarget, setDraftTarget] = useState<'team_a' | 'team_b' | 'stray'>('team_a');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [animating, setAnimating] = useState(false);
   const [translateX, setTranslateX] = useState(0);
@@ -550,6 +566,16 @@ export function WheelModal() {
     draftedServantTpl &&
     !roomState.draftPoolRemaining.includes(draftedServantTpl.id);
 
+  // Under True Name Concealment, mask the draft tape & winner spotlight for the opposing Master
+  const isMaskedDraftForViewer = Boolean(
+    selectedMode === 'servant_draft' &&
+      roomState.trueNameConcealment &&
+      !isRuler &&
+      broadcast?.targetTeam &&
+      ((previewRole === 'master_a' && broadcast.targetTeam === 'team_b') ||
+        (previewRole === 'master_b' && broadcast.targetTeam === 'team_a'))
+  );
+
   const poolCount =
     selectedMode === 'servant_draft'
       ? roomState.draftPoolRemaining.length
@@ -692,6 +718,7 @@ export function WheelModal() {
                       key={`${itemId}-${idx}`}
                       servant={servant}
                       isWinner={isWinnerCard}
+                      masked={isMaskedDraftForViewer}
                     />
                   );
                 }
@@ -723,6 +750,29 @@ export function WheelModal() {
             ) : showResult && broadcast?.resultLabel ? (
               <div>
                 {draftedServantTpl ? (
+                  isMaskedDraftForViewer ? (
+                    <div className="flex flex-col items-center py-2 text-center">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[#C8A253] bg-[#111622] p-2">
+                        <img
+                          src={
+                            getClassIconUrl(
+                              draftedServantTpl.servantClass,
+                              draftedServantTpl.subClass
+                            ) ?? ''
+                          }
+                          alt={draftedServantTpl.servantClass}
+                          className="h-full w-full object-contain"
+                        />
+                      </div>
+                      <h3 className="mt-2 font-display text-base font-bold tracking-wider text-[#E5C983]">
+                        {broadcast?.targetTeam === 'team_a' ? 'Team A' : 'Team B'}{' '}
+                        อัญเชิญวีรชนคลาส [{broadcast?.resultClass ?? draftedServantTpl.servantClass}]!
+                      </h3>
+                      <p className="mt-1 text-xs text-slate-400">
+                        โหมดปิดนามแท้ทำงานอยู่ — ชื่อจริง รูป และสกิลถูกซ่อนไว้จนกว่าจะเปิดเผย
+                      </p>
+                    </div>
+                  ) : (
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                     <img
                       src={resolveAssetUrl(draftedServantTpl.image) ?? ''}
@@ -762,6 +812,7 @@ export function WheelModal() {
                       </div>
                     </div>
                   </div>
+                  )
                 ) : (
                   <div className="text-center">
                     <div className="font-display text-lg font-bold tracking-wider text-[#E5C983]">
@@ -860,21 +911,61 @@ export function WheelModal() {
             )}
           </div>
 
-          {/* Spin Button (Ruler Only) */}
+          {/* Ruler Draft Target Selector + Spin Button */}
           {isRuler && (
-            <button
-              type="button"
-              disabled={animating || poolCount === 0}
-              onClick={() => {
-                // Prime AudioContext synchronously on user gesture
-                if (soundEnabled) getAudioContext();
-                spinWheel(selectedMode);
-              }}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-[2px] border border-[#C8A253]/70 bg-[#B91C1C] py-2.5 font-display text-xs font-bold tracking-widest text-slate-100 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Disc className={`h-4 w-4 ${animating ? 'animate-spin' : ''}`} />
-              <span>{animating ? 'OPENING CASE...' : 'SPIN CASE ROULETTE'}</span>
-            </button>
+            <div className="mt-4 space-y-2.5">
+              {selectedMode === 'servant_draft' && (
+                <div className="flex flex-wrap items-center justify-center gap-2 rounded-[2px] border border-slate-800 bg-[#090B10] px-3 py-2 text-xs">
+                  <span className="font-semibold text-slate-400">สุ่มให้:</span>
+                  {(
+                    [
+                      { id: 'team_a', label: 'Team A (Red)', cls: 'border-[#B91C1C] bg-[#B91C1C] text-white' },
+                      { id: 'team_b', label: 'Team B (Blue)', cls: 'border-sky-600 bg-sky-700 text-white' },
+                      { id: 'stray', label: 'Stray Boss', cls: 'border-[#C8A253] bg-[#C8A253] text-[#090B10]' },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      disabled={animating}
+                      onClick={() => setDraftTarget(opt.id)}
+                      className={`rounded-[2px] border px-3 py-1 text-xs font-bold transition ${
+                        draftTarget === opt.id
+                          ? opt.cls
+                          : 'border-slate-700 bg-[#111622] text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                  {roomState.trueNameConcealment && draftTarget !== 'stray' && (
+                    <span className="text-[10.5px] font-semibold text-[#C8A253]">
+                      (ปิดนามแท้: ฝั่งตรงข้ามเห็นเฉพาะคลาส)
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <button
+                type="button"
+                disabled={animating || poolCount === 0}
+                onClick={() => {
+                  if (soundEnabled) getAudioContext();
+                  spinWheel(
+                    selectedMode,
+                    selectedMode === 'servant_draft'
+                      ? draftTarget === 'stray'
+                        ? null
+                        : draftTarget
+                      : null
+                  );
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-[2px] border border-[#C8A253]/70 bg-[#B91C1C] py-2.5 font-display text-xs font-bold tracking-widest text-slate-100 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Disc className={`h-4 w-4 ${animating ? 'animate-spin' : ''}`} />
+                <span>{animating ? 'OPENING CASE...' : 'SPIN CASE ROULETTE'}</span>
+              </button>
+            </div>
           )}
         </div>
       </div>

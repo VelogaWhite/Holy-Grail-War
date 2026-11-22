@@ -235,24 +235,27 @@ export async function submitMasterSecretOrders(params: {
   roomId: string;
   masterKey: 'master_a' | 'master_b';
   ordersDoc: SecretCommandsDoc;
-  currentTeams: RoomState['teams'];
+  currentTeams?: RoomState['teams'];
+  setReadyLocked?: boolean;
 }): Promise<void> {
-  const cleanDoc = JSON.parse(JSON.stringify(params.ordersDoc)) as SecretCommandsDoc;
+  const cleanDoc = stripUndefined(params.ordersDoc);
   await setDoc(
     doc(db, 'rooms', params.roomId, 'secrets', params.masterKey),
     cleanDoc
   );
 
-  const teamKey = params.masterKey === 'master_a' ? 'team_a' : 'team_b';
-  await updateDoc(doc(db, 'rooms', params.roomId), {
-    teams: {
-      ...params.currentTeams,
-      [teamKey]: {
-        ...params.currentTeams[teamKey],
-        readyLocked: params.ordersDoc.locked,
+  if (params.currentTeams && typeof params.setReadyLocked === 'boolean') {
+    const teamKey = params.masterKey === 'master_a' ? 'team_a' : 'team_b';
+    await updateDoc(doc(db, 'rooms', params.roomId), {
+      teams: {
+        ...params.currentTeams,
+        [teamKey]: {
+          ...params.currentTeams[teamKey],
+          readyLocked: params.setReadyLocked,
+        },
       },
-    },
-  });
+    });
+  }
 }
 
 export async function clearAllSecretOrders(
@@ -274,16 +277,26 @@ export async function unlockMasterSecretOrders(params: {
   turn: number;
 }): Promise<void> {
   const nextDoc: SecretCommandsDoc = {
+    ...(params.currentOrders ?? emptySecretCommands(params.turn)),
     turn: params.turn,
     locked: false,
     updatedAt: Date.now(),
     orders: params.currentOrders?.orders ?? [],
+    ...(params.currentOrders?.deployment
+      ? {
+          deployment: {
+            ...params.currentOrders.deployment,
+            locked: false,
+          },
+        }
+      : {}),
   };
   await submitMasterSecretOrders({
     roomId: params.roomId,
     masterKey: params.masterKey,
     ordersDoc: nextDoc,
     currentTeams: params.currentTeams,
+    setReadyLocked: false,
   });
 }
 

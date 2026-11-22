@@ -3,6 +3,7 @@ import {
   Award,
   ClipboardList,
   Eye,
+  EyeOff,
   Flame,
   Heart,
   Minus,
@@ -26,6 +27,7 @@ import {
   resolveAssetUrl,
 } from '../../utils/assetHelper';
 import { TileInspector } from '../board/TileInspector';
+import { DeploymentPanel } from '../master/DeploymentPanel';
 import { SecretCommandPanel } from '../master/SecretCommandPanel';
 import { SecretOrdersViewer } from './SecretOrdersViewer';
 
@@ -96,6 +98,8 @@ function StatAdjuster({
 export function UnitInspectorPanel() {
   const previewRole = useGameStore((s) => s.previewRole);
   const roomState = useGameStore((s) => s.roomState);
+  const masterAOrders = useGameStore((s) => s.masterAOrders);
+  const masterBOrders = useGameStore((s) => s.masterBOrders);
   const units = roomState.units;
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
   const updateUnit = useGameStore((s) => s.updateUnit);
@@ -103,6 +107,7 @@ export function UnitInspectorPanel() {
   const teleportUnitToZone = useGameStore((s) => s.teleportUnitToZone);
   const addUnitTag = useGameStore((s) => s.addUnitTag);
   const removeUnitTag = useGameStore((s) => s.removeUnitTag);
+  const toggleUnitTrueNameRevealed = useGameStore((s) => s.toggleUnitTrueNameRevealed);
 
   const [imgErr, setImgErr] = useState(false);
   const [customTagInput, setCustomTagInput] = useState('');
@@ -113,15 +118,22 @@ export function UnitInspectorPanel() {
   const lockedCount =
     (roomState.teams.team_a.readyLocked ? 1 : 0) +
     (roomState.teams.team_b.readyLocked ? 1 : 0);
+  const hasPendingReinforcement = Boolean(
+    masterAOrders?.reinforcementRequest || masterBOrders?.reinforcementRequest
+  );
 
   useEffect(() => {
     setImgErr(false);
     setCustomTagInput('');
   }, [selectedUnitId]);
 
-  // Master View gets the Secret Command Queue Panel (+ TileInspector inside it)
+  // Master View: DeploymentPanel in 'deployment' phase, otherwise SecretCommandPanel
   if (!isRuler) {
-    return <SecretCommandPanel />;
+    return roomState.phase === 'deployment' ? (
+      <DeploymentPanel />
+    ) : (
+      <SecretCommandPanel />
+    );
   }
 
   const faction = unit ? getFactionStyle(unit.owner) : null;
@@ -165,17 +177,19 @@ export function UnitInspectorPanel() {
           }`}
         >
           <ClipboardList className="h-3.5 w-3.5" />
-          <span>Orders</span>
+          <span>{roomState.phase === 'deployment' ? 'Deploy' : 'Orders'}</span>
           <span
             className={`rounded-[2px] px-1 py-px text-[9px] font-bold ${
-              lockedCount === 2
-                ? 'bg-emerald-600 text-white'
-                : lockedCount === 1
-                  ? 'bg-[#C8A253] text-[#090B10]'
-                  : 'bg-slate-800 text-slate-400'
+              hasPendingReinforcement
+                ? 'bg-[#B91C1C] text-white'
+                : lockedCount === 2
+                  ? 'bg-emerald-600 text-white'
+                  : lockedCount === 1
+                    ? 'bg-[#C8A253] text-[#090B10]'
+                    : 'bg-slate-800 text-slate-400'
             }`}
           >
-            {lockedCount}/2
+            {hasPendingReinforcement ? '!' : `${lockedCount}/2`}
           </span>
         </button>
       </div>
@@ -393,6 +407,31 @@ export function UnitInspectorPanel() {
                   </button>
                 )}
               </div>
+
+              {/* Per-Unit True Name Reveal Toggle (Servants only) */}
+              {unit.unitType === 'servant' && (
+                <button
+                  type="button"
+                  onClick={() => toggleUnitTrueNameRevealed(unit.id)}
+                  className={`flex w-full items-center justify-center gap-1.5 rounded-[2px] border py-1 text-[10px] font-bold transition ${
+                    unit.isTrueNameRevealed
+                      ? 'border-emerald-700/70 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-950/70'
+                      : 'border-[#C8A253]/70 bg-[#C8A253]/15 text-[#E5C983] hover:bg-[#C8A253]/25'
+                  }`}
+                >
+                  {unit.isTrueNameRevealed ? (
+                    <>
+                      <EyeOff className="h-3 w-3" />
+                      <span>นามแท้เปิดอยู่ · กดเพื่อปิดนามแท้ (Conceal)</span>
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="h-3 w-3" />
+                      <span>เปิดเผยนามแท้ (Reveal True Name)</span>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           )}
 

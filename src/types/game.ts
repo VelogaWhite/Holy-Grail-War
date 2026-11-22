@@ -2,7 +2,13 @@ export type Role = 'ruler' | 'master_a' | 'master_b';
 export type TeamId = 'team_a' | 'team_b';
 export type OwnerId = TeamId | 'neutral';
 export type ZoneId = 'base_a' | 'central' | 'base_b';
-export type TurnPhase = 'draft' | 'event' | 'planning' | 'resolution' | 'ended';
+export type TurnPhase =
+  | 'draft'
+  | 'deployment'
+  | 'event'
+  | 'planning'
+  | 'resolution'
+  | 'ended';
 export type UnitStatus = 'active' | 'reserve' | 'defeated';
 
 export type ServantClassId =
@@ -41,6 +47,7 @@ export interface BoardUnit {
   npReady: boolean;
   tags: string[];
   isRevealedToEnemy: boolean;
+  isTrueNameRevealed: boolean;
   image?: string;
 }
 
@@ -79,11 +86,25 @@ export interface CommandOrder {
   note: string;
 }
 
+export interface DeploymentPlacement {
+  unitId: string;
+  position: Coordinates;
+}
+
 export interface SecretCommandsDoc {
   turn: number;
   locked: boolean;
   updatedAt: number;
   orders: CommandOrder[]; // Max 3 orders (Active Servants)
+  deployment?: {
+    locked: boolean;
+    placements: DeploymentPlacement[];
+  };
+  reinforcementRequest?: {
+    unitId: string;
+    position: Coordinates;
+    requestedAt: number;
+  } | null;
 }
 
 export interface RulerSecretDoc {
@@ -98,6 +119,7 @@ export interface WheelBroadcast {
   poolIds: string[];
   resultId: string | null;
   resultLabel: string | null;
+  resultClass?: string | null;
   resultDescription?: string | null;
   targetTeam?: TeamId | null;
 }
@@ -153,6 +175,7 @@ export interface RoomState {
   units: Record<string, BoardUnit>;
   tileOverrides: Record<string, TileOverride>;
   fogConfig: FogConfig;
+  trueNameConcealment: boolean;
   activeMapEvent: { id: string; title: string; description: string } | null;
   wheelBroadcast: WheelBroadcast | null;
   diceBroadcast: DiceBroadcast | null;

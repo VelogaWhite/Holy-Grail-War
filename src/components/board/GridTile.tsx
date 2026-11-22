@@ -41,6 +41,8 @@ interface GridTileProps {
   isSelectedUnit: boolean;
   isLockedTile: boolean;
   canDragUnit: boolean;
+  isUnitIdentityHidden?: boolean;
+  deploymentPreview?: { name: string; team: 'team_a' | 'team_b' } | null;
   reachableInfo?: ReachableTileInfo;
   isSpawnMode: boolean;
   onSelectUnit: (unitId: string) => void;
@@ -76,6 +78,8 @@ export function GridTile({
   isSelectedUnit,
   isLockedTile,
   canDragUnit,
+  isUnitIdentityHidden = false,
+  deploymentPreview = null,
   reachableInfo,
   isSpawnMode,
   onSelectUnit,
@@ -295,6 +299,22 @@ export function GridTile({
         </div>
       )}
 
+      {/* Ruler Deployment Preview Ghost Badge */}
+      {!unit && deploymentPreview && (
+        <div
+          className={`pointer-events-none absolute inset-1 z-10 flex flex-col items-center justify-center rounded-[2px] border border-dashed px-1 text-center ${
+            deploymentPreview.team === 'team_a'
+              ? 'border-red-400 bg-red-950/70 text-red-200'
+              : 'border-sky-400 bg-sky-950/70 text-sky-200'
+          }`}
+        >
+          <span className="text-[7px] font-bold uppercase opacity-75">Preview</span>
+          <span className="font-display max-w-full truncate text-[8.5px] font-bold">
+            {deploymentPreview.name.split(' ')[0]}
+          </span>
+        </div>
+      )}
+
       {/* Occupying Unit Token */}
       {unit && (
         <div className="absolute inset-0 z-10 flex items-center justify-center">
@@ -302,6 +322,7 @@ export function GridTile({
             unit={unit}
             isSelected={isSelectedUnit}
             canDrag={canDragUnit}
+            isIdentityHidden={isUnitIdentityHidden}
             onSelect={() => onSelectUnit(unit.id)}
           />
         </div>

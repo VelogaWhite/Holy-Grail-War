@@ -29,6 +29,7 @@ export function LobbyView() {
   const [teamAName, setTeamAName] = useState('Team A (Mount Enzo)');
   const [teamBName, setTeamBName] = useState('Team B (Shinto City)');
   const [rulerPin, setRulerPin] = useState('');
+  const [trueNameConcealment, setTrueNameConcealment] = useState(false);
   const [startWithDemo, setStartWithDemo] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -76,8 +77,8 @@ export function LobbyView() {
 
     try {
       const initialState = startWithDemo
-        ? createDemoRoomState(teamAName, teamBName)
-        : createFreshDraftRoomState(teamAName, teamBName);
+        ? createDemoRoomState(teamAName, teamBName, trueNameConcealment)
+        : createFreshDraftRoomState(teamAName, teamBName, trueNameConcealment);
       const secretTurn = randomSecretGrailTurn();
 
       const roomId = await createOnlineRoom({
@@ -256,7 +257,17 @@ export function LobbyView() {
                   />
                 </div>
 
-                <label className="flex cursor-pointer items-center gap-2 pt-1 text-xs text-slate-300">
+                <label className="flex cursor-pointer items-center gap-2 pt-1 text-xs text-[#E5C983]">
+                  <input
+                    type="checkbox"
+                    checked={trueNameConcealment}
+                    onChange={(e) => setTrueNameConcealment(e.target.checked)}
+                    className="h-3.5 w-3.5 accent-[#C8A253]"
+                  />
+                  <span>โหมดปิดนามแท้ (True Name Concealment — ศัตรูเห็นเฉพาะคลาส)</span>
+                </label>
+
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-300">
                   <input
                     type="checkbox"
                     checked={startWithDemo}

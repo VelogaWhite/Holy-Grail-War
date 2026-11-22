@@ -3,6 +3,7 @@ import { CheckCircle2, Crosshair, Lock, Send, X } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import type { CommandActionType, TeamId } from '../../types/game';
 import { formatCoordLabel } from '../../utils/assetHelper';
+import { getDisplayUnitName } from '../../utils/visibilityHelper';
 import { TileInspector } from '../board/TileInspector';
 
 const ACTION_OPTIONS: { id: CommandActionType; label: string }[] = [
@@ -140,7 +141,9 @@ export function SecretCommandPanel() {
                   <span className="truncate text-[#E5C983]">
                     เป้า: {order.targetPosition.zone.toUpperCase()}{' '}
                     {formatCoordLabel(order.targetPosition.x, order.targetPosition.y)}
-                    {targetUnit ? ` (${targetUnit.name})` : ''}
+                    {targetUnit
+                      ? ` (${getDisplayUnitName(targetUnit, previewRole, roomState)})`
+                      : ''}
                   </span>
                   {!isLocked && (
                     <button

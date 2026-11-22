@@ -12,6 +12,7 @@ import { CLASSES, ITEMS, SERVANTS } from '../../data';
 import { useGameStore } from '../../store/useGameStore';
 import type { ItemTemplate, ServantClassId, ServantTemplate } from '../../types/game';
 import { getClassIconUrl, getInitials, resolveAssetUrl } from '../../utils/assetHelper';
+import { isUnitIdentityHidden } from '../../utils/visibilityHelper';
 
 type CatalogTab = 'servants' | 'shop' | 'rules';
 
@@ -169,7 +170,9 @@ function ItemCard({ item }: { item: ItemTemplate }) {
 export function CatalogModal() {
   const isOpen = useGameStore((s) => s.isCatalogOpen);
   const setCatalogOpen = useGameStore((s) => s.setCatalogOpen);
-  const units = useGameStore((s) => s.roomState.units);
+  const previewRole = useGameStore((s) => s.previewRole);
+  const roomState = useGameStore((s) => s.roomState);
+  const units = roomState.units;
 
   const [activeTab, setActiveTab] = useState<CatalogTab>('servants');
   const [searchQuery, setSearchQuery] = useState('');
@@ -179,11 +182,15 @@ export function CatalogModal() {
     const map = new Map<string, 'team_a' | 'team_b'>();
     for (const u of Object.values(units)) {
       if (u.unitType === 'servant' && (u.owner === 'team_a' || u.owner === 'team_b')) {
+        // Under True Name Concealment, hide opposing team's unrevealed Servants from Catalog badges
+        if (isUnitIdentityHidden(u, previewRole, roomState)) {
+          continue;
+        }
         map.set(u.templateId, u.owner);
       }
     }
     return map;
-  }, [units]);
+  }, [units, previewRole, roomState]);
 
   const filteredServants = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();

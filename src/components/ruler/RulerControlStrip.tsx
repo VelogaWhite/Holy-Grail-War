@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   CloudFog,
   Crown,
+  EyeOff,
   FastForward,
   Footprints,
   Hand,
@@ -13,6 +14,7 @@ import type { TurnPhase } from '../../types/game';
 
 const PHASES: { id: TurnPhase; label: string }[] = [
   { id: 'draft', label: 'Draft' },
+  { id: 'deployment', label: 'Deploy' },
   { id: 'event', label: 'Event' },
   { id: 'planning', label: 'Planning' },
   { id: 'resolution', label: 'Resolve' },
@@ -31,6 +33,7 @@ export function RulerControlStrip() {
   const endTurnAndNext = useGameStore((s) => s.endTurnAndNext);
   const setSecretGrailTurn = useGameStore((s) => s.setSecretGrailTurn);
   const toggleFogOfWar = useGameStore((s) => s.toggleFogOfWar);
+  const toggleTrueNameConcealment = useGameStore((s) => s.toggleTrueNameConcealment);
   const toggleGrailManifested = useGameStore((s) => s.toggleGrailManifested);
   const setFreeDragEnabled = useGameStore((s) => s.setFreeDragEnabled);
   const setShowMoveHelper = useGameStore((s) => s.setShowMoveHelper);
@@ -168,6 +171,20 @@ export function RulerControlStrip() {
         >
           <Navigation className="h-3 w-3" />
           <span>Arrows</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={toggleTrueNameConcealment}
+          title="สลับโหมดปิดนามแท้ (ศัตรูเห็นเฉพาะคลาสจนกว่าจะถูกเปิดเผย)"
+          className={`flex items-center gap-1 rounded-[2px] border px-2 py-0.5 text-[10px] font-bold transition ${
+            roomState.trueNameConcealment
+              ? 'border-[#C8A253] bg-[#C8A253]/20 text-[#E5C983]'
+              : 'border-slate-700 bg-[#090B10] text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <EyeOff className="h-3 w-3" />
+          <span>ปิดนามแท้: {roomState.trueNameConcealment ? 'ON' : 'OFF'}</span>
         </button>
 
         <button

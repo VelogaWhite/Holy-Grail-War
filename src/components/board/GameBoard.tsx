@@ -14,6 +14,7 @@ import { useGameStore } from '../../store/useGameStore';
 import type { BoardUnit, Coordinates, SpecialTile, TeamId } from '../../types/game';
 import { getTileKey } from '../../utils/assetHelper';
 import { computeMovementAnalysis } from '../../utils/gridMath';
+import { isUnitIdentityHidden } from '../../utils/visibilityHelper';
 import { CommandArrowsSvg } from './CommandArrowsSvg';
 import { FogOverlay } from './FogOverlay';
 import { GridTile } from './GridTile';
@@ -75,6 +76,31 @@ export function GameBoard() {
     }
     return map;
   }, [zoneDef]);
+
+  // Ruler Deployment Preview Map during 'deployment' phase
+  const deploymentPreviewMap = useMemo(() => {
+    const map = new Map<string, { name: string; team: 'team_a' | 'team_b' }>();
+    if (!isRuler || roomState.phase !== 'deployment') return map;
+
+    const addPlacements = (
+      placements: { unitId: string; position: Coordinates }[] | undefined,
+      team: 'team_a' | 'team_b'
+    ) => {
+      if (!placements) return;
+      for (const p of placements) {
+        if (p.position.zone !== activeZone) continue;
+        const u = roomState.units[p.unitId];
+        map.set(`${p.position.x}_${p.position.y}`, {
+          name: u?.name ?? p.unitId,
+          team,
+        });
+      }
+    };
+
+    addPlacements(masterAOrders?.deployment?.placements, 'team_a');
+    addPlacements(masterBOrders?.deployment?.placements, 'team_b');
+    return map;
+  }, [isRuler, roomState.phase, roomState.units, activeZone, masterAOrders, masterBOrders]);
 
   // Fog of War: Check if Enemy Base Zone is veiled for Master
   const isEnemyBaseFogged = useMemo(() => {
@@ -342,6 +368,11 @@ export function GameBoard() {
                       lockedTile.y === y
                   );
                   const reachableInfo = movementAnalysis?.reachable[tileKey];
+                  const hiddenIdentity = unit
+                    ? isUnitIdentityHidden(unit, previewRole, roomState)
+                    : false;
+                  const deploymentPreview =
+                    deploymentPreviewMap.get(`${x}_${y}`) ?? null;
 
                   return (
                     <GridTile
@@ -356,6 +387,8 @@ export function GameBoard() {
                       isSelectedUnit={unit?.id === selectedUnitId}
                       isLockedTile={isLockedTile}
                       canDragUnit={canDrag}
+                      isUnitIdentityHidden={hiddenIdentity}
+                      deploymentPreview={deploymentPreview}
                       reachableInfo={reachableInfo}
                       isSpawnMode={Boolean(
                         (isRuler && pendingSpawnMonsterId) ||

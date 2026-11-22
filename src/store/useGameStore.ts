@@ -14,6 +14,7 @@ import type {
   CommandActionType,
   CommandOrder,
   Coordinates,
+  DeploymentPlacement,
   DiceBroadcast,
   GrailBannerBroadcast,
   OwnerId,
@@ -81,6 +82,7 @@ function createServantUnit(
     npReady: false,
     tags: [],
     isRevealedToEnemy: false,
+    isTrueNameRevealed: true,
     image: tpl.image,
     ...overrides,
   };
@@ -109,6 +111,7 @@ function createMonsterUnit(
     npReady: false,
     tags: [`Tier ${tpl.tier}`],
     isRevealedToEnemy: true,
+    isTrueNameRevealed: true,
     image: tpl.image,
     ...overrides,
   };
@@ -149,7 +152,8 @@ function findOpenTileInZone(
 
 export function createDemoRoomState(
   teamAName = 'Team A (Mount Enzo)',
-  teamBName = 'Team B (Shinto City)'
+  teamBName = 'Team B (Shinto City)',
+  trueNameConcealment = false
 ): RoomState {
   const teamAServants = [
     'artoria',
@@ -213,7 +217,10 @@ export function createDemoRoomState(
 
   const units: Record<string, BoardUnit> = {};
   for (const u of unitsList) {
-    units[u.id] = u;
+    units[u.id] =
+      u.unitType === 'servant'
+        ? { ...u, isTrueNameRevealed: !trueNameConcealment }
+        : u;
   }
 
   return {
@@ -265,6 +272,7 @@ export function createDemoRoomState(
       showCentralToAll: true,
       hideUnitsInForest: true,
     },
+    trueNameConcealment,
     activeMapEvent: {
       id: 'haste_wind',
       title: 'Haste Wind (สายลมเร่งความเร็ว)',
@@ -290,7 +298,8 @@ export function createDemoRoomState(
 
 export function createFreshDraftRoomState(
   teamAName = 'Team A (Mount Enzo)',
-  teamBName = 'Team B (Shinto City)'
+  teamBName = 'Team B (Shinto City)',
+  trueNameConcealment = false
 ): RoomState {
   const unitsList: BoardUnit[] = [
     createMonsterUnit('mon_skel_a', 'skeleton', { zone: 'base_a', x: 6, y: 2 }),
@@ -304,7 +313,10 @@ export function createFreshDraftRoomState(
 
   const units: Record<string, BoardUnit> = {};
   for (const u of unitsList) {
-    units[u.id] = u;
+    units[u.id] =
+      u.unitType === 'servant'
+        ? { ...u, isTrueNameRevealed: !trueNameConcealment }
+        : u;
   }
 
   return {
@@ -346,6 +358,7 @@ export function createFreshDraftRoomState(
       showCentralToAll: true,
       hideUnitsInForest: true,
     },
+    trueNameConcealment,
     activeMapEvent: null,
     wheelBroadcast: null,
     diceBroadcast: null,
@@ -439,12 +452,26 @@ interface GameStoreState {
   setPreviewRole: (role: Role) => void;
 
   // Phase 4: Shared Wheels & 1d6 Dice
-  spinWheel: (wheelType: WheelBroadcast['wheelType']) => void;
+  spinWheel: (
+    wheelType: WheelBroadcast['wheelType'],
+    targetTeam?: TeamId | null
+  ) => void;
   assignDraftedServant: (servantId: string, teamId: TeamId) => void;
   spawnStrayBossFromWheel: (servantId: string) => void;
   applyMapEventFromWheel: (eventId: string) => void;
   recordPersonalEventLog: (title: string, description: string) => void;
   rollDice1d6: (label: string) => Promise<void>;
+
+  // Feature (A): Secret Deployment & Reinforcements
+  submitMasterDeployment: (placements: DeploymentPlacement[]) => Promise<void>;
+  deployAllAndStartTurn1: () => Promise<void>;
+  requestMasterReinforcement: (unitId: string, position: Coordinates) => Promise<void>;
+  approveReinforcement: (masterKey: 'master_a' | 'master_b') => Promise<void>;
+  dismissReinforcement: (masterKey: 'master_a' | 'master_b') => Promise<void>;
+
+  // Feature (B): True Name Concealment
+  toggleTrueNameConcealment: () => void;
+  toggleUnitTrueNameRevealed: (unitId: string) => void;
 
   // Master Secret Command Queue Actions
   setDraftOrder: (
@@ -751,7 +778,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         );
       });
 
+      const existingSecret =
+        role === 'master_a' ? state.masterAOrders : state.masterBOrders;
+
       const docPayload: SecretCommandsDoc = {
+        ...(existingSecret ?? {}),
         turn: state.roomState.turn,
         locked: true,
         updatedAt: Date.now(),
@@ -764,6 +795,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           masterKey: role,
           ordersDoc: docPayload,
           currentTeams: state.roomState.teams,
+          setReadyLocked: true,
         });
       } else {
         // Local Sandbox simulation
@@ -992,6 +1024,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           prevStatus !== 'defeated' &&
           unit.status === 'defeated'
         ) {
+          // Automatically reveal True Name on defeat for authentic Grail Vessel absorption banner
+          unit.isTrueNameRevealed = true;
           const nextCount = Math.min(5, draft.grailAbsorbedCount + 1);
           draft.grailAbsorbedCount = nextCount;
           if (!draft.grailAbsorbedNames.includes(unit.name)) {
@@ -1205,7 +1239,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     },
 
     // --- Phase 4: Shared Wheels & 1d6 Dice ---
-    spinWheel: (wheelType) => {
+    spinWheel: (wheelType, targetTeam = null) => {
       commitRoomMutation((draft) => {
         if (wheelType === 'servant_draft') {
           const pool = draft.draftPoolRemaining;
@@ -1219,9 +1253,13 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             poolIds: [...pool],
             resultId: pickedId,
             resultLabel: tpl?.name ?? pickedId,
+            resultClass: tpl?.subClass
+              ? `${tpl.servantClass} (${tpl.subClass})`
+              : tpl?.servantClass ?? null,
             resultDescription: tpl
               ? `${tpl.servantClass}${tpl.subClass ? ` (${tpl.subClass})` : ''} · HP ${tpl.hp} · ATK ${tpl.atk} · MOV ${tpl.mov} · NP: ${tpl.npName}`
               : null,
+            targetTeam,
           };
           return;
         }
@@ -1263,7 +1301,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           servantId,
           teamId,
           'reserve',
-          null
+          null,
+          { isTrueNameRevealed: !draft.trueNameConcealment }
         );
         if (draft.wheelBroadcast) {
           draft.wheelBroadcast.isSpinning = false;
@@ -1272,7 +1311,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         draft.logs = appendLog(
           draft,
           'ruler',
-          `Draft: ${tpl.name} (${tpl.servantClass}) เข้าสู่ทีม ${draft.teams[teamId].name}`
+          draft.trueNameConcealment
+            ? `Draft: ${draft.teams[teamId].name} อัญเชิญวีรชนคลาส ${tpl.servantClass} (ปิดนามแท้)`
+            : `Draft: ${tpl.name} (${tpl.servantClass}) เข้าสู่ทีม ${draft.teams[teamId].name}`
         );
       });
     },
@@ -1390,5 +1431,244 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         }
       }
     },
+
+    // --- Feature (A): Secret Deployment & Reinforcements ---
+    submitMasterDeployment: async (placements) => {
+      const state = get();
+      const role = state.previewRole;
+      if (role !== 'master_a' && role !== 'master_b') return;
+      const teamId: TeamId = role === 'master_a' ? 'team_a' : 'team_b';
+      const existing =
+        role === 'master_a' ? state.masterAOrders : state.masterBOrders;
+
+      const docPayload: SecretCommandsDoc = {
+        ...(existing ?? { orders: [] }),
+        turn: state.roomState.turn,
+        locked: existing?.locked ?? false,
+        updatedAt: Date.now(),
+        orders: existing?.orders ?? [],
+        deployment: {
+          locked: true,
+          placements,
+        },
+      };
+
+      if (state.sessionMode === 'online' && state.activeRoomId) {
+        await submitMasterSecretOrders({
+          roomId: state.activeRoomId,
+          masterKey: role,
+          ordersDoc: docPayload,
+          currentTeams: state.roomState.teams,
+          setReadyLocked: true,
+        });
+      } else {
+        set((s) => ({
+          ...(role === 'master_a'
+            ? { masterAOrders: docPayload }
+            : { masterBOrders: docPayload }),
+          roomState: {
+            ...s.roomState,
+            teams: {
+              ...s.roomState.teams,
+              [teamId]: {
+                ...s.roomState.teams[teamId],
+                readyLocked: true,
+              },
+            },
+          },
+        }));
+      }
+    },
+
+    deployAllAndStartTurn1: async () => {
+      const state = get();
+      const depA = state.masterAOrders?.deployment?.placements ?? [];
+      const depB = state.masterBOrders?.deployment?.placements ?? [];
+
+      commitRoomMutation((draft) => {
+        const activeIdsA = new Set(depA.map((p) => p.unitId));
+        const activeIdsB = new Set(depB.map((p) => p.unitId));
+
+        for (const unit of Object.values(draft.units)) {
+          if (unit.unitType !== 'servant') continue;
+          if (unit.owner === 'team_a' && depA.length > 0) {
+            const match = depA.find((p) => p.unitId === unit.id);
+            if (match && activeIdsA.has(unit.id)) {
+              unit.status = 'active';
+              unit.position = { ...match.position };
+            } else if (unit.status !== 'defeated') {
+              unit.status = 'reserve';
+              unit.position = null;
+            }
+          } else if (unit.owner === 'team_b' && depB.length > 0) {
+            const match = depB.find((p) => p.unitId === unit.id);
+            if (match && activeIdsB.has(unit.id)) {
+              unit.status = 'active';
+              unit.position = { ...match.position };
+            } else if (unit.status !== 'defeated') {
+              unit.status = 'reserve';
+              unit.position = null;
+            }
+          }
+        }
+
+        draft.turn = Math.max(1, draft.turn);
+        draft.phase = 'event';
+        draft.teams.team_a.readyLocked = false;
+        draft.teams.team_b.readyLocked = false;
+        draft.logs = appendLog(
+          draft,
+          'ruler',
+          'ทั้งสองฝ่ายจัดทัพเสร็จสิ้น — เริ่มสงครามจอกศักดิ์สิทธิ์ Turn 1 (Event Phase)!'
+        );
+      });
+
+      set({ masterAOrders: null, masterBOrders: null, draftOrders: {} });
+
+      if (state.sessionMode === 'online' && state.activeRoomId) {
+        await clearAllSecretOrders(state.activeRoomId, Math.max(1, state.roomState.turn));
+      }
+    },
+
+    requestMasterReinforcement: async (unitId, position) => {
+      const state = get();
+      const role = state.previewRole;
+      if (role !== 'master_a' && role !== 'master_b') return;
+      const existing =
+        role === 'master_a' ? state.masterAOrders : state.masterBOrders;
+
+      const docPayload: SecretCommandsDoc = {
+        ...(existing ?? { orders: [] }),
+        turn: state.roomState.turn,
+        locked: existing?.locked ?? false,
+        updatedAt: Date.now(),
+        orders: existing?.orders ?? [],
+        reinforcementRequest: {
+          unitId,
+          position,
+          requestedAt: Date.now(),
+        },
+      };
+
+      if (state.sessionMode === 'online' && state.activeRoomId) {
+        await submitMasterSecretOrders({
+          roomId: state.activeRoomId,
+          masterKey: role,
+          ordersDoc: docPayload,
+        });
+      } else {
+        set(
+          role === 'master_a'
+            ? { masterAOrders: docPayload }
+            : { masterBOrders: docPayload }
+        );
+      }
+    },
+
+    approveReinforcement: async (masterKey) => {
+      const state = get();
+      const ordersDoc =
+        masterKey === 'master_a' ? state.masterAOrders : state.masterBOrders;
+      const req = ordersDoc?.reinforcementRequest;
+      if (!req) return;
+
+      commitRoomMutation((draft) => {
+        const unit = draft.units[req.unitId];
+        if (!unit) return;
+        unit.status = 'active';
+        unit.position = { ...req.position };
+        draft.logs = appendLog(
+          draft,
+          'ruler',
+          draft.trueNameConcealment && !unit.isTrueNameRevealed
+            ? `อนุมัติกำลังเสริม: คลาส ${unit.servantClass} ลงสนามที่ ${req.position.zone.toUpperCase()}`
+            : `อนุมัติกำลังเสริม: ${unit.name} ลงสนามที่ ${req.position.zone.toUpperCase()}`
+        );
+      });
+
+      const clearedDoc: SecretCommandsDoc = {
+        ...(ordersDoc ?? { turn: state.roomState.turn, locked: false, updatedAt: Date.now(), orders: [] }),
+        updatedAt: Date.now(),
+        reinforcementRequest: null,
+      };
+
+      if (state.sessionMode === 'online' && state.activeRoomId) {
+        await submitMasterSecretOrders({
+          roomId: state.activeRoomId,
+          masterKey,
+          ordersDoc: clearedDoc,
+        });
+      } else {
+        set(
+          masterKey === 'master_a'
+            ? { masterAOrders: clearedDoc }
+            : { masterBOrders: clearedDoc }
+        );
+      }
+    },
+
+    dismissReinforcement: async (masterKey) => {
+      const state = get();
+      const ordersDoc =
+        masterKey === 'master_a' ? state.masterAOrders : state.masterBOrders;
+      if (!ordersDoc?.reinforcementRequest) return;
+
+      const clearedDoc: SecretCommandsDoc = {
+        ...ordersDoc,
+        updatedAt: Date.now(),
+        reinforcementRequest: null,
+      };
+
+      if (state.sessionMode === 'online' && state.activeRoomId) {
+        await submitMasterSecretOrders({
+          roomId: state.activeRoomId,
+          masterKey,
+          ordersDoc: clearedDoc,
+        });
+      } else {
+        set(
+          masterKey === 'master_a'
+            ? { masterAOrders: clearedDoc }
+            : { masterBOrders: clearedDoc }
+        );
+      }
+    },
+
+    // --- Feature (B): True Name Concealment ---
+    toggleTrueNameConcealment: () =>
+      commitRoomMutation((draft) => {
+        draft.trueNameConcealment = !draft.trueNameConcealment;
+        draft.logs = appendLog(
+          draft,
+          'ruler',
+          `${draft.trueNameConcealment ? 'เปิด' : 'ปิด'} โหมดปิดนามแท้ (True Name Concealment)`
+        );
+      }),
+
+    toggleUnitTrueNameRevealed: (unitId) =>
+      commitRoomMutation((draft) => {
+        const unit = draft.units[unitId];
+        if (!unit || unit.unitType !== 'servant') return;
+        unit.isTrueNameRevealed = !unit.isTrueNameRevealed;
+        const teamLabel =
+          unit.owner === 'team_a'
+            ? draft.teams.team_a.name
+            : unit.owner === 'team_b'
+              ? draft.teams.team_b.name
+              : 'Neutral';
+        if (unit.isTrueNameRevealed) {
+          draft.logs = appendLog(
+            draft,
+            'system',
+            `นามแท้ของ ${unit.servantClass ?? 'Servant'} ฝั่ง ${teamLabel} ถูกเปิดเผยแล้ว: ${unit.name}!`
+          );
+        } else {
+          draft.logs = appendLog(
+            draft,
+            'ruler',
+            `ซ่อนนามแท้ของ ${unit.name} (${unit.servantClass ?? 'Servant'})`
+          );
+        }
+      }),
   };
 });
