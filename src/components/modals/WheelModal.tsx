@@ -526,6 +526,13 @@ export function WheelModal() {
     setTranslateX(0);
   };
 
+  const eventLookup = useMemo(() => {
+    const map: Record<string, GameEventTemplate> = {};
+    for (const e of EVENTS.mapEvents) map[e.id] = e;
+    for (const e of EVENTS.personalEvents) map[e.id] = e;
+    return map;
+  }, []);
+
   if (!isOpen) return null;
 
   const showResult =
@@ -533,13 +540,6 @@ export function WheelModal() {
     broadcast?.wheelType === selectedMode &&
     !animating &&
     (revealedBroadcastId === broadcast?.id || !broadcast?.isSpinning);
-
-  const eventLookup = useMemo(() => {
-    const map: Record<string, GameEventTemplate> = {};
-    for (const e of EVENTS.mapEvents) map[e.id] = e;
-    for (const e of EVENTS.personalEvents) map[e.id] = e;
-    return map;
-  }, []);
 
   const draftedServantTpl =
     showResult && broadcast?.wheelType === 'servant_draft' && broadcast.resultId
