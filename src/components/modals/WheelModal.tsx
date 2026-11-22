@@ -521,6 +521,26 @@ export function WheelModal() {
         if (soundEnabledRef.current) {
           playRevealChime();
         }
+
+        // Auto-assign drafted Servant to the pre-selected targetTeam once spin finishes (Ruler only)
+        const latestState = useGameStore.getState();
+        const latestBroadcast = latestState.roomState.wheelBroadcast;
+        if (
+          latestState.previewRole === 'ruler' &&
+          latestBroadcast &&
+          latestBroadcast.id === broadcastId &&
+          latestBroadcast.wheelType === 'servant_draft' &&
+          latestBroadcast.resultId &&
+          (latestBroadcast.targetTeam === 'team_a' ||
+            latestBroadcast.targetTeam === 'team_b') &&
+          latestState.roomState.draftPoolRemaining.includes(latestBroadcast.resultId)
+        ) {
+          latestState.assignDraftedServant(
+            latestBroadcast.resultId,
+            latestBroadcast.targetTeam
+          );
+        }
+
         spinTimerRef.current = null;
       }, SPIN_DURATION_MS + 100);
 
@@ -832,45 +852,52 @@ export function WheelModal() {
                     {broadcast.wheelType === 'servant_draft' &&
                       broadcast.resultId &&
                       !isAlreadyRemovedFromPool && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              assignDraftedServant(broadcast.resultId!, 'team_a')
-                            }
-                            className="flex items-center gap-1.5 rounded-[2px] bg-[#B91C1C] px-3.5 py-1.5 text-xs font-bold text-white hover:bg-red-700"
-                          >
-                            <Swords className="h-3.5 w-3.5" />
-                            <span>Assign Team A (Red)</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              assignDraftedServant(broadcast.resultId!, 'team_b')
-                            }
-                            className="flex items-center gap-1.5 rounded-[2px] bg-sky-700 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-sky-600"
-                          >
-                            <Shield className="h-3.5 w-3.5" />
-                            <span>Assign Team B (Blue)</span>
-                          </button>
+                        broadcast.targetTeam === null ? (
                           <button
                             type="button"
                             onClick={() =>
                               spawnStrayBossFromWheel(broadcast.resultId!)
                             }
-                            className="flex items-center gap-1.5 rounded-[2px] border border-[#C8A253]/60 bg-[#111622] px-3.5 py-1.5 text-xs font-bold text-[#E5C983] hover:bg-[#C8A253]/20"
+                            className="flex items-center gap-1.5 rounded-[2px] border border-[#C8A253]/70 bg-[#C8A253] px-4 py-1.5 text-xs font-bold text-[#090B10] hover:bg-[#E5C983]"
                           >
                             <Skull className="h-3.5 w-3.5" />
-                            <span>Spawn Stray Boss</span>
+                            <span>Spawn Stray Boss (Central)</span>
                           </button>
-                        </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                assignDraftedServant(broadcast.resultId!, 'team_a')
+                              }
+                              className="flex items-center gap-1.5 rounded-[2px] bg-[#B91C1C] px-3.5 py-1.5 text-xs font-bold text-white hover:bg-red-700"
+                            >
+                              <Swords className="h-3.5 w-3.5" />
+                              <span>Assign Team A (Red)</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                assignDraftedServant(broadcast.resultId!, 'team_b')
+                              }
+                              className="flex items-center gap-1.5 rounded-[2px] bg-sky-700 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-sky-600"
+                            >
+                              <Shield className="h-3.5 w-3.5" />
+                              <span>Assign Team B (Blue)</span>
+                            </button>
+                          </>
+                        )
                       )}
 
                     {broadcast.wheelType === 'servant_draft' &&
                       isAlreadyRemovedFromPool && (
-                        <span className="flex items-center gap-1 text-xs font-semibold text-emerald-400">
+                        <span className="flex items-center gap-1.5 rounded-[2px] border border-emerald-800/70 bg-emerald-950/40 px-3 py-1 text-xs font-semibold text-emerald-300">
                           <CheckCircle2 className="h-4 w-4" />
-                          จัดการ Servant ตัวนี้และตัดออกจาก Pool เรียบร้อยแล้ว
+                          {broadcast.targetTeam === 'team_a'
+                            ? 'ส่งเข้าสู่ทีม Team A (Red) และตัดออกจาก Pool อัตโนมัติแล้ว'
+                            : broadcast.targetTeam === 'team_b'
+                              ? 'ส่งเข้าสู่ทีม Team B (Blue) และตัดออกจาก Pool อัตโนมัติแล้ว'
+                              : 'จัดการ Servant ตัวนี้และตัดออกจาก Pool เรียบร้อยแล้ว'}
                         </span>
                       )}
 
