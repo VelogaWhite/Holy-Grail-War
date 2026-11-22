@@ -29,7 +29,7 @@ export function LobbyView() {
   const [teamAName, setTeamAName] = useState('Team A (Mount Enzo)');
   const [teamBName, setTeamBName] = useState('Team B (Shinto City)');
   const [rulerPin, setRulerPin] = useState('');
-  const [startWithDemo, setStartWithDemo] = useState(true);
+  const [startWithDemo, setStartWithDemo] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -263,7 +263,7 @@ export function LobbyView() {
                     onChange={(e) => setStartWithDemo(e.target.checked)}
                     className="h-3.5 w-3.5 accent-[#C8A253]"
                   />
-                  <span>เริ่มด้วยชุดยูนิตตัวอย่าง (เหมาะสำหรับทดสอบ WEGO 3 หน้าต่างทันที)</span>
+                  <span>เริ่มด้วยชุดยูนิตตัวอย่าง (โหมดทดสอบ — ปกติเว้นว่างเพื่อเริ่ม Turn 1 Draft จริง)</span>
                 </label>
               </div>
             </div>

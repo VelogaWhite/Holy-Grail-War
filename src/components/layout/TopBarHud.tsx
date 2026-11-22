@@ -271,15 +271,17 @@ export function TopBarHud() {
 
         {/* Right: Shared Tool Buttons */}
         <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => triggerSampleGrailBanner(false)}
-            title="ทดสอบแบนเนอร์จอกกลืนกินวิญญาณ (+1/5)"
-            className="flex items-center gap-1 rounded-[2px] border border-[#C8A253]/35 bg-[#090B10] px-2 py-1.5 text-[11px] font-semibold text-[#C8A253] transition hover:border-[#C8A253]/70 hover:bg-[#C8A253]/10"
-          >
-            <Crown className="h-3.5 w-3.5" />
-            <span className="hidden xl:inline">+Soul</span>
-          </button>
+          {sessionMode === 'sandbox' && (
+            <button
+              type="button"
+              onClick={() => triggerSampleGrailBanner(false)}
+              title="ทดสอบแบนเนอร์จอกกลืนกินวิญญาณ (+1/5)"
+              className="flex items-center gap-1 rounded-[2px] border border-[#C8A253]/35 bg-[#090B10] px-2 py-1.5 text-[11px] font-semibold text-[#C8A253] transition hover:border-[#C8A253]/70 hover:bg-[#C8A253]/10"
+            >
+              <Crown className="h-3.5 w-3.5" />
+              <span className="hidden xl:inline">+Soul</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setCatalogOpen(true)}
