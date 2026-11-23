@@ -3,6 +3,7 @@ import { GameBoard } from './components/board/GameBoard';
 import { PhaseGuideBanner } from './components/layout/PhaseGuideBanner';
 import { TopBarHud } from './components/layout/TopBarHud';
 import { LobbyView } from './components/lobby/LobbyView';
+import { WaitingLobbyView } from './components/lobby/SeatSelector';
 import { CatalogModal } from './components/modals/CatalogModal';
 import { DiceModal } from './components/modals/DiceModal';
 import { DiceToast } from './components/modals/DiceToast';
@@ -19,30 +20,55 @@ import {
   subscribeRoomState,
   subscribeRulerSecret,
   subscribeSecretCommands,
+  subscribeToChat,
 } from './services/roomService';
-import { useGameStore } from './store/useGameStore';
+import {
+  getParticipantRole,
+  isRoomGameStarted,
+  useGameStore,
+} from './store/useGameStore';
 
 export function App() {
   const sessionMode = useGameStore((s) => s.sessionMode);
   const activeRoomId = useGameStore((s) => s.activeRoomId);
-  const previewRole = useGameStore((s) => s.previewRole);
+  const authUid = useGameStore((s) => s.authUid);
+  const roomState = useGameStore((s) => s.roomState);
   const applyRemoteRoomState = useGameStore((s) => s.applyRemoteRoomState);
   const applyRemoteSecretOrders = useGameStore((s) => s.applyRemoteSecretOrders);
   const applyRemoteRulerSecret = useGameStore((s) => s.applyRemoteRulerSecret);
+  const applyRemoteChatDoc = useGameStore((s) => s.applyRemoteChatDoc);
 
-  // Strict Read-Only Firestore Subscriptions with guaranteed cleanup (AntiGravity Guardrails)
+  const myOnlineRole =
+    sessionMode === 'online'
+      ? getParticipantRole(roomState.seats, authUid)
+      : 'spectator';
+
+  // 1. Strict Read-Only RoomState & Dedicated Chat Subscriptions (guaranteed cleanup)
   useEffect(() => {
     if (sessionMode !== 'online' || !activeRoomId) return;
 
+    const unsubRoom = subscribeRoomState(activeRoomId, (room) => {
+      applyRemoteRoomState(room);
+    });
+    const unsubChat = subscribeToChat(activeRoomId, (chatDoc) => {
+      applyRemoteChatDoc(chatDoc);
+    });
+
+    return () => {
+      unsubRoom();
+      unsubChat();
+    };
+  }, [sessionMode, activeRoomId, applyRemoteRoomState, applyRemoteChatDoc]);
+
+  // 2. Role-Scoped Secret Document Subscriptions (only active once assigned to a seat)
+  useEffect(() => {
+    if (sessionMode !== 'online' || !activeRoomId || myOnlineRole === 'spectator') {
+      return;
+    }
+
     const unsubs: (() => void)[] = [];
 
-    unsubs.push(
-      subscribeRoomState(activeRoomId, (room) => {
-        applyRemoteRoomState(room);
-      })
-    );
-
-    if (previewRole === 'ruler') {
+    if (myOnlineRole === 'ruler') {
       unsubs.push(
         subscribeRulerSecret(activeRoomId, (docData) => {
           applyRemoteRulerSecret(docData);
@@ -58,13 +84,13 @@ export function App() {
           applyRemoteSecretOrders('master_b', docData);
         })
       );
-    } else if (previewRole === 'master_a') {
+    } else if (myOnlineRole === 'master_a') {
       unsubs.push(
         subscribeSecretCommands(activeRoomId, 'master_a', (docData) => {
           applyRemoteSecretOrders('master_a', docData);
         })
       );
-    } else if (previewRole === 'master_b') {
+    } else if (myOnlineRole === 'master_b') {
       unsubs.push(
         subscribeSecretCommands(activeRoomId, 'master_b', (docData) => {
           applyRemoteSecretOrders('master_b', docData);
@@ -80,14 +106,21 @@ export function App() {
   }, [
     sessionMode,
     activeRoomId,
-    previewRole,
-    applyRemoteRoomState,
+    myOnlineRole,
     applyRemoteSecretOrders,
     applyRemoteRulerSecret,
   ]);
 
   if (sessionMode === 'lobby') {
     return <LobbyView />;
+  }
+
+  // Show Waiting Lobby when game hasn't started yet OR user hasn't been assigned a seat
+  if (
+    sessionMode === 'online' &&
+    (!isRoomGameStarted(roomState) || myOnlineRole === 'spectator')
+  ) {
+    return <WaitingLobbyView />;
   }
 
   return (

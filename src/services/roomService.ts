@@ -1,15 +1,21 @@
 import {
+  deleteField,
   doc,
   getDoc,
   onSnapshot,
+  runTransaction,
   setDoc,
   updateDoc,
+  type DocumentData,
   type Unsubscribe,
+  type UpdateData,
 } from 'firebase/firestore';
 import type {
+  ChatMessage,
   DiceBroadcast,
   GameLogEntry,
-  Role,
+  RoomChatDoc,
+  RoomParticipant,
   RoomState,
   RulerSecretDoc,
   SecretCommandsDoc,
@@ -41,30 +47,48 @@ function emptySecretCommands(turn: number): SecretCommandsDoc {
 export async function createOnlineRoom(params: {
   initialState: RoomState;
   rulerUid: string;
+  rulerName?: string;
   rulerPin?: string;
   secretGrailTurn: 10 | 11 | 12;
-}): Promise<string> {
+}): Promise<{ roomId: string; roomState: RoomDocWithPin }> {
   const roomId = generateRoomCode();
   const roomRef = doc(db, 'rooms', roomId);
+  const now = Date.now();
+  const cleanRulerName = params.rulerName?.trim() || 'Ruler';
+
+  const rulerParticipant: RoomParticipant = {
+    uid: params.rulerUid,
+    name: cleanRulerName,
+    joinedAt: now,
+  };
 
   const payload: RoomDocWithPin = stripUndefined({
     ...params.initialState,
     roomId,
-    createdAt: Date.now(),
+    createdAt: now,
+    gameStarted: false,
     seats: {
       rulerUid: params.rulerUid,
       masterAUid: null,
       masterBUid: null,
+    },
+    participants: {
+      [params.rulerUid]: rulerParticipant,
     },
     rulerPin: params.rulerPin?.trim() ? params.rulerPin.trim() : null,
   });
 
   await setDoc(roomRef, payload);
 
-  // Initialize the 3 secret documents (Ruler has full write permission on all 3)
+  // Initialize the 3 secret documents + dedicated public chat document
   const rulerSecret: RulerSecretDoc = {
     secretGrailTurn: params.secretGrailTurn,
   };
+  const initialChat: RoomChatDoc = {
+    messages: [],
+    updatedAt: now,
+  };
+
   await Promise.all([
     setDoc(doc(db, 'rooms', roomId, 'secrets', 'ruler'), rulerSecret),
     setDoc(
@@ -75,10 +99,13 @@ export async function createOnlineRoom(params: {
       doc(db, 'rooms', roomId, 'secrets', 'master_b'),
       emptySecretCommands(payload.turn)
     ),
+    setDoc(doc(db, 'rooms', roomId, 'chat', 'public'), initialChat),
   ]);
 
-  return roomId;
+  return { roomId, roomState: payload };
 }
+
+export const createRoom = createOnlineRoom;
 
 export async function fetchRoomSnapshot(
   rawRoomId: string
@@ -87,60 +114,170 @@ export async function fetchRoomSnapshot(
   if (!roomId) return null;
   const snap = await getDoc(doc(db, 'rooms', roomId));
   if (!snap.exists()) return null;
-  return snap.data() as RoomDocWithPin;
+  const data = snap.data() as RoomDocWithPin;
+  return {
+    ...data,
+    participants: data.participants ?? {},
+  };
 }
 
-export async function claimRoomSeat(params: {
-  roomId: string;
-  role: Role;
-  uid: string;
-  pin?: string;
-}): Promise<{ ok: boolean; error?: string }> {
-  const roomId = params.roomId.trim().toUpperCase();
+export async function joinRoomLobby(
+  rawRoomId: string,
+  uid: string,
+  name: string
+): Promise<{ ok: boolean; room?: RoomDocWithPin; error?: string }> {
+  const roomId = rawRoomId.trim().toUpperCase();
+  const cleanName = name.trim();
+  if (!roomId) {
+    return { ok: false, error: 'กรุณากรอกรหัสห้อง (Room Code)' };
+  }
+  if (!cleanName) {
+    return { ok: false, error: 'กรุณากรอกชื่อเล่น (Nickname)' };
+  }
+
   const roomRef = doc(db, 'rooms', roomId);
   const snap = await getDoc(roomRef);
   if (!snap.exists()) {
-    return { ok: false, error: 'ไม่พบห้องรหัสนี้ กรุณาตรวจสอบอีกครั้ง' };
+    return { ok: false, error: `ไม่พบห้อง "${roomId}" กรุณาตรวจสอบรหัสห้องอีกครั้ง` };
   }
 
   const data = snap.data() as RoomDocWithPin;
-  const seatKey =
-    params.role === 'ruler'
-      ? 'rulerUid'
-      : params.role === 'master_a'
-        ? 'masterAUid'
-        : 'masterBUid';
+  const existing = data.participants?.[uid];
+  const participant: RoomParticipant = {
+    uid,
+    name: cleanName,
+    joinedAt: existing?.joinedAt ?? Date.now(),
+  };
 
-  const currentHolder = data.seats[seatKey];
+  await updateDoc(roomRef, {
+    [`participants.${uid}`]: participant,
+  });
 
-  // Already seated on this device -> immediate rejoin
-  if (currentHolder === params.uid) {
-    return { ok: true };
-  }
+  const mergedRoom: RoomDocWithPin = {
+    ...data,
+    participants: {
+      ...(data.participants ?? {}),
+      [uid]: participant,
+    },
+  };
 
-  // Occupied by another device
-  if (currentHolder && currentHolder !== params.uid) {
-    return {
-      ok: false,
-      error: 'ที่นั่งนี้มีผู้เล่นอื่นนั่งอยู่แล้ว (ให้ Ruler กด Reset Seat หากเปลี่ยนเครื่อง)',
+  return { ok: true, room: mergedRoom };
+}
+
+export async function leaveRoomLobby(roomId: string, uid: string): Promise<void> {
+  const cleanRoomId = roomId.trim().toUpperCase();
+  if (!cleanRoomId || !uid) return;
+  const roomRef = doc(db, 'rooms', cleanRoomId);
+  const snap = await getDoc(roomRef);
+  if (!snap.exists()) return;
+
+  const data = snap.data() as RoomDocWithPin;
+  const updates: UpdateData<DocumentData> = {
+    [`participants.${uid}`]: deleteField(),
+  };
+
+  if (data.seats.masterAUid === uid || data.seats.masterBUid === uid) {
+    updates.seats = {
+      ...data.seats,
+      masterAUid: data.seats.masterAUid === uid ? null : data.seats.masterAUid,
+      masterBUid: data.seats.masterBUid === uid ? null : data.seats.masterBUid,
     };
   }
 
-  // Optional 4-digit Ruler PIN check
-  if (params.role === 'ruler' && data.rulerPin) {
-    if ((params.pin ?? '').trim() !== data.rulerPin) {
-      return { ok: false, error: 'รหัส PIN ของ Ruler ไม่ถูกต้อง' };
-    }
+  await updateDoc(roomRef, updates);
+}
+
+export async function assignParticipantSeat(
+  roomId: string,
+  targetUid: string,
+  role: 'master_a' | 'master_b' | null
+): Promise<void> {
+  const roomRef = doc(db, 'rooms', roomId);
+  const snap = await getDoc(roomRef);
+  if (!snap.exists()) return;
+
+  const data = snap.data() as RoomDocWithPin;
+  if (targetUid === data.seats.rulerUid) return;
+
+  const nextSeats = { ...data.seats };
+  if (nextSeats.masterAUid === targetUid) nextSeats.masterAUid = null;
+  if (nextSeats.masterBUid === targetUid) nextSeats.masterBUid = null;
+
+  if (role === 'master_a') {
+    nextSeats.masterAUid = targetUid;
+  } else if (role === 'master_b') {
+    nextSeats.masterBUid = targetUid;
   }
 
-  await updateDoc(roomRef, {
-    seats: {
-      ...data.seats,
-      [seatKey]: params.uid,
-    },
-  });
+  await updateDoc(roomRef, { seats: nextSeats });
+}
 
-  return { ok: true };
+export async function swapMasterSeats(roomId: string): Promise<void> {
+  const roomRef = doc(db, 'rooms', roomId);
+  const snap = await getDoc(roomRef);
+  if (!snap.exists()) return;
+
+  const data = snap.data() as RoomDocWithPin;
+  const nextSeats = {
+    ...data.seats,
+    masterAUid: data.seats.masterBUid,
+    masterBUid: data.seats.masterAUid,
+  };
+
+  const nameA = nextSeats.masterAUid
+    ? data.participants?.[nextSeats.masterAUid]?.name ?? 'Master A'
+    : 'ว่าง';
+  const nameB = nextSeats.masterBUid
+    ? data.participants?.[nextSeats.masterBUid]?.name ?? 'Master B'
+    : 'ว่าง';
+
+  const swapLog: GameLogEntry = {
+    id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    turn: data.turn,
+    timestamp: Date.now(),
+    actor: 'ruler',
+    message: `Ruler สลับฝั่งผู้เล่น (Master A ↔ Master B): Team A = ${nameA}, Team B = ${nameB}`,
+  };
+
+  const nextLogs: GameLogEntry[] = [swapLog, ...(data.logs ?? [])].slice(0, 50);
+
+  await updateDoc(roomRef, {
+    seats: nextSeats,
+    logs: stripUndefined(nextLogs),
+  });
+}
+
+export async function kickParticipant(
+  roomId: string,
+  targetUid: string
+): Promise<void> {
+  const roomRef = doc(db, 'rooms', roomId);
+  const snap = await getDoc(roomRef);
+  if (!snap.exists()) return;
+
+  const data = snap.data() as RoomDocWithPin;
+  // Never allow kicking the Ruler
+  if (targetUid === data.seats.rulerUid) return;
+
+  const updates: UpdateData<DocumentData> = {
+    [`participants.${targetUid}`]: deleteField(),
+  };
+
+  if (data.seats.masterAUid === targetUid || data.seats.masterBUid === targetUid) {
+    updates.seats = {
+      ...data.seats,
+      masterAUid: data.seats.masterAUid === targetUid ? null : data.seats.masterAUid,
+      masterBUid: data.seats.masterBUid === targetUid ? null : data.seats.masterBUid,
+    };
+  }
+
+  await updateDoc(roomRef, updates);
+}
+
+export async function startGame(roomId: string): Promise<void> {
+  await updateDoc(doc(db, 'rooms', roomId), {
+    gameStarted: true,
+  });
 }
 
 export async function resetRoomSeat(
@@ -166,13 +303,62 @@ export function subscribeRoomState(
     doc(db, 'rooms', roomId),
     (snap) => {
       if (snap.exists()) {
-        onData(snap.data() as RoomDocWithPin);
+        const data = snap.data() as RoomDocWithPin;
+        onData({
+          ...data,
+          participants: data.participants ?? {},
+        });
       }
     },
     (err) => {
       if (onError) onError(err);
     }
   );
+}
+
+export function subscribeToChat(
+  roomId: string,
+  callback: (chatDoc: RoomChatDoc) => void,
+  onError?: (err: Error) => void
+): Unsubscribe {
+  return onSnapshot(
+    doc(db, 'rooms', roomId, 'chat', 'public'),
+    (snap) => {
+      if (snap.exists()) {
+        const data = snap.data() as Partial<RoomChatDoc>;
+        callback({
+          messages: Array.isArray(data.messages) ? data.messages : [],
+          updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : 0,
+        });
+      } else {
+        callback({ messages: [], updatedAt: 0 });
+      }
+    },
+    (err) => {
+      if (onError) onError(err);
+    }
+  );
+}
+
+export async function sendChatMessage(
+  roomId: string,
+  message: ChatMessage
+): Promise<void> {
+  const chatRef = doc(db, 'rooms', roomId, 'chat', 'public');
+  const cleanMsg = stripUndefined(message);
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(chatRef);
+    const existing = snap.exists()
+      ? ((snap.data() as Partial<RoomChatDoc>).messages ?? [])
+      : [];
+    const nextMessages = [...existing, cleanMsg].slice(-50);
+    const payload: RoomChatDoc = {
+      messages: nextMessages,
+      updatedAt: Date.now(),
+    };
+    tx.set(chatRef, payload);
+  });
 }
 
 export function subscribeSecretCommands(

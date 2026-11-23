@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  ArrowLeftRight,
   Crown,
   Minus,
   PackagePlus,
@@ -172,6 +173,7 @@ export function RulerToolsSidebar() {
   const spawnGreaterGrail = useGameStore((s) => s.spawnGreaterGrail);
   const resetAllClearedTiles = useGameStore((s) => s.resetAllClearedTiles);
   const resetSeat = useGameStore((s) => s.resetSeat);
+  const swapMasterSeatsAction = useGameStore((s) => s.swapMasterSeatsAction);
   const [tab, setTab] = useState<'roster' | 'tools'>('roster');
 
   // Master view gets MasterRosterSidebar (Active / Reserve / Inventory)
@@ -288,6 +290,16 @@ export function RulerToolsSidebar() {
             >
               <RotateCcw className="h-3.5 w-3.5" />
               <span>Reset All Cleared Tiles</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => swapMasterSeatsAction()}
+              title="สลับฝั่งผู้เล่น Master A ↔ Master B (ใช้สะดวกหลังทอย 1d6 เลือกฝั่งในเฟส Draft)"
+              className="flex w-full items-center justify-center gap-1.5 rounded-[2px] border border-[#C8A253]/50 bg-[#111622] py-1.5 text-[11px] font-bold text-[#E5C983] transition hover:bg-[#C8A253]/15"
+            >
+              <ArrowLeftRight className="h-3.5 w-3.5 text-[#C8A253]" />
+              <span>Swap Master A ↔ B</span>
             </button>
 
             <div className="grid grid-cols-2 gap-1 pt-1">

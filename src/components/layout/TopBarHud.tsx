@@ -28,6 +28,8 @@ export function TopBarHud() {
   const setWheelOpen = useGameStore((s) => s.setWheelOpen);
   const setDiceOpen = useGameStore((s) => s.setDiceOpen);
   const setLogsOpen = useGameStore((s) => s.setLogsOpen);
+  const setLogsDrawerTab = useGameStore((s) => s.setLogsDrawerTab);
+  const unreadChatCount = useGameStore((s) => s.unreadChatCount);
   const triggerSampleGrailBanner = useGameStore((s) => s.triggerSampleGrailBanner);
   const [copied, setCopied] = useState(false);
   const [grailIconErr, setGrailIconErr] = useState(false);
@@ -310,12 +312,22 @@ export function TopBarHud() {
           </button>
           <button
             type="button"
-            onClick={() => setLogsOpen(true)}
-            title="เปิดประวัติการเล่น 50 รายการล่าสุด"
-            className="flex items-center gap-1 rounded-[2px] border border-[#C8A253]/35 bg-[#090B10] px-2 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-[#C8A253] hover:text-[#E5C983]"
+            onClick={() => {
+              if (unreadChatCount > 0) {
+                setLogsDrawerTab('chat');
+              }
+              setLogsOpen(true);
+            }}
+            title="เปิดประวัติการเล่น 50 รายการล่าสุด และห้องแชต"
+            className="relative flex items-center gap-1 rounded-[2px] border border-[#C8A253]/35 bg-[#090B10] px-2 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-[#C8A253] hover:text-[#E5C983]"
           >
             <ScrollText className="h-3.5 w-3.5 text-[#C8A253]" />
-            <span className="hidden xl:inline">Logs</span>
+            <span className="hidden xl:inline">Logs / Chat</span>
+            {unreadChatCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full border border-[#090B10] bg-rose-500 px-1 font-mono text-[9px] font-bold text-white shadow">
+                {unreadChatCount > 99 ? '99+' : unreadChatCount}
+              </span>
+            )}
           </button>
         </div>
       </div>

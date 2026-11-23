@@ -1,31 +1,45 @@
 import { useEffect, useState } from 'react';
-import { Crown, Flame, KeyRound, Play, Search, Wifi, WifiOff } from 'lucide-react';
+import {
+  Crown,
+  Flame,
+  KeyRound,
+  LogIn,
+  Play,
+  User,
+  Wifi,
+  WifiOff,
+  X,
+} from 'lucide-react';
 import { ensureAnonymousAuth, isFirebaseConfigured } from '../../services/firebase';
 import {
-  claimRoomSeat,
   createOnlineRoom,
   fetchRoomSnapshot,
-  type RoomDocWithPin,
+  joinRoomLobby,
 } from '../../services/roomService';
 import {
+  clearLastSession,
   createDemoRoomState,
   createFreshDraftRoomState,
+  getParticipantRole,
+  loadLastSession,
   randomSecretGrailTurn,
   useGameStore,
 } from '../../store/useGameStore';
-import type { Role } from '../../types/game';
-import { SeatSelector } from './SeatSelector';
 
 export function LobbyView() {
   const authUid = useGameStore((s) => s.authUid);
   const setAuthUid = useGameStore((s) => s.setAuthUid);
   const enterOnlineRoom = useGameStore((s) => s.enterOnlineRoom);
   const enterLocalSandbox = useGameStore((s) => s.enterLocalSandbox);
+  const kickedNotice = useGameStore((s) => s.kickedNotice);
+  const clearKickedNotice = useGameStore((s) => s.clearKickedNotice);
 
   const [authStatus, setAuthStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [authError, setAuthError] = useState<string | null>(null);
+  const [rejoining, setRejoining] = useState(false);
 
   // Create Room state
+  const [rulerName, setRulerName] = useState('Ruler');
   const [teamAName, setTeamAName] = useState('Team A (Mount Enzo)');
   const [teamBName, setTeamBName] = useState('Team B (Shinto City)');
   const [rulerPin, setRulerPin] = useState('');
@@ -34,12 +48,10 @@ export function LobbyView() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  // Join Room state
+  // Join Room state (Room Code + Nickname -> Join Waiting Lobby)
   const [roomCodeInput, setRoomCodeInput] = useState('');
-  const [searching, setSearching] = useState(false);
-  const [foundRoom, setFoundRoom] = useState<RoomDocWithPin | null>(null);
-  const [findError, setFindError] = useState<string | null>(null);
-  const [joiningRole, setJoiningRole] = useState<Role | null>(null);
+  const [nicknameInput, setNicknameInput] = useState('');
+  const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -51,10 +63,36 @@ export function LobbyView() {
 
     let cancelled = false;
     ensureAnonymousAuth()
-      .then((user) => {
-        if (!cancelled) {
-          setAuthUid(user.uid);
-          setAuthStatus('ready');
+      .then(async (user) => {
+        if (cancelled) return;
+        setAuthUid(user.uid);
+        setAuthStatus('ready');
+
+        // Auto-rejoin on page refresh if uid still belongs to last room (Read-only getDoc, zero writes)
+        const saved = loadLastSession();
+        if (!saved?.roomId) return;
+
+        setRejoining(true);
+        try {
+          const existingRoom = await fetchRoomSnapshot(saved.roomId);
+          if (cancelled) return;
+
+          if (existingRoom) {
+            const uid = user.uid;
+            const isParticipant = Boolean(existingRoom.participants?.[uid]);
+            const role = getParticipantRole(existingRoom.seats, uid);
+            if (isParticipant || role !== 'spectator') {
+              enterOnlineRoom(existingRoom.roomId, role, existingRoom, saved.nickname);
+              return;
+            }
+          }
+          clearLastSession();
+        } catch {
+          // Ignore silent rejoin errors and let user join manually
+        } finally {
+          if (!cancelled) {
+            setRejoining(false);
+          }
         }
       })
       .catch((err: unknown) => {
@@ -67,7 +105,7 @@ export function LobbyView() {
     return () => {
       cancelled = true;
     };
-  }, [setAuthUid]);
+  }, [setAuthUid, enterOnlineRoom]);
 
   const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,23 +114,21 @@ export function LobbyView() {
     setCreateError(null);
 
     try {
+      const cleanRulerName = rulerName.trim() || 'Ruler';
       const initialState = startWithDemo
         ? createDemoRoomState(teamAName, teamBName, trueNameConcealment)
         : createFreshDraftRoomState(teamAName, teamBName, trueNameConcealment);
       const secretTurn = randomSecretGrailTurn();
 
-      const roomId = await createOnlineRoom({
+      const { roomId, roomState } = await createOnlineRoom({
         initialState,
         rulerUid: authUid,
+        rulerName: cleanRulerName,
         rulerPin: rulerPin.trim() || undefined,
         secretGrailTurn: secretTurn,
       });
 
-      enterOnlineRoom(roomId, 'ruler', {
-        ...initialState,
-        roomId,
-        seats: { rulerUid: authUid, masterAUid: null, masterBUid: null },
-      });
+      enterOnlineRoom(roomId, 'ruler', roomState, cleanRulerName);
     } catch (err: unknown) {
       setCreateError(
         err instanceof Error
@@ -104,49 +140,32 @@ export function LobbyView() {
     }
   };
 
-  const handleFindRoom = async (e: React.FormEvent) => {
+  const handleJoinLobby = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!roomCodeInput.trim()) return;
-    setSearching(true);
-    setFindError(null);
+    if (!authUid || !roomCodeInput.trim() || !nicknameInput.trim()) return;
+    setJoining(true);
     setJoinError(null);
 
     try {
-      const room = await fetchRoomSnapshot(roomCodeInput);
-      if (!room) {
-        setFoundRoom(null);
-        setFindError(`ไม่พบห้อง "${roomCodeInput.trim().toUpperCase()}"`);
-      } else {
-        setFoundRoom(room);
+      const res = await joinRoomLobby(roomCodeInput, authUid, nicknameInput);
+      if (!res.ok || !res.room) {
+        setJoinError(res.error ?? 'เข้าร่วมห้องไม่สำเร็จ');
+        return;
       }
-    } catch (err: unknown) {
-      setFindError(err instanceof Error ? err.message : 'ค้นหาห้องไม่สำเร็จ');
-    } finally {
-      setSearching(false);
-    }
-  };
 
-  const handleSelectSeat = async (role: Role, pin?: string) => {
-    if (!foundRoom || !authUid) return;
-    setJoiningRole(role);
-    setJoinError(null);
-
-    try {
-      const res = await claimRoomSeat({
-        roomId: foundRoom.roomId,
-        role,
-        uid: authUid,
-        pin,
-      });
-      if (!res.ok) {
-        setJoinError(res.error ?? 'เข้าที่นั่งไม่สำเร็จ');
-      } else {
-        enterOnlineRoom(foundRoom.roomId, role, foundRoom);
-      }
+      const assignedRole = getParticipantRole(res.room.seats, authUid);
+      enterOnlineRoom(
+        res.room.roomId,
+        assignedRole,
+        res.room,
+        nicknameInput.trim()
+      );
     } catch (err: unknown) {
-      setJoinError(err instanceof Error ? err.message : 'ไม่สามารถจับจองที่นั่งได้');
+      setJoinError(
+        err instanceof Error ? err.message : 'ไม่สามารถเข้าร่วมห้องได้'
+      );
     } finally {
-      setJoiningRole(null);
+      setJoining(false);
     }
   };
 
@@ -169,13 +188,17 @@ export function LobbyView() {
                 FATE: HOLY GRAIL WAR
               </h1>
               <p className="text-xs text-slate-400">
-                Custom VTT · 3-Player Simultaneous WEGO · 10×7 Fuyuki Night
+                Custom VTT · 3-Player Simultaneous WEGO · Waiting Lobby &amp; Live Chat
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {authStatus === 'ready' ? (
+            {rejoining ? (
+              <span className="rounded-[2px] border border-[#C8A253]/50 bg-[#C8A253]/10 px-2.5 py-1 text-[11px] font-semibold text-[#E5C983]">
+                กำลังกลับเข้าห้องเดิม...
+              </span>
+            ) : authStatus === 'ready' ? (
               <span className="flex items-center gap-1.5 rounded-[2px] border border-emerald-700/70 bg-emerald-950/40 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
                 <Wifi className="h-3.5 w-3.5" />
                 Firebase Spark Ready
@@ -192,6 +215,19 @@ export function LobbyView() {
             )}
           </div>
         </div>
+
+        {kickedNotice && (
+          <div className="mt-3 flex items-center justify-between rounded-[2px] border border-amber-700/80 bg-amber-950/40 px-3 py-2 text-xs text-amber-200">
+            <span>{kickedNotice}</span>
+            <button
+              type="button"
+              onClick={clearKickedNotice}
+              className="text-amber-400 hover:text-amber-200"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
 
         {authError && (
           <div className="mt-3 rounded-[2px] border border-red-800/80 bg-red-950/40 px-3 py-2 text-xs text-red-300">
@@ -214,12 +250,27 @@ export function LobbyView() {
                 </h2>
               </div>
               <p className="mt-1 text-[11px] text-slate-400">
-                ระบบจะสุ่ม Room Code 6 หลัก และสุ่ม Secret Grail Turn (10–12) เก็บไว้ในเอกสารลับของ Ruler
+                สร้างห้องรอ (Waiting Lobby) พร้อมสุ่ม Room Code 6 หลัก และ Secret Grail Turn (10–12)
               </p>
 
               <div className="mt-3 space-y-2.5">
                 <div>
-                  <label className="mb-1 block text-[11px] font-semibold text-red-300">
+                  <label className="mb-1 flex items-center gap-1 text-[11px] font-semibold text-[#E5C983]">
+                    <Crown className="h-3 w-3 text-[#C8A253]" />
+                    ชื่อ Ruler / GM
+                  </label>
+                  <input
+                    type="text"
+                    value={rulerName}
+                    onChange={(e) => setRulerName(e.target.value)}
+                    placeholder="Ruler"
+                    maxLength={24}
+                    className="w-full rounded-[2px] border border-slate-700 bg-[#111622] px-2.5 py-1.5 text-xs text-slate-100 focus:border-[#C8A253] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold text-rose-300">
                     ชื่อทีมฝั่งซ้าย (Team A)
                   </label>
                   <input
@@ -285,7 +336,7 @@ export function LobbyView() {
               )}
               <button
                 type="submit"
-                disabled={authStatus !== 'ready' || creating}
+                disabled={authStatus !== 'ready' || creating || rejoining}
                 className="flex w-full items-center justify-center gap-2 rounded-[2px] border border-[#C8A253]/60 bg-[#B91C1C] py-2 font-display text-xs font-bold tracking-widest text-slate-100 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Flame className="h-4 w-4" />
@@ -294,53 +345,82 @@ export function LobbyView() {
             </div>
           </form>
 
-          {/* Right: Join Room */}
-          <div className="flex flex-col rounded-[2px] border border-[#C8A253]/30 bg-[#090B10] p-4">
-            <div className="flex items-center gap-2">
-              <Search className="h-4 w-4 text-[#C8A253]" />
-              <h2 className="font-display text-sm font-bold tracking-wider text-[#E5C983]">
-                JOIN EXISTING WAR ROOM
-              </h2>
-            </div>
-            <p className="mt-1 text-[11px] text-slate-400">
-              กรอกรหัสห้องจาก Ruler (เช่น <code>FGO-482</code>) เพื่อเลือกที่นั่ง Master A / Master B หรือ Rejoin
-            </p>
+          {/* Right: Join Waiting Lobby */}
+          <form
+            onSubmit={handleJoinLobby}
+            className="flex flex-col justify-between rounded-[2px] border border-[#C8A253]/30 bg-[#090B10] p-4"
+          >
+            <div>
+              <div className="flex items-center gap-2">
+                <LogIn className="h-4 w-4 text-[#C8A253]" />
+                <h2 className="font-display text-sm font-bold tracking-wider text-[#E5C983]">
+                  JOIN EXISTING WAR ROOM
+                </h2>
+              </div>
+              <p className="mt-1 text-[11px] text-slate-400">
+                กรอกรหัสห้องจาก Ruler (เช่น <code>FGO-482</code>) และชื่อเล่นเพื่อเข้าสู่ห้องรอ — จากนั้น Ruler จะเป็นคนจัดฝั่ง Master A / B ให้
+              </p>
 
-            <form onSubmit={handleFindRoom} className="mt-3 flex gap-2">
-              <input
-                type="text"
-                value={roomCodeInput}
-                onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
-                placeholder="เช่น FGO-482"
-                className="flex-1 rounded-[2px] border border-slate-700 bg-[#111622] px-3 py-1.5 font-display text-sm font-bold tracking-widest text-slate-100 uppercase placeholder:font-sans placeholder:text-xs placeholder:tracking-normal placeholder:text-slate-600 focus:border-[#C8A253] focus:outline-none"
-              />
+              <div className="mt-4 space-y-3">
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold text-slate-300">
+                    รหัสห้อง (Room Code)
+                  </label>
+                  <input
+                    type="text"
+                    value={roomCodeInput}
+                    onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
+                    placeholder="เช่น FGO-482"
+                    className="w-full rounded-[2px] border border-slate-700 bg-[#111622] px-3 py-2 font-display text-sm font-bold tracking-widest text-slate-100 uppercase placeholder:font-sans placeholder:text-xs placeholder:tracking-normal placeholder:text-slate-600 focus:border-[#C8A253] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 flex items-center gap-1 text-[11px] font-semibold text-slate-300">
+                    <User className="h-3 w-3 text-[#C8A253]" />
+                    ชื่อเล่นของคุณ (Nickname)
+                  </label>
+                  <input
+                    type="text"
+                    value={nicknameInput}
+                    onChange={(e) => setNicknameInput(e.target.value)}
+                    maxLength={24}
+                    placeholder="เช่น Shirou, Rin, Kiritsugu"
+                    className="w-full rounded-[2px] border border-slate-700 bg-[#111622] px-3 py-2 text-xs text-slate-100 placeholder:text-slate-600 focus:border-[#C8A253] focus:outline-none"
+                  />
+                </div>
+
+                <div className="rounded-[2px] border border-slate-800 bg-[#111622]/70 p-3 text-[11px] leading-relaxed text-slate-400">
+                  <p className="font-semibold text-[#E5C983]">ขั้นตอนการเข้าร่วม:</p>
+                  <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                    <li>เข้าห้องรอเพื่อพูดคุยผ่าน Room Chat กับเพื่อนและ Ruler</li>
+                    <li>Ruler กดจัดฝั่ง Master A (สีแดง) และ Master B (สีฟ้า)</li>
+                    <li>เมื่อ Ruler กด Enter War Room ทุกหน้าจอจะเข้าสู่กระดานพร้อมกัน</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              {joinError && (
+                <p className="mb-2 text-xs font-semibold text-red-400">{joinError}</p>
+              )}
               <button
                 type="submit"
-                disabled={authStatus !== 'ready' || searching || !roomCodeInput.trim()}
-                className="rounded-[2px] border border-[#C8A253]/60 bg-[#C8A253] px-4 py-1.5 font-display text-xs font-bold tracking-wider text-[#090B10] transition hover:bg-[#E5C983] disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={
+                  authStatus !== 'ready' ||
+                  joining ||
+                  rejoining ||
+                  !roomCodeInput.trim() ||
+                  !nicknameInput.trim()
+                }
+                className="flex w-full items-center justify-center gap-2 rounded-[2px] border border-[#C8A253]/60 bg-[#C8A253] py-2 font-display text-xs font-bold tracking-widest text-[#090B10] transition hover:bg-[#E5C983] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {searching ? 'ค้นหา...' : 'Find Room'}
+                <LogIn className="h-4 w-4" />
+                <span>{joining ? 'JOINING LOBBY...' : 'JOIN LOBBY'}</span>
               </button>
-            </form>
-
-            {findError && (
-              <p className="mt-2 text-xs font-semibold text-red-400">{findError}</p>
-            )}
-
-            {foundRoom && authUid ? (
-              <SeatSelector
-                room={foundRoom}
-                currentUid={authUid}
-                joiningRole={joiningRole}
-                error={joinError}
-                onSelectSeat={handleSelectSeat}
-              />
-            ) : (
-              <div className="mt-4 flex flex-1 flex-col items-center justify-center rounded-[2px] border border-dashed border-slate-800 p-6 text-center text-xs text-slate-500">
-                กรอกรหัสห้องแล้วกด Find Room เพื่อแสดงการ์ดเลือกที่นั่ง 3 ตำแหน่ง
-              </div>
-            )}
-          </div>
+            </div>
+          </form>
         </div>
 
         {/* Footer: Offline Local Sandbox */}

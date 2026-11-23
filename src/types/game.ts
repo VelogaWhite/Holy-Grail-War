@@ -163,6 +163,26 @@ export interface GameLogEntry {
   message: string;
 }
 
+export interface RoomParticipant {
+  uid: string;
+  name: string;
+  joinedAt: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  senderUid: string;
+  senderName: string;
+  senderRole: Role | 'spectator';
+  text: string;
+  timestamp: number;
+}
+
+export interface RoomChatDoc {
+  messages: ChatMessage[];
+  updatedAt: number;
+}
+
 export interface RoomState {
   roomId: string;
   createdAt: number;
@@ -173,6 +193,8 @@ export interface RoomState {
     masterAUid: string | null;
     masterBUid: string | null;
   };
+  participants: Record<string, RoomParticipant>;
+  gameStarted?: boolean;
   draftPoolRemaining: string[];
   teams: {
     team_a: TeamState;

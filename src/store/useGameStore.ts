@@ -9,16 +9,23 @@ import {
   SERVANTS_BY_ID,
 } from '../data';
 import {
+  assignParticipantSeat,
   broadcastDiceRoll,
   clearAllSecretOrders,
+  kickParticipant,
+  leaveRoomLobby,
   resetRoomSeat,
+  sendChatMessage,
+  startGame,
   submitMasterSecretOrders,
+  swapMasterSeats,
   syncRoomStateToFirestore,
   unlockMasterSecretOrders,
   updateRulerSecretDoc,
 } from '../services/roomService';
 import type {
   BoardUnit,
+  ChatMessage,
   CommandActionType,
   CommandOrder,
   Coordinates,
@@ -27,6 +34,7 @@ import type {
   GrailBannerBroadcast,
   OwnerId,
   Role,
+  RoomChatDoc,
   RoomState,
   RulerSecretDoc,
   SecretCommandsDoc,
@@ -38,6 +46,60 @@ import type {
 import { formatCoordLabel, getTileKey } from '../utils/assetHelper';
 
 const MAX_UNDO_HISTORY = 15;
+export const LAST_SESSION_STORAGE_KEY = 'hgw_last_session';
+
+export interface SavedLobbySession {
+  roomId: string;
+  nickname: string;
+}
+
+export function saveLastSession(session: SavedLobbySession): void {
+  try {
+    localStorage.setItem(LAST_SESSION_STORAGE_KEY, JSON.stringify(session));
+  } catch {
+    // Ignore storage errors (e.g., private browsing quota)
+  }
+}
+
+export function loadLastSession(): SavedLobbySession | null {
+  try {
+    const raw = localStorage.getItem(LAST_SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<SavedLobbySession>;
+    if (typeof parsed.roomId === 'string' && parsed.roomId.trim()) {
+      return {
+        roomId: parsed.roomId.trim().toUpperCase(),
+        nickname: typeof parsed.nickname === 'string' ? parsed.nickname : '',
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearLastSession(): void {
+  try {
+    localStorage.removeItem(LAST_SESSION_STORAGE_KEY);
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+export function getParticipantRole(
+  seats: RoomState['seats'],
+  uid: string | null
+): Role | 'spectator' {
+  if (!uid) return 'spectator';
+  if (seats.rulerUid === uid) return 'ruler';
+  if (seats.masterAUid === uid) return 'master_a';
+  if (seats.masterBUid === uid) return 'master_b';
+  return 'spectator';
+}
+
+export function isRoomGameStarted(room: RoomState): boolean {
+  return room.gameStarted ?? true;
+}
 
 export type SessionMode = 'lobby' | 'online' | 'sandbox';
 
@@ -243,6 +305,12 @@ export function createDemoRoomState(
       masterAUid: 'local-master-a',
       masterBUid: 'local-master-b',
     },
+    participants: {
+      'local-ruler': { uid: 'local-ruler', name: 'Ruler', joinedAt: Date.now() },
+      'local-master-a': { uid: 'local-master-a', name: 'Master A', joinedAt: Date.now() },
+      'local-master-b': { uid: 'local-master-b', name: 'Master B', joinedAt: Date.now() },
+    },
+    gameStarted: true,
     draftPoolRemaining: SERVANTS.filter((s) => !drafted.has(s.id)).map((s) => s.id),
     teams: {
       team_a: {
@@ -339,6 +407,8 @@ export function createFreshDraftRoomState(
       masterAUid: null,
       masterBUid: null,
     },
+    participants: {},
+    gameStarted: false,
     draftPoolRemaining: SERVANTS.map((s) => s.id),
     teams: {
       team_a: {
@@ -518,6 +588,13 @@ interface GameStoreState {
   draftOrders: Record<string, CommandOrder>;
   pickingOrderForUnitId: string | null;
 
+  // Chat State (dedicated rooms/{roomId}/chat/public listener — isolated from RoomState)
+  chatMessages: ChatMessage[];
+  hasLoadedInitialChat: boolean;
+  unreadChatCount: number;
+  logsDrawerTab: 'logs' | 'chat';
+  kickedNotice: string | null;
+
   // Board / UI State
   activeZone: ZoneId;
   selectedUnitId: string | null;
@@ -539,9 +616,22 @@ interface GameStoreState {
 
   // Session Lifecycle Actions
   setAuthUid: (uid: string | null) => void;
-  enterOnlineRoom: (roomId: string, role: Role, initialRoom?: RoomState) => void;
+  enterOnlineRoom: (
+    roomId: string,
+    role: Role | 'spectator',
+    initialRoom?: RoomState,
+    nickname?: string
+  ) => void;
   enterLocalSandbox: () => void;
   leaveRoom: () => void;
+  leaveRoomAndCleanup: () => Promise<void>;
+  clearKickedNotice: () => void;
+
+  // Waiting Lobby & Ruler Seat Management
+  assignSeat: (targetUid: string, role: 'master_a' | 'master_b' | null) => Promise<void>;
+  swapMasterSeatsAction: () => Promise<void>;
+  kickParticipantAction: (targetUid: string) => Promise<void>;
+  startGameAction: () => Promise<void>;
 
   // Remote Sync Receivers (Pure local setters — NEVER trigger writes!)
   applyRemoteRoomState: (room: RoomState) => void;
@@ -550,6 +640,12 @@ interface GameStoreState {
     docData: SecretCommandsDoc
   ) => void;
   applyRemoteRulerSecret: (docData: RulerSecretDoc) => void;
+  applyRemoteChatDoc: (docData: RoomChatDoc) => void;
+
+  // Chat Actions
+  sendRoomChatMessage: (text: string) => Promise<void>;
+  setLogsDrawerTab: (tab: 'logs' | 'chat') => void;
+  markChatAsRead: () => void;
 
   // Navigation & UI Selection
   setActiveZone: (zone: ZoneId) => void;
@@ -715,6 +811,12 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     draftOrders: {},
     pickingOrderForUnitId: null,
 
+    chatMessages: [],
+    hasLoadedInitialChat: false,
+    unreadChatCount: 0,
+    logsDrawerTab: 'logs',
+    kickedNotice: null,
+
     activeZone: 'central',
     selectedUnitId: 'unit_a_1',
     hoveredTile: null,
@@ -735,20 +837,33 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
     setAuthUid: (uid) => set({ authUid: uid }),
 
-    enterOnlineRoom: (roomId, role, initialRoom) =>
+    enterOnlineRoom: (roomId, role, initialRoom, nickname) => {
+      if (nickname !== undefined) {
+        saveLastSession({ roomId, nickname });
+      }
+      const resolvedPreviewRole: Role = role === 'spectator' ? 'master_a' : role;
       set((state) => ({
         sessionMode: 'online',
         activeRoomId: roomId,
-        previewRole: role,
-        roomState: initialRoom ?? state.roomState,
-        activeZone: role === 'master_a' ? 'base_a' : role === 'master_b' ? 'base_b' : 'central',
+        previewRole: resolvedPreviewRole,
+        roomState: initialRoom
+          ? { ...initialRoom, participants: initialRoom.participants ?? {} }
+          : state.roomState,
+        activeZone:
+          role === 'master_a' ? 'base_a' : role === 'master_b' ? 'base_b' : 'central',
         historyStack: [],
         masterAOrders: null,
         masterBOrders: null,
         draftOrders: {},
         pickingOrderForUnitId: null,
         checkedOrderIds: {},
-      })),
+        chatMessages: [],
+        hasLoadedInitialChat: false,
+        unreadChatCount: 0,
+        logsDrawerTab: 'logs',
+        kickedNotice: null,
+      }));
+    },
 
     enterLocalSandbox: () =>
       set({
@@ -765,9 +880,15 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         draftOrders: {},
         pickingOrderForUnitId: null,
         checkedOrderIds: {},
+        chatMessages: [],
+        hasLoadedInitialChat: true,
+        unreadChatCount: 0,
+        logsDrawerTab: 'logs',
+        kickedNotice: null,
       }),
 
-    leaveRoom: () =>
+    leaveRoom: () => {
+      clearLastSession();
       set({
         sessionMode: 'lobby',
         activeRoomId: null,
@@ -778,14 +899,151 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         tilePopover: null,
         pendingSpawnMonsterId: null,
         historyStack: [],
-      }),
+        chatMessages: [],
+        hasLoadedInitialChat: false,
+        unreadChatCount: 0,
+        isLogsOpen: false,
+        logsDrawerTab: 'logs',
+      });
+    },
+
+    leaveRoomAndCleanup: async () => {
+      const { sessionMode, activeRoomId, authUid } = get();
+      if (sessionMode === 'online' && activeRoomId && authUid) {
+        try {
+          await leaveRoomLobby(activeRoomId, authUid);
+        } catch (err) {
+          console.error('Failed to leave room lobby:', err);
+        }
+      }
+      get().leaveRoom();
+    },
+
+    clearKickedNotice: () => set({ kickedNotice: null }),
+
+    assignSeat: async (targetUid, role) => {
+      const { sessionMode, activeRoomId, roomState } = get();
+      if (sessionMode === 'online' && activeRoomId) {
+        await assignParticipantSeat(activeRoomId, targetUid, role);
+      } else {
+        if (targetUid === roomState.seats.rulerUid) return;
+        commitRoomMutation((draft) => {
+          if (draft.seats.masterAUid === targetUid) draft.seats.masterAUid = null;
+          if (draft.seats.masterBUid === targetUid) draft.seats.masterBUid = null;
+          if (role === 'master_a') draft.seats.masterAUid = targetUid;
+          else if (role === 'master_b') draft.seats.masterBUid = targetUid;
+        });
+      }
+    },
+
+    swapMasterSeatsAction: async () => {
+      const { sessionMode, activeRoomId } = get();
+      if (sessionMode === 'online' && activeRoomId) {
+        await swapMasterSeats(activeRoomId);
+      } else {
+        commitRoomMutation((draft) => {
+          const prevA = draft.seats.masterAUid;
+          draft.seats.masterAUid = draft.seats.masterBUid;
+          draft.seats.masterBUid = prevA;
+          draft.logs = appendLog(
+            draft,
+            'ruler',
+            'Ruler สลับฝั่งผู้เล่น (Master A ↔ Master B)'
+          );
+        });
+      }
+    },
+
+    kickParticipantAction: async (targetUid) => {
+      const { sessionMode, activeRoomId, roomState } = get();
+      if (targetUid === roomState.seats.rulerUid) return;
+      if (sessionMode === 'online' && activeRoomId) {
+        await kickParticipant(activeRoomId, targetUid);
+      } else {
+        commitRoomMutation((draft) => {
+          delete draft.participants[targetUid];
+          if (draft.seats.masterAUid === targetUid) draft.seats.masterAUid = null;
+          if (draft.seats.masterBUid === targetUid) draft.seats.masterBUid = null;
+        });
+      }
+    },
+
+    startGameAction: async () => {
+      const { sessionMode, activeRoomId } = get();
+      if (sessionMode === 'online' && activeRoomId) {
+        await startGame(activeRoomId);
+      } else {
+        commitRoomMutation((draft) => {
+          draft.gameStarted = true;
+        });
+      }
+    },
 
     applyRemoteRoomState: (room) =>
       set((state) => {
-        // Clear local draft orders when turn advances
-        const turnChanged = room.turn !== state.roomState.turn;
+        const normalizedRoom: RoomState = {
+          ...room,
+          participants: room.participants ?? {},
+        };
+
+        // Detect if current online user was kicked by Ruler (never writes to Firestore)
+        if (state.sessionMode === 'online' && state.authUid) {
+          const inParticipants = Boolean(normalizedRoom.participants[state.authUid]);
+          const inSeats =
+            normalizedRoom.seats.rulerUid === state.authUid ||
+            normalizedRoom.seats.masterAUid === state.authUid ||
+            normalizedRoom.seats.masterBUid === state.authUid;
+
+          if (!inParticipants && !inSeats) {
+            clearLastSession();
+            return {
+              sessionMode: 'lobby',
+              activeRoomId: null,
+              masterAOrders: null,
+              masterBOrders: null,
+              draftOrders: {},
+              pickingOrderForUnitId: null,
+              tilePopover: null,
+              pendingSpawnMonsterId: null,
+              historyStack: [],
+              chatMessages: [],
+              hasLoadedInitialChat: false,
+              unreadChatCount: 0,
+              isLogsOpen: false,
+              kickedNotice: 'คุณถูกนำออกจากห้องโดย Ruler',
+            };
+          }
+        }
+
+        const assignedRole =
+          state.sessionMode === 'online'
+            ? getParticipantRole(normalizedRoom.seats, state.authUid)
+            : state.previewRole;
+
+        const nextPreviewRole: Role =
+          assignedRole === 'spectator' ? state.previewRole : assignedRole;
+        const roleSwitched =
+          state.sessionMode === 'online' &&
+          assignedRole !== 'spectator' &&
+          nextPreviewRole !== state.previewRole;
+
+        // Clear local draft orders when turn advances or when Master seat swaps
+        const turnChanged = normalizedRoom.turn !== state.roomState.turn;
         return {
-          roomState: room,
+          roomState: normalizedRoom,
+          previewRole: nextPreviewRole,
+          ...(roleSwitched
+            ? {
+                activeZone:
+                  nextPreviewRole === 'master_a'
+                    ? 'base_a'
+                    : nextPreviewRole === 'master_b'
+                      ? 'base_b'
+                      : state.activeZone,
+                draftOrders: {},
+                pickingOrderForUnitId: null,
+              }
+            : {}),
           ...(turnChanged
             ? { draftOrders: {}, pickingOrderForUnitId: null, checkedOrderIds: {} }
             : {}),
@@ -811,6 +1069,91 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       }),
 
     applyRemoteRulerSecret: (docData) => set({ rulerSecret: docData }),
+
+    applyRemoteChatDoc: (docData) =>
+      set((state) => {
+        const incoming = docData.messages ?? [];
+        if (!state.hasLoadedInitialChat) {
+          return {
+            chatMessages: incoming,
+            hasLoadedInitialChat: true,
+            unreadChatCount: 0,
+          };
+        }
+
+        const prevIds = new Set(state.chatMessages.map((m) => m.id));
+        const newFromOthers = incoming.filter(
+          (m) => !prevIds.has(m.id) && m.senderUid !== state.authUid
+        ).length;
+
+        // Chat is actively visible if in Waiting Lobby or if Logs Drawer is open on Chat tab
+        const myRole =
+          state.sessionMode === 'online'
+            ? getParticipantRole(state.roomState.seats, state.authUid)
+            : state.previewRole;
+        const inWaitingLobby =
+          state.sessionMode === 'online' &&
+          (!isRoomGameStarted(state.roomState) || myRole === 'spectator');
+        const viewingChatNow =
+          inWaitingLobby || (state.isLogsOpen && state.logsDrawerTab === 'chat');
+
+        return {
+          chatMessages: incoming,
+          unreadChatCount: viewingChatNow
+            ? 0
+            : state.unreadChatCount + newFromOthers,
+        };
+      }),
+
+    sendRoomChatMessage: async (rawText) => {
+      const text = rawText.trim();
+      if (!text) return;
+
+      const state = get();
+      const uid =
+        state.sessionMode === 'online'
+          ? state.authUid ?? 'unknown'
+          : `local-${state.previewRole}`;
+      const senderRole: Role | 'spectator' =
+        state.sessionMode === 'online'
+          ? getParticipantRole(state.roomState.seats, state.authUid)
+          : state.previewRole;
+
+      const participantName = state.roomState.participants?.[uid]?.name;
+      const fallbackName =
+        senderRole === 'ruler'
+          ? 'Ruler'
+          : senderRole === 'master_a'
+            ? 'Master A'
+            : senderRole === 'master_b'
+              ? 'Master B'
+              : 'Guest';
+
+      const message: ChatMessage = {
+        id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        senderUid: uid,
+        senderName: participantName || fallbackName,
+        senderRole,
+        text,
+        timestamp: Date.now(),
+      };
+
+      if (state.sessionMode === 'online' && state.activeRoomId) {
+        await sendChatMessage(state.activeRoomId, message);
+      } else {
+        set((s) => ({
+          chatMessages: [...s.chatMessages, message].slice(-50),
+        }));
+      }
+    },
+
+    setLogsDrawerTab: (tab) =>
+      set((s) => ({
+        logsDrawerTab: tab,
+        unreadChatCount: tab === 'chat' ? 0 : s.unreadChatCount,
+      })),
+
+    markChatAsRead: () => set({ unreadChatCount: 0 }),
 
     setActiveZone: (zone) => set({ activeZone: zone, hoveredTile: null, tilePopover: null }),
     selectUnit: (unitId) => set({ selectedUnitId: unitId }),
@@ -853,7 +1196,12 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     setCatalogOpen: (open) => set({ isCatalogOpen: open }),
     setWheelOpen: (open) => set({ isWheelOpen: open }),
     setDiceOpen: (open) => set({ isDiceOpen: open }),
-    setLogsOpen: (open) => set({ isLogsOpen: open }),
+    setLogsOpen: (open) =>
+      set((s) => ({
+        isLogsOpen: open,
+        unreadChatCount:
+          open && s.logsDrawerTab === 'chat' ? 0 : s.unreadChatCount,
+      })),
     setCombatHelperOpen: (open, attackerUnitId = undefined) =>
       set((s) => ({
         isCombatHelperOpen: open,
