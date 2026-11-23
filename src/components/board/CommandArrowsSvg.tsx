@@ -11,6 +11,7 @@ interface ArrowSpec {
   actionLabel: string;
   dashed?: boolean;
   isOverRangeOverride?: boolean;
+  isEvadeMove?: boolean;
 }
 
 interface CommandArrowsSvgProps {
@@ -24,7 +25,6 @@ interface CommandArrowsSvgProps {
 const ACTION_SHORT: Record<string, string> = {
   move: 'MOV',
   attack: 'ATK',
-  move_and_attack: 'M+A',
   np: 'NP',
   guard: 'GRD',
   explore: 'EXP',
@@ -61,6 +61,8 @@ export function CommandArrowsSvg({
       const isOverRangeOverride = Boolean(
         order.overrideMoveRange && order.estimatedMoveCost === null
       );
+      const isEvadeMove =
+        order.actionType === 'move' && order.stance === 'evade';
 
       arrows.push({
         id: `${team}-${order.unitId}`,
@@ -74,6 +76,7 @@ export function CommandArrowsSvg({
           : ACTION_SHORT[order.actionType] ?? 'CMD',
         dashed: dashed || isOverRangeOverride,
         isOverRangeOverride,
+        isEvadeMove,
       });
     }
   };
@@ -149,9 +152,24 @@ export function CommandArrowsSvg({
         // Pull tip slightly back from center so arrowhead sits cleanly inside destination
         const endX = len > 0.2 ? a.toX - (dx / len) * 0.18 : a.toX;
         const endY = len > 0.2 ? a.toY - (dy / len) * 0.18 : a.toY;
+        const midX = (a.fromX + endX) / 2;
+        const midY = (a.fromY + endY) / 2;
 
         return (
           <g key={a.id}>
+            {/* Distinct Emerald Outer Halo for Evade Move (still moves after being hit) */}
+            {len > 0.05 && a.isEvadeMove && (
+              <line
+                x1={a.fromX}
+                y1={a.fromY}
+                x2={endX}
+                y2={endY}
+                stroke="#10B981"
+                strokeWidth="0.17"
+                strokeLinecap="round"
+                opacity="0.6"
+              />
+            )}
             {len > 0.05 && (
               <line
                 x1={a.fromX}
@@ -163,8 +181,33 @@ export function CommandArrowsSvg({
                 strokeLinecap="round"
                 strokeDasharray={a.dashed ? '0.16 0.1' : undefined}
                 markerEnd={marker}
-                opacity="0.92"
+                opacity="0.94"
               />
+            )}
+            {/* Midpoint EVADE Badge */}
+            {len > 0.35 && a.isEvadeMove && (
+              <g>
+                <rect
+                  x={midX - 0.34}
+                  y={midY - 0.13}
+                  width="0.68"
+                  height="0.24"
+                  rx="0.06"
+                  fill="#064E3B"
+                  stroke="#34D399"
+                  strokeWidth="0.03"
+                />
+                <text
+                  x={midX}
+                  y={midY + 0.04}
+                  textAnchor="middle"
+                  fill="#6EE7B7"
+                  fontSize="0.14"
+                  fontWeight="900"
+                >
+                  EVADE
+                </text>
+              </g>
             )}
             {/* Action pill near destination */}
             <rect
@@ -174,8 +217,8 @@ export function CommandArrowsSvg({
               height="0.26"
               rx="0.06"
               fill="#090B10"
-              stroke={stroke}
-              strokeWidth="0.03"
+              stroke={a.isEvadeMove ? '#34D399' : stroke}
+              strokeWidth={a.isEvadeMove ? '0.045' : '0.03'}
             />
             <text
               x={a.toX}

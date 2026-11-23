@@ -18,9 +18,32 @@ import {
 } from 'lucide-react';
 import { ITEMS_BY_ID, SERVANTS_BY_ID } from '../../data';
 import { useGameStore } from '../../store/useGameStore';
-import type { SecretCommandsDoc } from '../../types/game';
+import type { SecretCommandsDoc, StanceType } from '../../types/game';
 import { formatCoordLabel } from '../../utils/assetHelper';
 import { formatMpCost } from '../../utils/gridMath';
+
+function getStanceBadge(stance?: StanceType): {
+  label: string;
+  className: string;
+} {
+  switch (stance) {
+    case 'attack':
+      return {
+        label: '⚔️ ATK',
+        className: 'border-rose-500/70 bg-rose-500/20 text-rose-200',
+      };
+    case 'evade':
+      return {
+        label: '💨 EVADE',
+        className: 'border-emerald-500/70 bg-emerald-500/20 text-emerald-200',
+      };
+    default:
+      return {
+        label: '🛡️ DEF',
+        className: 'border-sky-500/70 bg-sky-500/20 text-sky-200',
+      };
+  }
+}
 
 function ReinforcementRequestCard({
   masterKey,
@@ -260,10 +283,12 @@ function TeamOrdersBlock({
             const guardKey = `${checkKey}-guard`;
             const itemKey = `${checkKey}-item`;
 
+            const stance: StanceType = ord.stance ?? 'defensive';
+            const stanceBadge = getStanceBadge(stance);
+            const isGuardEvade = ord.actionType === 'guard' && stance === 'evade';
+
             const showMoveBtn = Boolean(
-              unit &&
-                ord.targetPosition &&
-                (ord.actionType === 'move' || ord.actionType === 'move_and_attack')
+              unit && ord.targetPosition && ord.actionType === 'move'
             );
             const showNpBtn = Boolean(unit && tpl && ord.actionType === 'np');
             const showGuardBtn = Boolean(unit && ord.actionType === 'guard');
@@ -300,10 +325,23 @@ function TeamOrdersBlock({
                     <span className="font-display truncate text-[11px] font-bold text-slate-100">
                       {unit?.name ?? ord.unitId}
                     </span>
-                    <span className="shrink-0 rounded-[2px] border border-[#C8A253]/35 bg-[#111622] px-1.5 py-px font-display text-[9px] font-bold uppercase text-[#E5C983]">
-                      {ord.actionType.replace('_', ' ')}
-                    </span>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <span
+                        className={`rounded-[2px] border px-1.5 py-px text-[8.5px] font-bold uppercase ${stanceBadge.className}`}
+                      >
+                        {stanceBadge.label}
+                      </span>
+                      <span className="rounded-[2px] border border-[#C8A253]/35 bg-[#111622] px-1.5 py-px font-display text-[9px] font-bold uppercase text-[#E5C983]">
+                        {ord.actionType.replace('_', ' ')}
+                      </span>
+                    </div>
                   </div>
+
+                  {isGuardEvade && (
+                    <div className="mt-1 rounded-[2px] border border-emerald-600/50 bg-emerald-950/35 px-1.5 py-0.5 text-[9.5px] font-semibold text-emerald-300">
+                      💨 Guard + Evade: ลดดาเมจ 50% + ถอยหลัง 1 ช่องเมื่อโดนโจมตี (กดปุ่มถอยใน Combat Helper)
+                    </div>
+                  )}
 
                   {/* Bonus Action Skill Badge + 1-Click Apply */}
                   {ord.useSkill && tpl && (
@@ -524,9 +562,22 @@ export function SecretOrdersViewer() {
         </>
       ) : (
         <>
-          <div className="rounded-[2px] border border-slate-800 bg-[#090B10] px-2.5 py-1.5 text-[10.5px] text-slate-400">
-            <strong className="text-[#E5C983]">Priority 1 → 4:</strong> P1 เรย์จู/Guard/Buff/Tag-Out →
-            P2 เดินพร้อมกัน → P3 Combat/NP → P4 Tile Effects (ติ๊กเช็กเมื่อเฉลยแล้ว)
+          <div className="space-y-0.5 rounded-[2px] border border-slate-800 bg-[#090B10] px-2.5 py-2 text-[10px] leading-snug text-slate-300">
+            <div className="font-display text-[10px] font-bold tracking-wider text-[#E5C983]">
+              RESOLUTION CHECKLIST (PRIORITY 1 → 4)
+            </div>
+            <div>
+              <strong className="text-sky-300">P1:</strong> เรย์จู, Guard, บัฟ/สกิลป้องกัน, เปิด Stance, Tag-Out
+            </div>
+            <div>
+              <strong className="text-rose-300">P2:</strong> โจมตีปกติ, NP, สกิลเล็งเป้า (Combat First) + ผล Stance สวนกลับ/ลดดาเมจ + PvE Counter
+            </div>
+            <div>
+              <strong className="text-emerald-300">P3:</strong> เคลื่อนที่พร้อมกัน (Move / Guard+Evade ถอย 1 ช่อง — ข้ามตัวที่ตายหรือโดนตีขณะถือ Attack/Defensive Stance)
+            </div>
+            <div>
+              <strong className="text-[#E5C983]">P4:</strong> ผลช่องพิเศษ (Leyline/Safe House/Grail), ลด Skill CD -1, จบเทิร์น
+            </div>
           </div>
 
           <TeamOrdersBlock

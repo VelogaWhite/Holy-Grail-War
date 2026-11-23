@@ -726,6 +726,12 @@ interface GameStoreState {
   applyCombatDamage: (
     targetUnitId: string,
     damage: number,
+    attackerName: string,
+    isCounterAttack?: boolean
+  ) => void;
+  applyRetreatMove: (
+    unitId: string,
+    target: Coordinates,
     attackerName: string
   ) => void;
   grantServantKillBounty: (killerTeamId: TeamId, victimName: string) => void;
@@ -1225,6 +1231,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         const existing: CommandOrder = state.draftOrders[unitId] ?? {
           unitId,
           actionType: 'move',
+          stance: 'defensive',
           note: '',
         };
         return {
@@ -1261,6 +1268,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         const existing: CommandOrder = state.draftOrders[unitId] ?? {
           unitId,
           actionType: targetUnitId ? 'attack' : 'move',
+          stance: 'defensive',
           note: '',
         };
         return {
@@ -1289,13 +1297,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
       const orders: CommandOrder[] = activeServants.slice(0, 3).map((u) => {
         const draft = state.draftOrders[u.id];
-        return (
-          draft ?? {
-            unitId: u.id,
-            actionType: 'guard',
-            note: '',
-          }
-        );
+        return draft
+          ? { ...draft, stance: draft.stance ?? 'defensive' }
+          : {
+              unitId: u.id,
+              actionType: 'guard',
+              stance: 'defensive',
+              note: '',
+            };
       });
 
       const existingSecret =
@@ -1493,7 +1502,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         );
       }),
 
-    applyCombatDamage: (targetUnitId, damage, attackerName) =>
+    applyCombatDamage: (targetUnitId, damage, attackerName, isCounterAttack = false) =>
       commitRoomMutation((draft) => {
         const unit = draft.units[targetUnitId];
         if (!unit) return;
@@ -1503,7 +1512,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         draft.logs = appendLog(
           draft,
           'ruler',
-          `Combat: ${attackerName} โจมตี ${unit.name} สร้างความเสียหาย ${dmg} หน่วย (HP เหลือ ${unit.hp}/${unit.maxHp})`
+          isCounterAttack
+            ? `⚔️ Counter-Attack (Attack Stance): ${attackerName} สวนกลับใส่ ${unit.name} สร้างความเสียหาย ${dmg} หน่วย (HP เหลือ ${unit.hp}/${unit.maxHp})`
+            : `Combat: ${attackerName} โจมตี ${unit.name} สร้างความเสียหาย ${dmg} หน่วย (HP เหลือ ${unit.hp}/${unit.maxHp})`
         );
 
         if (unit.hp === 0 && prevStatus !== 'defeated') {
@@ -1519,6 +1530,19 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             );
           }
         }
+      }),
+
+    applyRetreatMove: (unitId, target, attackerName) =>
+      commitRoomMutation((draft) => {
+        const unit = draft.units[unitId];
+        if (!unit) return;
+        unit.position = { ...target };
+        unit.status = 'active';
+        draft.logs = appendLog(
+          draft,
+          'ruler',
+          `💨 Guard + Evade Retreat: ${unit.name} ถอยหลัง 1 ช่องจาก ${attackerName} ไปที่ ${target.zone.toUpperCase()} ${formatCoordLabel(target.x, target.y)}`
+        );
       }),
 
     grantServantKillBounty: (killerTeamId, victimName) =>

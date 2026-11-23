@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Award,
   CheckCircle2,
+  CornerDownLeft,
   Dices,
   Minus,
   Plus,
@@ -11,16 +12,37 @@ import {
   Swords,
   X,
 } from 'lucide-react';
-import { MONSTERS_BY_ID, TERRAINS_BY_ID } from '../../data';
+import { MAP_DATA, MONSTERS_BY_ID, TERRAINS_BY_ID } from '../../data';
 import { useGameStore } from '../../store/useGameStore';
-import type { BoardUnit, TeamId } from '../../types/game';
+import type { BoardUnit, Coordinates, StanceType, TeamId } from '../../types/game';
 import { formatCoordLabel } from '../../utils/assetHelper';
-import { getTerrainAt } from '../../utils/gridMath';
+import {
+  computeAttackRangeTiles,
+  getRetreatTiles,
+  getTerrainAt,
+} from '../../utils/gridMath';
 
 function diceResultToBonus(roll: number): number {
   if (roll >= 5) return 2;
   if (roll >= 3) return 1;
   return 0;
+}
+
+function computeStanceReduction(
+  rawClamped: number,
+  stance: StanceType,
+  isGuarding: boolean
+): { finalDamage: number; reductionPct: number } {
+  if (isGuarding) {
+    if (stance === 'defensive') {
+      return { finalDamage: Math.floor(rawClamped * 0.4), reductionPct: 60 };
+    }
+    return { finalDamage: Math.floor(rawClamped * 0.5), reductionPct: 50 };
+  }
+  if (stance === 'defensive') {
+    return { finalDamage: Math.floor(rawClamped * 0.75), reductionPct: 25 };
+  }
+  return { finalDamage: rawClamped, reductionPct: 0 };
 }
 
 interface KillRewardBanner {
@@ -32,14 +54,39 @@ interface KillRewardBanner {
   paid: boolean;
 }
 
+const DEFENDER_STANCE_BTNS: {
+  id: StanceType;
+  label: string;
+  activeClass: string;
+}[] = [
+  {
+    id: 'attack',
+    label: '⚔️ Attack',
+    activeClass: 'border-rose-500 bg-rose-500/25 text-rose-200',
+  },
+  {
+    id: 'defensive',
+    label: '🛡️ Defensive',
+    activeClass: 'border-sky-500 bg-sky-500/25 text-sky-200',
+  },
+  {
+    id: 'evade',
+    label: '💨 Evade',
+    activeClass: 'border-emerald-500 bg-emerald-500/25 text-emerald-200',
+  },
+];
+
 export function QuickCombatModal() {
   const previewRole = useGameStore((s) => s.previewRole);
   const isOpen = useGameStore((s) => s.isCombatHelperOpen);
   const preselectedAttackerId = useGameStore((s) => s.combatPreselectedAttackerId);
   const setCombatHelperOpen = useGameStore((s) => s.setCombatHelperOpen);
   const roomState = useGameStore((s) => s.roomState);
+  const masterAOrders = useGameStore((s) => s.masterAOrders);
+  const masterBOrders = useGameStore((s) => s.masterBOrders);
   const rollDice1d6 = useGameStore((s) => s.rollDice1d6);
   const applyCombatDamage = useGameStore((s) => s.applyCombatDamage);
+  const applyRetreatMove = useGameStore((s) => s.applyRetreatMove);
   const grantServantKillBounty = useGameStore((s) => s.grantServantKillBounty);
   const grantMonsterReward = useGameStore((s) => s.grantMonsterReward);
 
@@ -61,11 +108,15 @@ export function QuickCombatModal() {
   const [forestCover, setForestCover] = useState(false);
   const [ruinsCover, setRuinsCover] = useState(false);
   const [waterExposed, setWaterExposed] = useState(false);
-  const [guardHalved, setGuardHalved] = useState(false);
+  const [defenderStance, setDefenderStance] = useState<StanceType>('defensive');
+  const [isGuarding, setIsGuarding] = useState(false);
   const [customMod, setCustomMod] = useState(0);
+  const [counterCustomMod, setCounterCustomMod] = useState(0);
 
   const [killBanner, setKillBanner] = useState<KillRewardBanner | null>(null);
   const [appliedNotice, setAppliedNotice] = useState<string | null>(null);
+  const [counterNotice, setCounterNotice] = useState<string | null>(null);
+  const [retreatNotice, setRetreatNotice] = useState<string | null>(null);
   const lastBroadcastIdRef = useRef<string | null>(roomState.diceBroadcast?.id ?? null);
 
   // Initialize attacker/defender when opening modal
@@ -73,7 +124,10 @@ export function QuickCombatModal() {
     if (!isOpen) return;
     setKillBanner(null);
     setAppliedNotice(null);
+    setCounterNotice(null);
+    setRetreatNotice(null);
     setCustomMod(0);
+    setCounterCustomMod(0);
     setDiceBonus(0);
     setLastRollValue(null);
     lastBroadcastIdRef.current = roomState.diceBroadcast?.id ?? null;
@@ -97,6 +151,17 @@ export function QuickCombatModal() {
   const attacker: BoardUnit | null = attackerId ? roomState.units[attackerId] ?? null : null;
   const defender: BoardUnit | null = defenderId ? roomState.units[defenderId] ?? null : null;
 
+  const defenderOrder = useMemo(() => {
+    if (!defender) return null;
+    if (defender.owner === 'team_a') {
+      return masterAOrders?.orders.find((o) => o.unitId === defender.id) ?? null;
+    }
+    if (defender.owner === 'team_b') {
+      return masterBOrders?.orders.find((o) => o.unitId === defender.id) ?? null;
+    }
+    return null;
+  }, [defender, masterAOrders, masterBOrders]);
+
   const attackerTerrain = attacker?.position
     ? getTerrainAt(attacker.position.zone, attacker.position.x, attacker.position.y)
     : null;
@@ -104,7 +169,7 @@ export function QuickCombatModal() {
     ? getTerrainAt(defender.position.zone, defender.position.x, defender.position.y)
     : null;
 
-  // Auto-detect terrain & Guard modifiers when attacker/defender selection changes
+  // Auto-detect terrain, Stance & Guard from secret orders/tags when attacker/defender selection changes
   useEffect(() => {
     if (!attacker || !defender) return;
     const attPos = attacker.position;
@@ -123,8 +188,18 @@ export function QuickCombatModal() {
     setForestCover(defTerr === 'forest' && attTerr !== 'forest' && isRangedAttacker);
     setRuinsCover(defTerr === 'ruins');
     setWaterExposed(defTerr === 'water');
-    setGuardHalved(defender.tags.some((t) => t.toLowerCase() === 'guard'));
-  }, [attacker?.id, defender?.id, attackerTerrain, defenderTerrain]);
+
+    const detectedStance: StanceType = defenderOrder?.stance ?? 'defensive';
+    const detectedGuard =
+      defenderOrder?.actionType === 'guard' ||
+      defender.tags.some((t) => t.toLowerCase() === 'guard');
+
+    setDefenderStance(detectedStance);
+    setIsGuarding(detectedGuard);
+    setCounterCustomMod(0);
+    setCounterNotice(null);
+    setRetreatNotice(null);
+  }, [attacker?.id, defender?.id, attackerTerrain, defenderTerrain, defenderOrder]);
 
   // Capture 1d6 broadcast result triggered from inside Quick Combat Helper
   const broadcastId = roomState.diceBroadcast?.id ?? null;
@@ -138,6 +213,51 @@ export function QuickCombatModal() {
     }
   }, [isOpen, broadcastId, broadcastResult]);
 
+  // Counter-attack range & damage analysis (when Defender holds Attack Stance)
+  const counterAnalysis = useMemo(() => {
+    if (!attacker?.position || !defender?.position) return null;
+    const rangeInfo = computeAttackRangeTiles(defender);
+    const sameZone = attacker.position.zone === defender.position.zone;
+    const dist = sameZone
+      ? Math.abs(attacker.position.x - defender.position.x) +
+        Math.abs(attacker.position.y - defender.position.y)
+      : Infinity;
+    const inRange = sameZone && dist >= 1 && dist <= rangeInfo.effectiveRange;
+    const defenderHighGroundAtk =
+      defenderTerrain === 'building' && attackerTerrain !== 'building' ? 1 : 0;
+    const defenderEffectiveAtk = defender.atk + defenderHighGroundAtk;
+    const baseCounterDmg = Math.max(1, Math.floor(defenderEffectiveAtk * 0.5));
+    return {
+      sameZone,
+      dist,
+      inRange,
+      effectiveRange: rangeInfo.effectiveRange,
+      highGroundRangeBonus: rangeInfo.highGroundBonus,
+      defenderHighGroundAtk,
+      defenderEffectiveAtk,
+      baseCounterDmg,
+    };
+  }, [attacker, defender, attackerTerrain, defenderTerrain]);
+
+  // Valid Guard + Evade 1-tile retreat tiles
+  const retreatTiles = useMemo(() => {
+    if (
+      !attacker?.position ||
+      !defender?.position ||
+      defender.status !== 'active' ||
+      defenderStance !== 'evade' ||
+      !isGuarding
+    ) {
+      return [];
+    }
+    return getRetreatTiles(
+      defender.position,
+      attacker.position,
+      roomState.units,
+      MAP_DATA
+    );
+  }, [attacker, defender, defenderStance, isGuarding, roomState.units]);
+
   if (!isOpen || previewRole !== 'ruler') return null;
 
   const baseAtk = attacker?.atk ?? 0;
@@ -150,7 +270,16 @@ export function QuickCombatModal() {
     (ruinsCover ? 1 : 0) +
     customMod;
   const clampedDamage = Math.max(0, rawDamage);
-  const finalDamage = guardHalved ? Math.floor(clampedDamage / 2) : clampedDamage;
+  const { finalDamage, reductionPct } = computeStanceReduction(
+    clampedDamage,
+    defenderStance,
+    isGuarding
+  );
+
+  const finalCounterDamage = Math.max(
+    0,
+    (counterAnalysis?.baseCounterDmg ?? 1) + counterCustomMod
+  );
 
   const handleRollDice = async () => {
     if (!attacker || !defender) return;
@@ -174,7 +303,7 @@ export function QuickCombatModal() {
         ? attacker.owner
         : null;
 
-    applyCombatDamage(defender.id, finalDamage, attacker.name);
+    applyCombatDamage(defender.id, finalDamage, attacker.name, false);
     setAppliedNotice(
       `ลดเลือด ${victimName} -${finalDamage} HP (เหลือ ${Math.max(0, defender.hp - finalDamage)}/${defender.maxHp})`
     );
@@ -191,6 +320,22 @@ export function QuickCombatModal() {
     }
   };
 
+  const handleApplyCounter = () => {
+    if (!attacker || !defender || attacker.status !== 'active') return;
+    applyCombatDamage(attacker.id, finalCounterDamage, defender.name, true);
+    setCounterNotice(
+      `⚔️ สวนกลับใส่ ${attacker.name} -${finalCounterDamage} HP (เหลือ ${Math.max(0, attacker.hp - finalCounterDamage)}/${attacker.maxHp})`
+    );
+  };
+
+  const handleApplyRetreat = (tile: Coordinates) => {
+    if (!attacker || !defender || defender.status !== 'active') return;
+    applyRetreatMove(defender.id, tile, attacker.name);
+    setRetreatNotice(
+      `💨 ย้าย ${defender.name} ถอยไปที่ ${tile.zone.toUpperCase()} ${formatCoordLabel(tile.x, tile.y)} (${tile.x}, ${tile.y}) แล้ว (รองรับ Undo)`
+    );
+  };
+
   const monsterTpl = killBanner?.monsterTemplateId
     ? MONSTERS_BY_ID[killBanner.monsterTemplateId]
     : null;
@@ -201,19 +346,19 @@ export function QuickCombatModal() {
       onClick={() => setCombatHelperOpen(false)}
     >
       <div
-        className="clip-tactical flex w-full max-w-lg flex-col border border-[#C8A253]/60 bg-[#111622] text-slate-100 shadow-2xl"
+        className="clip-tactical flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden border border-[#C8A253]/60 bg-[#111622] text-slate-100 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#C8A253]/25 bg-[#090B10] px-4 py-2.5">
+        <div className="flex shrink-0 items-center justify-between border-b border-[#C8A253]/25 bg-[#090B10] px-4 py-2.5">
           <div className="flex items-center gap-2">
             <Swords className="h-4 w-4 text-[#C8A253]" />
             <div>
               <h2 className="font-display text-sm font-bold tracking-widest text-[#E5C983]">
-                QUICK COMBAT HELPER
+                QUICK COMBAT HELPER (ATTACK FIRST + 3 STANCES)
               </h2>
               <p className="text-[10px] text-slate-400">
-                คำนวณภูมิประเทศอัตโนมัติ + ทอย 1d6 ซิงก์ทั้ง 3 หน้าจอ + หักเลือดในคลิกเดียว
+                ภูมิประเทศ + Stance + Guard + ทอย 1d6 + สวนกลับ Attack Stance &amp; ถอย Guard+Evade
               </p>
             </div>
           </div>
@@ -226,12 +371,12 @@ export function QuickCombatModal() {
           </button>
         </div>
 
-        {/* Body */}
-        <div className="space-y-3 p-4">
+        {/* Scrollable Body */}
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
           {/* Attacker & Defender Selectors */}
           <div className="grid grid-cols-2 gap-2.5">
             <div className="rounded-[2px] border border-slate-800 bg-[#090B10] p-2">
-              <label className="mb-1 block font-display text-[10px] font-bold tracking-wider text-red-400">
+              <label className="mb-1 block font-display text-[10px] font-bold tracking-wider text-rose-400">
                 ผู้โจมตี (ATTACKER)
               </label>
               <select
@@ -248,9 +393,16 @@ export function QuickCombatModal() {
               </select>
               {attacker && attackerTerrain && (
                 <div className="mt-1.5 flex items-center justify-between text-[10px] text-slate-400">
-                  <span>ATK พื้นฐาน: <strong className="text-slate-200">{attacker.atk}</strong></span>
                   <span>
-                    ช่อง: <strong className="text-[#E5C983]">{TERRAINS_BY_ID[attackerTerrain]?.label}</strong>
+                    ATK: <strong className="text-slate-200">{attacker.atk}</strong> · HP:{' '}
+                    <strong className="text-emerald-300">
+                      {attacker.hp}/{attacker.maxHp}
+                    </strong>
+                  </span>
+                  <span>
+                    <strong className="text-[#E5C983]">
+                      {TERRAINS_BY_ID[attackerTerrain]?.label}
+                    </strong>
                   </span>
                 </div>
               )}
@@ -277,21 +429,79 @@ export function QuickCombatModal() {
               {defender && defenderTerrain && (
                 <div className="mt-1.5 flex items-center justify-between text-[10px] text-slate-400">
                   <span>
-                    HP: <strong className="text-emerald-300">{defender.hp}/{defender.maxHp}</strong>
+                    HP:{' '}
+                    <strong className="text-emerald-300">
+                      {defender.hp}/{defender.maxHp}
+                    </strong>{' '}
+                    · ATK: <strong className="text-slate-200">{defender.atk}</strong>
                   </span>
                   <span>
-                    ช่อง: <strong className="text-[#E5C983]">{TERRAINS_BY_ID[defenderTerrain]?.label}</strong>
+                    <strong className="text-[#E5C983]">
+                      {TERRAINS_BY_ID[defenderTerrain]?.label}
+                    </strong>
                   </span>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Terrain & Status Modifier Checkboxes (Auto-detected + Ruler editable) */}
+          {/* Defender Stance & Guard Selector */}
+          <div className="rounded-[2px] border border-[#C8A253]/30 bg-[#090B10] p-2.5">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="font-display text-[10px] font-bold uppercase tracking-wider text-[#C8A253]">
+                STANCE &amp; GUARD ของฝ่ายรับ (DEFENDER)
+              </span>
+              {defenderOrder && (
+                <span className="rounded-[2px] border border-emerald-700/70 bg-emerald-950/50 px-1.5 py-px text-[9px] font-bold text-emerald-300">
+                  ดึงจากคำสั่งลับอัตโนมัติ
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-3 gap-1.5">
+              {DEFENDER_STANCE_BTNS.map((st) => {
+                const active = defenderStance === st.id;
+                return (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => setDefenderStance(st.id)}
+                    className={`rounded-[2px] border py-1.5 text-[11px] font-bold transition ${
+                      active
+                        ? st.activeClass
+                        : 'border-slate-700 bg-[#111622] text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                    }`}
+                  >
+                    {st.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <label className="mt-2 flex cursor-pointer items-center justify-between rounded-[2px] border border-slate-800 bg-[#111622] px-2.5 py-1.5 text-[11px] text-slate-200">
+              <span className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={isGuarding}
+                  onChange={(e) => setIsGuarding(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-sky-500"
+                />
+                <Shield className="h-3.5 w-3.5 text-sky-400" />
+                <span>
+                  ฝ่ายรับกด <strong>Guard</strong>
+                </span>
+              </span>
+              <span className="font-mono text-[10px] font-bold text-[#E5C983]">
+                ลดดาเมจรวม: {reductionPct}%
+              </span>
+            </label>
+          </div>
+
+          {/* Terrain & Status Modifier Checkboxes */}
           <div className="rounded-[2px] border border-[#C8A253]/25 bg-[#090B10] p-2.5">
             <div className="mb-1.5 flex items-center justify-between">
               <span className="font-display text-[10px] font-bold uppercase tracking-wider text-[#C8A253]">
-                ตัวคูณภูมิประเทศ & สถานะ (ตรวจให้อัตโนมัติ / ติ๊กแก้ได้)
+                ตัวคูณภูมิประเทศ &amp; ปรับเพิ่ม/ลดอิสระ
               </span>
             </div>
 
@@ -335,30 +545,12 @@ export function QuickCombatModal() {
                 />
                 <span>ซากปรักฯ Cover (-1 ตีปกติ)</span>
               </label>
-
-              <label className="col-span-2 flex cursor-pointer items-center justify-between rounded-[2px] border border-slate-800 bg-[#111622] px-2 py-1 text-slate-200">
-                <span className="flex items-center gap-1.5">
-                  <input
-                    type="checkbox"
-                    checked={guardHalved}
-                    onChange={(e) => setGuardHalved(e.target.checked)}
-                    className="h-3.5 w-3.5 accent-sky-500"
-                  />
-                  <Shield className="h-3 w-3 text-sky-400" />
-                  <span>เป้าหมายติดป้าย Guard (หาร 2 ปัดลง)</span>
-                </span>
-                {defender?.tags.some((t) => t.toLowerCase() === 'guard') && (
-                  <span className="rounded-[2px] bg-sky-950 px-1.5 py-px text-[9px] font-bold text-sky-300">
-                    ตรวจพบป้าย Guard
-                  </span>
-                )}
-              </label>
             </div>
 
             {/* Custom Bonus / Penalty Stepper */}
             <div className="mt-2 flex items-center justify-between border-t border-slate-800 pt-2 text-[11px]">
               <span className="text-slate-400">
-                ปรับเพิ่ม/ลดอิสระ (เช่น สกิล Mana Burst, DEF+1):
+                ปรับเพิ่ม/ลดอิสระ (เช่น Mana Burst, DEF+1):
               </span>
               <div className="flex items-center gap-1.5">
                 <button
@@ -427,8 +619,13 @@ export function QuickCombatModal() {
           {/* Net Damage Summary & Apply Button */}
           <div className="flex items-center justify-between gap-3 rounded-[2px] border border-red-800/70 bg-red-950/25 px-3.5 py-2.5">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                ความเสียหายสุทธิ (NET DAMAGE)
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <span>ความเสียหายสุทธิ (NET DAMAGE)</span>
+                {reductionPct > 0 && (
+                  <span className="rounded-[2px] bg-sky-950 px-1.5 py-px font-mono text-[9.5px] text-sky-300">
+                    Raw {clampedDamage} → -{reductionPct}%
+                  </span>
+                )}
               </div>
               <div className="mt-0.5 flex items-baseline gap-2">
                 <span className="font-mono text-2xl font-black text-red-400">
@@ -460,6 +657,136 @@ export function QuickCombatModal() {
             </div>
           )}
 
+          {/* Attack Stance Counter-Attack Box */}
+          {attacker && defender && defenderStance === 'attack' && counterAnalysis && (
+            <div className="rounded-[2px] border border-rose-500/60 bg-rose-950/20 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-display text-xs font-bold tracking-wider text-rose-300">
+                  ⚔️ Attack Stance Counter-Attack
+                </span>
+                <span className="font-mono text-[10px] text-slate-400">
+                  Range {counterAnalysis.effectiveRange}
+                  {counterAnalysis.highGroundRangeBonus ? ' (+1 ตึก)' : ''} · ห่าง{' '}
+                  {counterAnalysis.sameZone ? `${counterAnalysis.dist} ช่อง` : 'คนละโซน'}
+                </span>
+              </div>
+
+              {counterAnalysis.inRange ? (
+                <div className="mt-2 space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-300">
+                    <span>
+                      50% ของ ATK ฝ่ายรับ ({counterAnalysis.defenderEffectiveAtk}
+                      {counterAnalysis.defenderHighGroundAtk > 0 ? ' รวม +1 ตึก' : ''}) ={' '}
+                      <strong className="font-mono text-rose-300">
+                        {counterAnalysis.baseCounterDmg}
+                      </strong>
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-slate-400">ปรับสด:</span>
+                      <button
+                        type="button"
+                        onClick={() => setCounterCustomMod((v) => v - 1)}
+                        className="flex h-5 w-5 items-center justify-center rounded-[2px] border border-slate-700 bg-[#090B10] hover:border-rose-400"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <span className="w-7 text-center font-mono text-xs font-bold text-rose-300">
+                        {finalCounterDamage}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCounterCustomMod((v) => v + 1)}
+                        className="flex h-5 w-5 items-center justify-center rounded-[2px] border border-slate-700 bg-[#090B10] hover:border-rose-400"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={attacker.status !== 'active' || finalCounterDamage <= 0}
+                    onClick={handleApplyCounter}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-[2px] border border-rose-500/80 bg-rose-700/80 py-1.5 text-xs font-bold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Swords className="h-3.5 w-3.5" />
+                    <span>
+                      Apply Counter -{finalCounterDamage} HP ใส่ผู้โจมตี ({attacker.name})
+                    </span>
+                  </button>
+
+                  {counterNotice && (
+                    <div className="flex items-center gap-1.5 rounded-[2px] border border-rose-700/60 bg-rose-950/50 px-2 py-1 text-[10.5px] font-semibold text-rose-200">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                      <span>{counterNotice}</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-1.5 text-xs text-slate-400">
+                  นอกระยะสวนกลับ (Range {counterAnalysis.effectiveRange}, ห่าง{' '}
+                  {counterAnalysis.sameZone ? `${counterAnalysis.dist} ช่อง` : 'คนละโซน'})
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Post-Hit Movement Status Strip */}
+          {attacker && defender && (
+            <div className="rounded-[2px] border border-slate-800 bg-[#090B10] p-2.5">
+              <div className="mb-1.5 font-display text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                ผลหลังโดนโจมตี (POST-HIT MOVEMENT STATUS — PRIORITY 3)
+              </div>
+
+              {defenderStance === 'attack' || defenderStance === 'defensive' ? (
+                <div className="rounded-[2px] border border-amber-600/60 bg-amber-950/40 px-2.5 py-1.5 text-xs font-bold text-amber-300">
+                  🛑 ติดชะงัก: ฝ่ายรับไม่ขยับใน Priority 3
+                </div>
+              ) : !isGuarding ? (
+                <div className="rounded-[2px] border border-sky-600/60 bg-sky-950/40 px-2.5 py-1.5 text-xs font-bold text-sky-300">
+                  💨 Evade: ฝ่ายรับยังเดินไปจุด Move ที่สั่งไว้ได้ (ไม่ติด ZoC)
+                </div>
+              ) : (
+                <div className="space-y-2 rounded-[2px] border border-emerald-600/60 bg-emerald-950/35 px-2.5 py-2">
+                  <div className="text-xs font-bold text-emerald-300">
+                    💨 Guard + Evade: ถอยหลัง 1 ช่องนับจากผู้โจมตี
+                  </div>
+                  {defender.status !== 'active' ? (
+                    <p className="text-[11px] text-slate-400">
+                      ฝ่ายรับถูกกำจัดแล้ว — ไม่สามารถถอยหลังได้
+                    </p>
+                  ) : retreatTiles.length === 0 ? (
+                    <p className="text-[11px] text-slate-400">
+                      ไม่มีช่องว่างให้ถอยหลัง 1 ช่อง (ติดขอบกระดานหรือมีหมากยืนขวาง)
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {retreatTiles.map((tile) => (
+                        <button
+                          key={`${tile.zone}-${tile.x}-${tile.y}`}
+                          type="button"
+                          onClick={() => handleApplyRetreat(tile)}
+                          className="flex items-center gap-1 rounded-[2px] border border-emerald-500/80 bg-emerald-900/50 px-2.5 py-1 text-[11px] font-bold text-emerald-200 transition hover:bg-emerald-700 hover:text-white"
+                        >
+                          <CornerDownLeft className="h-3 w-3" />
+                          <span>
+                            ถอยไป {formatCoordLabel(tile.x, tile.y)} ({tile.x}, {tile.y})
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {retreatNotice && (
+                    <div className="flex items-center gap-1.5 text-[10.5px] font-semibold text-emerald-200">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                      <span>{retreatNotice}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Defeat / Kill Bounty 1-Click Payout Strip */}
           {killBanner && (
             <div className="clip-tactical-sm space-y-2 border border-[#C8A253] bg-[#C8A253]/12 p-3">
@@ -473,7 +800,9 @@ export function QuickCombatModal() {
               {killBanner.paid ? (
                 <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-300">
                   <CheckCircle2 className="h-4 w-4" />
-                  <span>จ่ายรางวัลสังหารให้ {killBanner.killerTeam === 'team_a' ? 'Team A' : 'Team B'} เรียบร้อยแล้ว!</span>
+                  <span>
+                    จ่ายรางวัลสังหารให้ {killBanner.killerTeam === 'team_a' ? 'Team A' : 'Team B'} เรียบร้อยแล้ว!
+                  </span>
                 </div>
               ) : killBanner.victimType === 'servant' ? (
                 <button
@@ -539,9 +868,7 @@ export function QuickCombatModal() {
                   className="flex w-full items-center justify-center gap-1.5 rounded-[2px] bg-[#C8A253] py-2 text-xs font-bold text-[#090B10] transition hover:bg-[#E5C983]"
                 >
                   <Award className="h-4 w-4" />
-                  <span>
-                    จ่ายรางวัลมอนสเตอร์ ({monsterTpl.rewardNote})
-                  </span>
+                  <span>จ่ายรางวัลมอนสเตอร์ ({monsterTpl.rewardNote})</span>
                 </button>
               ) : null}
             </div>

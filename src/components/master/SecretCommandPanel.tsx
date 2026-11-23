@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { ITEMS, ITEMS_BY_ID, MAP_DATA, SERVANTS_BY_ID } from '../../data';
 import { useGameStore } from '../../store/useGameStore';
-import type { CommandActionType, TeamId } from '../../types/game';
+import type { CommandActionType, StanceType, TeamId } from '../../types/game';
 import { formatCoordLabel } from '../../utils/assetHelper';
 import { formatMpCost } from '../../utils/gridMath';
 import { getDisplayUnitName } from '../../utils/visibilityHelper';
@@ -23,12 +23,52 @@ import { TileInspector } from '../board/TileInspector';
 const ACTION_OPTIONS: { id: CommandActionType; label: string }[] = [
   { id: 'move', label: 'Move' },
   { id: 'attack', label: 'Attack' },
-  { id: 'move_and_attack', label: 'Move+Atk' },
   { id: 'np', label: 'NP (Noble Phantasm)' },
   { id: 'guard', label: 'Guard' },
   { id: 'explore', label: 'Explore/Shop' },
   { id: 'tag_out', label: 'Tag-Out (1M)' },
   { id: 'custom', label: 'Custom/CS/Item' },
+];
+
+const STANCE_OPTIONS: {
+  id: StanceType;
+  icon: string;
+  label: string;
+  tooltip: string;
+  activeClass: string;
+  idleClass: string;
+}[] = [
+  {
+    id: 'attack',
+    icon: '⚔️',
+    label: 'Attack',
+    tooltip: 'โดนตีสวนกลับ 50% ATK (ใน Range) | โดนตีไม่ขยับ',
+    activeClass:
+      'border-rose-500 bg-rose-500/25 text-rose-200 shadow-[0_0_8px_rgba(244,63,94,0.25)]',
+    idleClass:
+      'border-slate-700/80 bg-[#111622] text-slate-400 hover:border-rose-500/50 hover:text-rose-200',
+  },
+  {
+    id: 'defensive',
+    icon: '🛡️',
+    label: 'Defensive',
+    tooltip: 'ลดดาเมจ 25% (ถ้า Guard รวมเป็น 60%) | โดนตีไม่ขยับ',
+    activeClass:
+      'border-sky-500 bg-sky-500/25 text-sky-200 shadow-[0_0_8px_rgba(14,165,233,0.25)]',
+    idleClass:
+      'border-slate-700/80 bg-[#111622] text-slate-400 hover:border-sky-500/50 hover:text-sky-200',
+  },
+  {
+    id: 'evade',
+    icon: '💨',
+    label: 'Evade',
+    tooltip:
+      'ลดดาเมจ 0% (Guard 50%) | ไม่ติด ZoC, โดนตีแล้วยังเดินหนีได้ (ถ้า Guard + Evade ถอยหลัง 1 ช่อง)',
+    activeClass:
+      'border-emerald-500 bg-emerald-500/25 text-emerald-200 shadow-[0_0_8px_rgba(16,185,129,0.25)]',
+    idleClass:
+      'border-slate-700/80 bg-[#111622] text-slate-400 hover:border-emerald-500/50 hover:text-emerald-200',
+  },
 ];
 
 export function SecretCommandPanel() {
@@ -125,8 +165,16 @@ export function SecretCommandPanel() {
           const order = draftOrders[unit.id] ?? {
             unitId: unit.id,
             actionType: 'move' as CommandActionType,
+            stance: 'defensive' as StanceType,
             note: '',
           };
+          const currentStance: StanceType = order.stance ?? 'defensive';
+          const isGuardEvade =
+            order.actionType === 'guard' && currentStance === 'evade';
+          const isMoveEvade =
+            order.actionType === 'move' && currentStance === 'evade';
+          const isCombatAction =
+            order.actionType === 'attack' || order.actionType === 'np';
           const tpl = SERVANTS_BY_ID[unit.templateId];
           const cd = unit.skillCooldown ?? 0;
           const isPicking = pickingOrderForUnitId === unit.id;
@@ -229,6 +277,50 @@ export function SecretCommandPanel() {
                 </div>
               )}
 
+              {/* Stance Selector (3 Tactical Stances) */}
+              <div className="mb-1.5">
+                <div className="mb-0.5 flex items-center justify-between text-[9.5px] font-bold uppercase tracking-wider text-slate-400">
+                  <span>STANCE (ท่วงท่าประจำเทิร์น)</span>
+                  <span
+                    className={
+                      currentStance === 'attack'
+                        ? 'text-rose-400'
+                        : currentStance === 'evade'
+                          ? 'text-emerald-400'
+                          : 'text-sky-400'
+                    }
+                  >
+                    {currentStance === 'attack'
+                      ? 'สวน 50% ATK'
+                      : currentStance === 'evade'
+                        ? 'ไม่ติด ZoC'
+                        : 'ลด DMG 25%/60%'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-1">
+                  {STANCE_OPTIONS.map((st) => {
+                    const active = currentStance === st.id;
+                    return (
+                      <button
+                        key={st.id}
+                        type="button"
+                        disabled={isLocked}
+                        title={st.tooltip}
+                        onClick={() =>
+                          setDraftOrder(unit.id, { stance: st.id })
+                        }
+                        className={`flex items-center justify-center gap-1 rounded-[2px] border py-1 text-[10px] font-bold transition disabled:cursor-not-allowed ${
+                          active ? st.activeClass : st.idleClass
+                        }`}
+                      >
+                        <span>{st.icon}</span>
+                        <span>{st.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Main Action Selector + Pick Tile Button */}
               <div className="flex gap-1.5">
                 <select
@@ -238,6 +330,13 @@ export function SecretCommandPanel() {
                     const nextType = e.target.value as CommandActionType;
                     setDraftOrder(unit.id, {
                       actionType: nextType,
+                      ...(nextType === 'guard'
+                        ? {
+                            targetPosition: undefined,
+                            targetUnitId: undefined,
+                            estimatedMoveCost: undefined,
+                          }
+                        : {}),
                       ...(nextType !== 'custom' && nextType !== 'explore'
                         ? { itemId: undefined }
                         : {}),
@@ -254,28 +353,49 @@ export function SecretCommandPanel() {
                   ))}
                 </select>
 
-                {/* Pick Tile / Unit Button */}
-                <button
-                  type="button"
-                  disabled={isLocked}
-                  onClick={() => {
-                    if (isPicking) {
-                      setPickingOrderForUnitId(null);
-                    } else {
-                      locateUnit(unit.id);
-                      setPickingOrderForUnitId(unit.id);
-                    }
-                  }}
-                  className={`flex shrink-0 items-center gap-1 rounded-[2px] border px-2 py-1 text-[10.5px] font-bold transition disabled:cursor-not-allowed ${
-                    isPicking
-                      ? 'border-[#C8A253] bg-[#C8A253] text-[#090B10]'
-                      : 'border-[#C8A253]/40 bg-[#111622] text-[#C8A253] hover:bg-[#C8A253]/15'
-                  }`}
-                >
-                  <Crosshair className="h-3 w-3" />
-                  <span>{isPicking ? 'จิ้มบนแมพ...' : 'Pick Tile'}</span>
-                </button>
+                {/* Pick Tile / Unit Button (hidden when Guard + Evade since retreat is reactive) */}
+                {!isGuardEvade && (
+                  <button
+                    type="button"
+                    disabled={isLocked}
+                    onClick={() => {
+                      if (isPicking) {
+                        setPickingOrderForUnitId(null);
+                      } else {
+                        locateUnit(unit.id);
+                        setPickingOrderForUnitId(unit.id);
+                      }
+                    }}
+                    className={`flex shrink-0 items-center gap-1 rounded-[2px] border px-2 py-1 text-[10.5px] font-bold transition disabled:cursor-not-allowed ${
+                      isPicking
+                        ? 'border-[#C8A253] bg-[#C8A253] text-[#090B10]'
+                        : 'border-[#C8A253]/40 bg-[#111622] text-[#C8A253] hover:bg-[#C8A253]/15'
+                    }`}
+                  >
+                    <Crosshair className="h-3 w-3" />
+                    <span>{isPicking ? 'จิ้มบนแมพ...' : 'Pick Tile'}</span>
+                  </button>
+                )}
               </div>
+
+              {/* Contextual Stance + Action Guides */}
+              {isMoveEvade && (
+                <div className="mt-1.5 rounded-[2px] border border-emerald-500/50 bg-emerald-950/40 px-2 py-1 text-[10px] font-semibold text-emerald-300">
+                  💨 <strong>Evade: ไม่ติด ZoC</strong> — เดินหนีได้เต็ม MP และยังขยับไปจุดหมายได้แม้โดนโจมตีใน Priority 2
+                </div>
+              )}
+
+              {isGuardEvade && (
+                <div className="mt-1.5 rounded-[2px] border border-emerald-500/60 bg-emerald-950/45 px-2 py-1 text-[10px] font-semibold text-emerald-200">
+                  💨 <strong>Guard + Evade:</strong> ลดดาเมจ 50% และถอยหลัง 1 ช่องนับจากทิศศัตรูเมื่อถูกโจมตี (ไม่ต้องเลือกช่องปลายทางล่วงหน้า)
+                </div>
+              )}
+
+              {isCombatAction && (
+                <div className="mt-1.5 rounded-[2px] border border-rose-500/40 bg-rose-950/25 px-2 py-0.5 text-[9.5px] font-medium text-rose-200">
+                  ⚔️ <strong>Attack ก่อน Move:</strong> เล็งเป้าหมายจากตำแหน่งยืนปัจจุบัน (ในระยะ Range)
+                </div>
+              )}
 
               {/* Interactive Inventory Item Dropdown for 'custom' Action */}
               {order.actionType === 'custom' && (

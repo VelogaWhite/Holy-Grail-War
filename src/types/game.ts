@@ -70,10 +70,11 @@ export interface TileOverride {
   isMysteryDrop?: boolean;
 }
 
+export type StanceType = 'attack' | 'defensive' | 'evade';
+
 export type CommandActionType =
   | 'move'
   | 'attack'
-  | 'move_and_attack'
   | 'np'
   | 'guard'
   | 'explore'
@@ -83,6 +84,7 @@ export type CommandActionType =
 export interface CommandOrder {
   unitId: string;
   actionType: CommandActionType;
+  stance?: StanceType;
   targetPosition?: Coordinates;
   targetUnitId?: string;
   useSkill?: boolean;

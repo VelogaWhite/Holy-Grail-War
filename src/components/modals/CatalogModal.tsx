@@ -421,30 +421,43 @@ export function CatalogModal() {
 
               <div className="rounded-[2px] border border-[#C8A253]/30 bg-[#111622] p-4">
                 <h3 className="text-sm font-bold text-[#E5C983]">
-                  3. Skill Bonus Action, สูตร 1d6 & ลำดับ Priority 1 → 4
+                  3. ระบบ Attack ก่อน Move, 3 Stances &amp; Priority 1 → 4
                 </h3>
                 <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-300">
                   <li>
-                    <strong className="text-violet-300">Skill Bonus Action (CD 2 เทิร์น):</strong>{' '}
-                    ติ๊กเปิดใช้สกิลคู่กับ Move / Main Action ในเทิร์นเดียวกันได้ (ไม่กิน Action หลัก) หลังใช้ติด <strong>Cooldown 2 เทิร์น</strong> และลดลง -1 อัตโนมัติทุกจบเทิร์น
+                    <strong className="text-rose-300">Attack ก่อน Move (ตัด Move+Attack ออก):</strong>{' '}
+                    การโจมตีปกติ/NP/สกิลเล็งเป้าคำนวณใน <strong>Priority 2</strong> จากตำแหน่งยืนปัจจุบันก่อนการเคลื่อนที่ใน <strong>Priority 3</strong>
                   </li>
                   <li>
-                    <strong className="text-slate-100">โจมตีปกติ:</strong> <code>ATK + 1d6</code> → 1–2 (+0), 3–4 (+1), 5–6 (<strong className="text-[#E5C983]">+2 CRIT!</strong>) · <strong>Guard</strong> ลดดาเมจครึ่งหนึ่ง (ปัดลง)
+                    <strong className="text-rose-300">⚔️ Attack Stance:</strong>{' '}
+                    ลดดาเมจ 0% (Guard 50%) · เมื่อโดนตีจะ <strong>สวนกลับ 50% ATK</strong> (ขั้นต่ำ 1, ถ้าระยะถึง) · โดนตีแล้วติดชะงักไม่ขยับใน P3
                   </li>
                   <li>
-                    <strong className="text-slate-100">ลำดับเฉลยผล:</strong> P1 (เรย์จู/Guard/สกิลบัฟ/Tag-Out) → P2 (เดินพร้อมกัน + ZoC) → P3 (สกิลเป้าหมาย/Combat/NP Anti-Whiff & PvE Counter) → P4 (Tile Effects, ลด CD -1 & จบเทิร์น)
+                    <strong className="text-sky-300">🛡️ Defensive Stance:</strong>{' '}
+                    ลดดาเมจ <strong>25%</strong> (ถ้ากด Guard รวมเป็น <strong>60%</strong> ปัดลง) · โดนตีแล้วติดชะงักไม่ขยับใน P3
+                  </li>
+                  <li>
+                    <strong className="text-emerald-300">💨 Evade Stance:</strong>{' '}
+                    ลดดาเมจ 0% (Guard 50%) · <strong>ไม่ติด ZoC</strong>, โดนตีแล้วยังเดินไปจุด Move ได้ใน P3 (ถ้า <strong>Guard + Evade</strong> ถอยหลัง 1 ช่องนับจากผู้โจมตี)
+                  </li>
+                  <li>
+                    <strong className="text-violet-300">Skill Bonus Action (CD 2T) &amp; 1d6:</strong>{' '}
+                    ใช้สกิลคู่ Action หลักได้ · โจมตีปกติ <code>ATK + 1d6</code> (1–2: +0, 3–4: +1, 5–6: <strong className="text-[#E5C983]">+2 CRIT!</strong>)
+                  </li>
+                  <li>
+                    <strong className="text-slate-100">ลำดับเฉลยผล:</strong> P1 (เรย์จู/Guard/บัฟ/เปิด Stance/Tag-Out) → P2 (Combat/NP/สกิลเล็งเป้า + สวนกลับ + PvE Counter) → P3 (Move / Guard+Evade ถอย 1 ช่อง) → P4 (Tile Effects, ลด CD -1 &amp; จบเทิร์น)
                   </li>
                 </ul>
               </div>
 
               <div className="rounded-[2px] border border-[#C8A253]/30 bg-[#111622] p-4">
                 <h3 className="text-sm font-bold text-[#E5C983]">
-                  4. ZoC, Secret Deployment, ปิดนามแท้ & เรย์จู
+                  4. ZoC, Secret Deployment, ปิดนามแท้ &amp; เรย์จู
                 </h3>
                 <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-300">
                   <li>
                     <strong className="text-slate-100">Zone of Control (ZoC):</strong> ยืนติดศัตรู 1 ช่อง การเดินหนีหักงบ{' '}
-                    <strong>-1.0 MP</strong> (ขั้นต่ำเหลือ 1.0 MP) — <strong>Assassin ไม่ติดโทษ ZoC</strong>
+                    <strong>-1.0 MP</strong> (ขั้นต่ำเหลือ 1.0 MP) — <strong>Assassin และ Evade Stance ไม่ติดโทษ ZoC</strong>
                   </li>
                   <li>
                     <strong className="text-slate-100">Secret Deployment:</strong> หลัง Draft ครบ 6 ตน เข้าเฟส <code>DEPLOYMENT</code> แอบเลือก 3 ตัวจริงและจุดเกิดใน Base Zone แล้วกด Lock พร้อมกัน

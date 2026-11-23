@@ -159,12 +159,28 @@ export interface TileOverride {
   customNote?: string;       // โน้ตพิเศษที่ GM ปักหมุดลงช่อง เช่น "Trap", "Grail Mud"
 }
 
+export type StanceType = 'attack' | 'defensive' | 'evade';
+
+export type CommandActionType =
+  | 'move'
+  | 'attack'
+  | 'np'
+  | 'guard'
+  | 'explore'
+  | 'tag_out'
+  | 'custom';
+
 export interface CommandOrder {
   unitId: string;
-  actionType: 'move' | 'attack' | 'move_and_attack' | 'skill' | 'np' | 'guard' | 'explore' | 'tag_out' | 'custom';
+  actionType: CommandActionType; // ตัด move_and_attack ออก ใช้ระบบ Attack ก่อน Move
+  stance?: StanceType;           // 'attack' | 'defensive' | 'evade' (คำสั่งเก่าที่ไม่มีฟิลด์นี้ถือเป็น 'defensive')
   targetPosition?: Coordinates;
   targetUnitId?: string;
-  note: string;              // รายละเอียดเพิ่มเติม เช่น ชื่อสกิลหรือไอเทมที่ใช้
+  useSkill?: boolean;
+  overrideMoveRange?: boolean;
+  estimatedMoveCost?: number | null;
+  itemId?: string;
+  note: string;                  // รายละเอียดเพิ่มเติม เช่น ชื่อสกิลหรือไอเทมที่ใช้
 }
 
 export interface SecretCommandsDoc {
@@ -269,13 +285,16 @@ export interface RoomState {
    1. เมื่อเริ่มเคลื่อนที่จากช่อง **road** จะได้รับโบนัส **\+1 MOV** ในเทิร์นนั้น (สูงสุด \+1/เทิร์น)  
    2. ช่อง **forest** และ **water** ใช้ **2 MOV** ในการเดินเข้า  
    3. ช่อง **building** ใช้ **2 MOV** ในการปีนขึ้นจากพื้นราบ (ข้ามระหว่างตึกติดกันใช้ **1 MOV**)  
-3. **Zone of Control (ZoC — ล็อกขาหนียาก):**  
+3. **Zone of Control (ZoC — ล็อกขาหนียาก) & Evade Stance:**  
    1. ตรวจสอบตอนต้นเฟสวางแผนว่ามียูนิตศัตรูยืนติดในระยะ Manhattan Distance \= 1 (บน/ล่าง/ซ้าย/ขวา ในโซนเดียวกัน) หรือไม่  
-   2. หากติดสถานะ **Engaged** และคลาสของตัวละครไม่มีคุณสมบัติ **ignoreZoC: true** (เช่น Assassin):  
-      1. ช่องที่เพิ่มระยะห่างจากศัตรูที่ติดอยู่ จะคำนวณระยะเดินสูงสุดลดลง **\-1 MOV** (ขั้นต่ำ 1 ช่อง) และไฮไลต์สีเตือนบนกระดาน  
-      2. การเดินเข้าหาหรือเดินวนรอบศัตรูใช้ระยะ **MOV** เต็มตามปกติ  
-4. **Command Arrow Overlay (หน้าจอ Ruler):**  
-   1. เมื่อ Master A และ Master B กด Lock Turn หน้าจอ Ruler จะอ่านเอกสาร **secrets/master\_a** และ **secrets/master\_b** แล้ววาดเส้น SVG Arrow ทับบนกระดาน (ฝั่ง A สีแดง, ฝั่ง B สีน้ำเงิน) เพื่อให้ Ruler มองเห็นจุดปะทะ (Collision) และการดักทางได้ทันทีก่อนลากหมากเฉลยผล
+   2. หากติดสถานะ **Engaged** และคลาสของตัวละครไม่มีคุณสมบัติ **ignoreZoC: true** (เช่น Assassin) รวมถึงไม่ได้เลือก **`stance === 'evade'`** (`ignoreZoCByStance`):  
+      1. ช่องที่เพิ่มระยะห่างจากศัตรูที่ติดอยู่ จะคำนวณระยะเดินสูงสุดลดลง **\-1.0 MP** (ขั้นต่ำ 1.0 MP) และไฮไลต์สีเตือนบนกระดาน  
+      2. การเดินเข้าหาหรือเดินวนรอบศัตรูใช้ระยะ **MP** เต็มตามปกติ  
+   3. หากเลือก **`stance === 'evade'`** ให้ข้ามโทษ ZoC และไฮไลต์ป้ายสีเขียว `"Evade: ไม่ติด ZoC"`  
+4. **Guard + Evade Retreat Helper (`getRetreatTiles`):**  
+   1. คำนวณช่องข้างเคียง 4 ทิศ (บน/ล่าง/ซ้าย/ขวา ในโซนเดียวกัน) ที่อยู่ในขอบเขตกระดาน ไม่มีหมาก/มอนสเตอร์ยืนขวาง และมีระยะ Manhattan Distance จากตำแหน่งผู้โจมตีมากกว่าตำแหน่งเดิม เพื่อแสดงปุ่มถอยหลัง 1 ช่องใน `QuickCombatModal.tsx`  
+5. **Command Arrow Overlay (หน้าจอ Ruler):**  
+   1. เมื่อ Master A และ Master B กด Lock Turn หน้าจอ Ruler จะอ่านเอกสาร **secrets/master\_a** และ **secrets/master\_b** แล้ววาดเส้น SVG Arrow ทับบนกระดาน (ฝั่ง A สีแดง, ฝั่ง B สีน้ำเงิน) โดยคำสั่ง `move` ที่ใช้ **`stance === 'evade'`** จะแสดงขอบเรืองแสงสีเขียวมิ้นต์พร้อมป้าย `EVADE` กลางลูกศร เพื่อให้ Ruler แยกยูนิตที่ยังขยับได้หลังโดนตีใน Priority 3 ทันที
 
 ## 8\. Firestore Security Rules (firestore.rules)
 

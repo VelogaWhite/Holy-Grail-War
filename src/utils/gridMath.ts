@@ -1,5 +1,11 @@
 import { CLASSES_BY_ID, MAP_DATA, TERRAINS_BY_ID } from '../data';
-import type { BoardUnit, Coordinates, TerrainId, ZoneId } from '../types/game';
+import type {
+  BoardUnit,
+  Coordinates,
+  MapData,
+  TerrainId,
+  ZoneId,
+} from '../types/game';
 import { getTileKey } from './assetHelper';
 
 export interface ReachableTileInfo {
@@ -16,6 +22,8 @@ export interface MovementAnalysis {
   reachable: Record<string, ReachableTileInfo>;
   isEngaged: boolean;
   ignoreZoC: boolean;
+  ignoreZoCByClass: boolean;
+  ignoreZoCByStance: boolean;
   baseMov: number;
   maxMP: number;
   zocRetreatMP: number;
@@ -108,13 +116,20 @@ function manhattan(x1: number, y1: number, x2: number, y2: number): number {
 export function computeMovementAnalysis(
   unit: BoardUnit,
   allUnits: Record<string, BoardUnit>,
-  hasteBonus = 0
+  hasteBonus = 0,
+  ignoreZoCByStance = false
 ): MovementAnalysis {
   const baseMaxMP = roundHalf(Math.max(0, unit.mov + hasteBonus));
+  const classDef = unit.servantClass ? CLASSES_BY_ID[unit.servantClass] : undefined;
+  const ignoreZoCByClass = Boolean(classDef?.ignoreZoC);
+  const ignoreZoC = ignoreZoCByClass || ignoreZoCByStance;
+
   const empty: MovementAnalysis = {
     reachable: {},
     isEngaged: false,
-    ignoreZoC: false,
+    ignoreZoC,
+    ignoreZoCByClass,
+    ignoreZoCByStance,
     baseMov: unit.mov,
     maxMP: baseMaxMP,
     zocRetreatMP: Math.max(1.0, roundHalf(baseMaxMP - 1.0)),
@@ -126,9 +141,6 @@ export function computeMovementAnalysis(
 
   const start = unit.position;
   const maxMP = baseMaxMP;
-
-  const classDef = unit.servantClass ? CLASSES_BY_ID[unit.servantClass] : undefined;
-  const ignoreZoC = Boolean(classDef?.ignoreZoC);
 
   // Build occupancy maps
   const occupiedAll = new Map<string, BoardUnit>();
@@ -265,8 +277,55 @@ export function computeMovementAnalysis(
     reachable,
     isEngaged,
     ignoreZoC,
+    ignoreZoCByClass,
+    ignoreZoCByStance,
     baseMov: unit.mov,
     maxMP,
     zocRetreatMP,
   };
+}
+
+/**
+ * Computes valid 1-tile retreat destinations for Guard + Evade Stance.
+ * Checks the 4 orthogonal adjacent tiles in the same zone that are inside bounds,
+ * unoccupied by any active unit/monster, and strictly increase Manhattan distance
+ * from attackerPos compared to defenderPos.
+ */
+export function getRetreatTiles(
+  defenderPos: Coordinates,
+  attackerPos: Coordinates,
+  units: Record<string, BoardUnit>,
+  mapData: MapData = MAP_DATA
+): Coordinates[] {
+  const zoneDef = mapData.zones[defenderPos.zone];
+  if (!zoneDef) return [];
+
+  const occupied = new Set<string>();
+  for (const u of Object.values(units)) {
+    if (u.status !== 'active' || !u.position) continue;
+    if (u.position.zone !== defenderPos.zone) continue;
+    occupied.add(`${u.position.x}_${u.position.y}`);
+  }
+
+  const sameZone = defenderPos.zone === attackerPos.zone;
+  const baseDist = sameZone
+    ? manhattan(defenderPos.x, defenderPos.y, attackerPos.x, attackerPos.y)
+    : 0;
+
+  const results: Coordinates[] = [];
+  for (const [dx, dy] of ORTHO_DIRS) {
+    const nx = defenderPos.x + dx;
+    const ny = defenderPos.y + dy;
+    if (nx < 0 || nx >= mapData.cols || ny < 0 || ny >= mapData.rows) continue;
+    if (occupied.has(`${nx}_${ny}`)) continue;
+
+    if (sameZone) {
+      const nextDist = manhattan(nx, ny, attackerPos.x, attackerPos.y);
+      if (nextDist <= baseDist) continue;
+    }
+
+    results.push({ zone: defenderPos.zone, x: nx, y: ny });
+  }
+
+  return results;
 }

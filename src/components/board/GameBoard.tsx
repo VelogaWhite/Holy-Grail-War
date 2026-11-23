@@ -191,8 +191,10 @@ export function GameBoard() {
     ? draftOrders[pickingOrderForUnitId]
     : undefined;
   const pickingActionType = pickingOrder?.actionType ?? 'move';
-  const isMoveConstrainedAction =
-    pickingActionType === 'move' || pickingActionType === 'move_and_attack';
+  const isMoveConstrainedAction = pickingActionType === 'move';
+  const isCombatPickingAction =
+    Boolean(pickingUnit) &&
+    (pickingActionType === 'attack' || pickingActionType === 'np');
   const isOverrideUnlocked = Boolean(pickingOrder?.overrideMoveRange);
   const isStrictMovePick = Boolean(
     pickingUnit &&
@@ -203,24 +205,41 @@ export function GameBoard() {
   const hasteBonus = roomState.activeMapEvent?.id === 'haste_wind' ? 1 : 0;
 
   const analysisTargetUnit = pickingUnit ?? selectedUnit;
+  const analysisDraftOrder =
+    !isRuler && analysisTargetUnit
+      ? draftOrders[analysisTargetUnit.id]
+      : undefined;
+  const ignoreZoCByStance =
+    !isRuler && (analysisDraftOrder?.stance ?? 'defensive') === 'evade';
 
   const movementAnalysis = useMemo(() => {
     if (!analysisTargetUnit || analysisTargetUnit.unitType !== 'servant') {
       return null;
     }
-    // Always show movement analysis while picking a target (even if unlocked/NP/custom as a guide)
+    // When Master is picking an Attack/NP target, focus cleanly on Attack Range Overlay from current tile
+    if (isCombatPickingAction) {
+      return null;
+    }
+    // Always show movement analysis while picking a target (even if unlocked/custom as a guide)
     if (!pickingUnit && !showMoveHelper) {
       return null;
     }
     // Master only sees MOV helper for own Servants
     if (!isRuler && myTeam && analysisTargetUnit.owner !== myTeam) return null;
-    return computeMovementAnalysis(analysisTargetUnit, roomState.units, hasteBonus);
+    return computeMovementAnalysis(
+      analysisTargetUnit,
+      roomState.units,
+      hasteBonus,
+      ignoreZoCByStance
+    );
   }, [
     pickingUnit,
+    isCombatPickingAction,
     showMoveHelper,
     analysisTargetUnit,
     roomState.units,
     hasteBonus,
+    ignoreZoCByStance,
     isRuler,
     myTeam,
   ]);
@@ -399,11 +418,35 @@ export function GameBoard() {
           ) : (
             <span className="flex items-center gap-1.5 rounded-[2px] border border-[#C8A253] bg-[#C8A253]/20 px-2.5 py-0.5 font-bold text-[#E5C983]">
               <Crosshair className="h-3 w-3" />
-              {isStrictMovePick
-                ? `เลือกช่องเดินสำหรับ ${roomState.units[pickingOrderForUnitId]?.name} (เฉพาะช่องสีเขียว/ส้มในระยะ ${formatMpCost(movementAnalysis?.maxMP ?? 0)} MP)`
-                : isOverrideUnlocked
-                  ? `ปลดล็อกระยะแล้ว: คลิกช่องใดก็ได้บนกระดานสำหรับ ${roomState.units[pickingOrderForUnitId]?.name} (⚠️ หากเกินระยะปกติจะแจ้งเตือน Ruler)`
-                  : `โหมดเลือกเป้าหมายคำสั่งลับ: คลิกช่องหรือยูนิตบนกระดานสำหรับ ${roomState.units[pickingOrderForUnitId]?.name}`}
+              {isStrictMovePick ? (
+                <>
+                  <span>
+                    เลือกช่องเดินสำหรับ {roomState.units[pickingOrderForUnitId]?.name} (เฉพาะช่องในระยะ{' '}
+                    {formatMpCost(movementAnalysis?.maxMP ?? 0)} MP)
+                  </span>
+                  {ignoreZoCByStance && (
+                    <span className="rounded-[2px] border border-emerald-400/70 bg-emerald-950/80 px-1.5 py-px text-[9.5px] font-bold text-emerald-300">
+                      💨 Evade: ไม่ติด ZoC
+                    </span>
+                  )}
+                </>
+              ) : isCombatPickingAction ? (
+                <span>
+                  ⚔️ Attack ก่อน Move: เลือกเป้าหมายในระยะ {attackRangeAnalysis?.effectiveRange ?? 1} ช่อง
+                  {attackRangeAnalysis?.highGroundBonus ? ' (+1 High Ground)' : ''} จากตำแหน่งปัจจุบันของ{' '}
+                  {roomState.units[pickingOrderForUnitId]?.name}
+                </span>
+              ) : isOverrideUnlocked ? (
+                <span>
+                  ปลดล็อกระยะแล้ว: คลิกช่องใดก็ได้บนกระดานสำหรับ{' '}
+                  {roomState.units[pickingOrderForUnitId]?.name} (⚠️ หากเกินระยะปกติจะแจ้งเตือน Ruler)
+                </span>
+              ) : (
+                <span>
+                  โหมดเลือกเป้าหมายคำสั่งลับ: คลิกช่องหรือยูนิตบนกระดานสำหรับ{' '}
+                  {roomState.units[pickingOrderForUnitId]?.name}
+                </span>
+              )}
             </span>
           )
         ) : isRuler && pendingSpawnMonsterId ? (
@@ -426,7 +469,12 @@ export function GameBoard() {
                 </span>
               ) : null}
             </span>
-            {movementAnalysis.isEngaged && (
+            {movementAnalysis.ignoreZoCByStance && (
+              <span className="flex items-center gap-1 rounded-[2px] border border-emerald-500/70 bg-emerald-950/60 px-1.5 py-px font-bold text-emerald-300">
+                💨 Evade: ไม่ติด ZoC
+              </span>
+            )}
+            {movementAnalysis.isEngaged && !movementAnalysis.ignoreZoCByStance && (
               <span
                 className={`flex items-center gap-1 rounded-[2px] px-1.5 py-px font-bold ${
                   movementAnalysis.ignoreZoC

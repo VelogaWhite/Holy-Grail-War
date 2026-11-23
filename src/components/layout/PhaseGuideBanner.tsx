@@ -38,11 +38,11 @@ export function PhaseGuideBanner() {
         }
         return myLocked
           ? 'เฟส Planning: คุณล็อกคำสั่งลับแล้ว — รออีกฝั่งส่งคำสั่งและรอ Ruler เฉลยผล'
-          : 'เฟส Planning: คลิก Servant ของคุณบนกระดานเพื่อสั่งเดิน/โจมตี หรือเลือกสกิลทางขวา แล้วกด "LOCK TURN"';
+          : 'เฟส Planning: เลือก Stance (Attack/Defensive/Evade) + คำสั่ง Move หรือ Attack/NP (โจมตีก่อนเดิน) แล้วกด "LOCK TURN"';
       case 'resolution':
         return isRuler
-          ? 'เฟส Resolve: เปิดแท็บ Orders เพื่อกด Apply Move/Skill/NP, ใช้ปุ่ม Combat คำนวณดาเมจ แล้วกด "End Turn"'
-          : 'เฟส Resolve: Ruler กำลังเฉลยผลคำสั่งลับและการต่อสู้ในเทิร์นนี้ (ติดตามผลบนกระดานและ 1d6)';
+          ? 'เฟส Resolve: P1 Guard/Stance/Buff → P2 Combat/NP & สวนกลับ (เปิด Combat Helper) → P3 Move/Evade ถอย 1 ช่อง → P4 End Turn'
+          : 'เฟส Resolve: Ruler กำลังเฉลยผล (P1 Stance/Guard → P2 Attack/NP ก่อน Move → P3 เคลื่อนที่/Evade → P4 จบเทิร์น)';
       case 'ended':
         return 'สงครามจอกศักดิ์สิทธิ์สิ้นสุดลงแล้ว — ยินดีกับผู้ชนะ!';
       default:
