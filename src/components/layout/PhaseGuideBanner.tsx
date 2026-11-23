@@ -38,7 +38,7 @@ export function PhaseGuideBanner() {
         }
         return myLocked
           ? 'เฟส Planning: คุณล็อกคำสั่งลับแล้ว — รออีกฝั่งส่งคำสั่งและรอ Ruler เฉลยผล'
-          : 'เฟส Planning: เลือก Stance (Attack/Defensive/Evade) + คำสั่ง Move หรือ Attack/NP (โจมตีก่อนเดิน) แล้วกด "LOCK TURN"';
+          : 'เฟส Planning: คลิกขวาที่ Servant เพื่อเปิดวงล้อสั่งการด่วน (หรือคลิกซ้าย / เลือก Stance ทางขวา) แล้วกด "LOCK TURN"';
       case 'resolution':
         return isRuler
           ? 'เฟส Resolve: P1 Guard/Stance/Buff → P2 Combat/NP & สวนกลับ (เปิด Combat Helper) → P3 Move/Evade ถอย 1 ช่อง → P4 End Turn'

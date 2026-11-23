@@ -16,6 +16,7 @@ interface UnitTokenProps {
   isOverlay?: boolean;
   isIdentityHidden?: boolean;
   onSelect: () => void;
+  onContextMenuUnit?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 export function UnitToken({
@@ -25,6 +26,7 @@ export function UnitToken({
   isOverlay = false,
   isIdentityHidden = false,
   onSelect,
+  onContextMenuUnit,
 }: UnitTokenProps) {
   const [imgError, setImgError] = useState(false);
   const [classIconError, setClassIconError] = useState(false);
@@ -55,6 +57,11 @@ export function UnitToken({
       onClick={(e) => {
         e.stopPropagation();
         if (!isOverlay) onSelect();
+      }}
+      onContextMenu={(e) => {
+        if (!isOverlay && onContextMenuUnit) {
+          onContextMenuUnit(e);
+        }
       }}
       className={`group relative flex h-[92%] w-[92%] flex-col items-center justify-center rounded-[3px] border-2 bg-[#090B10] transition ${teamFrameGlow} ${
         isOverlay

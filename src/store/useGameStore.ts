@@ -464,6 +464,12 @@ export interface TilePopoverState {
   clientY: number;
 }
 
+export interface RadialMenuState {
+  unitId: string;
+  anchorX: number;
+  anchorY: number;
+}
+
 export interface PendingPickupToast {
   id: string;
   tileKey: string;
@@ -587,6 +593,7 @@ interface GameStoreState {
   // Master Local Secret Command Drafts
   draftOrders: Record<string, CommandOrder>;
   pickingOrderForUnitId: string | null;
+  radialMenu: RadialMenuState | null;
 
   // Chat State (dedicated rooms/{roomId}/chat/public listener — isolated from RoomState)
   chatMessages: ChatMessage[];
@@ -690,11 +697,19 @@ interface GameStoreState {
   toggleTrueNameConcealment: () => void;
   toggleUnitTrueNameRevealed: (unitId: string) => void;
 
-  // Master Secret Command Queue Actions
+  // Master Secret Command Queue & Radial Wheel Actions (Pure Local Client State)
   setDraftOrder: (
     unitId: string,
     patch: Partial<CommandOrder> & { actionType?: CommandActionType }
   ) => void;
+  updateDraftOrder: (
+    unitId: string,
+    patch: Partial<CommandOrder> & { actionType?: CommandActionType }
+  ) => void;
+  setActiveOrderUnit: (unitId: string | null) => void;
+  startTargetPicking: (unitId: string, mode: 'move' | 'attack' | 'np') => void;
+  openRadialMenu: (unitId: string, anchorX: number, anchorY: number) => void;
+  closeRadialMenu: () => void;
   clearDraftOrderTarget: (unitId: string) => void;
   setPickingOrderForUnitId: (unitId: string | null) => void;
   applyPickedTarget: (
@@ -816,6 +831,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
     draftOrders: {},
     pickingOrderForUnitId: null,
+    radialMenu: null,
 
     chatMessages: [],
     hasLoadedInitialChat: false,
@@ -862,6 +878,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         masterBOrders: null,
         draftOrders: {},
         pickingOrderForUnitId: null,
+        radialMenu: null,
         checkedOrderIds: {},
         chatMessages: [],
         hasLoadedInitialChat: false,
@@ -885,6 +902,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         masterBOrders: null,
         draftOrders: {},
         pickingOrderForUnitId: null,
+        radialMenu: null,
         checkedOrderIds: {},
         chatMessages: [],
         hasLoadedInitialChat: true,
@@ -902,6 +920,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         masterBOrders: null,
         draftOrders: {},
         pickingOrderForUnitId: null,
+        radialMenu: null,
         tilePopover: null,
         pendingSpawnMonsterId: null,
         historyStack: [],
@@ -1035,9 +1054,13 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
         // Clear local draft orders when turn advances or when Master seat swaps
         const turnChanged = normalizedRoom.turn !== state.roomState.turn;
+        const phaseChanged = normalizedRoom.phase !== state.roomState.phase;
         return {
           roomState: normalizedRoom,
           previewRole: nextPreviewRole,
+          ...(phaseChanged || turnChanged || roleSwitched
+            ? { radialMenu: null }
+            : {}),
           ...(roleSwitched
             ? {
                 activeZone:
@@ -1161,7 +1184,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
     markChatAsRead: () => set({ unreadChatCount: 0 }),
 
-    setActiveZone: (zone) => set({ activeZone: zone, hoveredTile: null, tilePopover: null }),
+    setActiveZone: (zone) =>
+      set({ activeZone: zone, hoveredTile: null, tilePopover: null, radialMenu: null }),
     selectUnit: (unitId) => set({ selectedUnitId: unitId }),
     locateUnit: (unitId) => {
       const unit = get().roomState.units[unitId];
@@ -1225,7 +1249,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       });
     },
 
-    // --- Master Secret Command Queue ---
+    // --- Master Secret Command Queue & Radial Menu (Pure Local Client State) ---
     setDraftOrder: (unitId, patch) =>
       set((state) => {
         const existing: CommandOrder = state.draftOrders[unitId] ?? {
@@ -1241,6 +1265,54 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           },
         };
       }),
+
+    updateDraftOrder: (unitId, patch) => {
+      get().setDraftOrder(unitId, patch);
+    },
+
+    setActiveOrderUnit: (unitId) => set({ selectedUnitId: unitId }),
+
+    startTargetPicking: (unitId, mode) =>
+      set((state) => {
+        const existing: CommandOrder = state.draftOrders[unitId] ?? {
+          unitId,
+          actionType: mode,
+          stance: 'defensive',
+          note: '',
+        };
+        const unit = state.roomState.units[unitId];
+        const modeChanged = existing.actionType !== mode;
+        return {
+          radialMenu: null,
+          selectedUnitId: unitId,
+          pickingOrderForUnitId: unitId,
+          ...(unit?.position ? { activeZone: unit.position.zone } : {}),
+          draftOrders: {
+            ...state.draftOrders,
+            [unitId]: {
+              ...existing,
+              actionType: mode,
+              unitId,
+              ...(modeChanged
+                ? {
+                    targetPosition: undefined,
+                    targetUnitId: undefined,
+                    estimatedMoveCost: undefined,
+                  }
+                : {}),
+            },
+          },
+        };
+      }),
+
+    openRadialMenu: (unitId, anchorX, anchorY) =>
+      set({
+        radialMenu: { unitId, anchorX, anchorY },
+        selectedUnitId: unitId,
+        pickingOrderForUnitId: null,
+      }),
+
+    closeRadialMenu: () => set({ radialMenu: null }),
 
     clearDraftOrderTarget: (unitId) =>
       set((state) => {
@@ -1344,7 +1416,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           },
         }));
       }
-      set({ pickingOrderForUnitId: null });
+      set({ pickingOrderForUnitId: null, radialMenu: null });
     },
 
     // --- Ruler God-Mode Actions ---

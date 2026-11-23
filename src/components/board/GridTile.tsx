@@ -56,6 +56,7 @@ interface GridTileProps {
   onHover: () => void;
   onClickTile: () => void;
   onRightClickTile: (clientX: number, clientY: number) => void;
+  onRightClickUnit?: (unit: BoardUnit, anchorX: number, anchorY: number) => void;
 }
 
 function TerrainSubtleGlyph({ terrainId }: { terrainId: TerrainId }) {
@@ -96,6 +97,7 @@ export function GridTile({
   onHover,
   onClickTile,
   onRightClickTile,
+  onRightClickUnit,
 }: GridTileProps) {
   const tileKey = getTileKey(zone, x, y);
   const { setNodeRef, isOver } = useDroppable({
@@ -407,6 +409,20 @@ export function GridTile({
             canDrag={canDragUnit}
             isIdentityHidden={isUnitIdentityHidden}
             onSelect={() => onSelectUnit(unit.id)}
+            onContextMenuUnit={
+              onRightClickUnit
+                ? (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    onRightClickUnit(
+                      unit,
+                      rect.left + rect.width / 2,
+                      rect.top + rect.height / 2
+                    );
+                  }
+                : undefined
+            }
           />
         </div>
       )}

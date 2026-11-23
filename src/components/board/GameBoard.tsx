@@ -19,6 +19,7 @@ import {
   formatMpCost,
 } from '../../utils/gridMath';
 import { isUnitIdentityHidden } from '../../utils/visibilityHelper';
+import { RadialCommandMenu } from '../master/RadialCommandMenu';
 import { CommandArrowsSvg } from './CommandArrowsSvg';
 import { FogOverlay } from './FogOverlay';
 import { GridTile } from './GridTile';
@@ -53,6 +54,7 @@ export function GameBoard() {
   const spawnMonster = useGameStore((s) => s.spawnMonster);
   const setPickingOrderForUnitId = useGameStore((s) => s.setPickingOrderForUnitId);
   const applyPickedTarget = useGameStore((s) => s.applyPickedTarget);
+  const openRadialMenu = useGameStore((s) => s.openRadialMenu);
 
   const isRuler = previewRole === 'ruler';
   const myTeam: TeamId | null =
@@ -384,6 +386,13 @@ export function GameBoard() {
     setTilePopover({ coords, clientX, clientY });
   };
 
+  const canOpenRadialMenu = Boolean(
+    !isRuler &&
+      myTeam &&
+      roomState.phase === 'planning' &&
+      !roomState.teams[myTeam].readyLocked
+  );
+
   const maxBoardWidth = isRuler
     ? 'min(100%, calc((100vh - 205px) * 10 / 7))'
     : 'min(100%, calc((100vh - 165px) * 10 / 7))';
@@ -594,6 +603,15 @@ export function GameBoard() {
                       onRightClickTile={(cx, cy) =>
                         handleRightClickTile({ zone: activeZone, x, y }, cx, cy)
                       }
+                      onRightClickUnit={
+                        canOpenRadialMenu &&
+                        unit &&
+                        unit.unitType === 'servant' &&
+                        unit.owner === myTeam &&
+                        unit.status === 'active'
+                          ? (u, anchorX, anchorY) => openRadialMenu(u.id, anchorX, anchorY)
+                          : undefined
+                      }
                     />
                   );
                 })}
@@ -686,6 +704,9 @@ export function GameBoard() {
           </DragOverlay>
         </DndContext>
       </div>
+
+      {/* Master Right-Click Radial Command Menu (Portaled to document.body) */}
+      <RadialCommandMenu />
     </main>
   );
 }
