@@ -380,7 +380,7 @@ export function CatalogModal() {
                 <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-300">
                   <li>
                     <strong className="text-slate-100">Soul Trigger (ภาชนะจอก 5/5):</strong>{' '}
-                    เมื่อมี Servant ถูกกำจัดรวมทั้ง 2 ฝั่งครบ <strong>5 ตน</strong> จอกจุติทันทีที่ Central (4,3)/(5,3)
+                    เมื่อมี Servant ถูกกำจัดรวมทั้ง 2 ฝั่งครบ <strong>5 ตน</strong> จอกจุติทันทีที่ Central E4 / F4
                   </li>
                   <li>
                     <strong className="text-slate-100">Secret Turn Trigger:</strong> สุ่มเทิร์นลับ{' '}
@@ -395,45 +395,67 @@ export function CatalogModal() {
 
               <div className="rounded-[2px] border border-[#C8A253]/30 bg-[#111622] p-4">
                 <h3 className="text-sm font-bold text-[#E5C983]">
-                  2. ระบบภูมิประเทศ 2 ชั้น (10×7)
+                  2. ระบบภูมิประเทศ 2 ชั้น & Civilization MP (10×7)
                 </h3>
                 <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-300">
-                  <li><strong className="text-slate-100">ถนน (Road):</strong> 1 MOV · เริ่มเคลื่อนที่จากถนนได้ <strong>+1 MOV</strong></li>
-                  <li><strong className="text-slate-100">ตึก (Building):</strong> ปีน 2 MOV / ข้ามตึก 1 MOV · High Ground <strong>+1 ATK</strong>, ตีไกล <strong>+1 Range</strong></li>
-                  <li><strong className="text-emerald-400">ป่า (Forest):</strong> 2 MOV · <strong>Stealth</strong> ซ่อนตัวจากศัตรูนอกป่า & ลดดาเมจตีไกล -1</li>
-                  <li><strong className="text-[#C8A253]">ซากปรักฯ (Ruins):</strong> 1 MOV · Cover ลดดาเมจโจมตีปกติ -1</li>
-                  <li><strong className="text-sky-400">แม่น้ำ (Water):</strong> 2 MOV · Exposed รับดาเมจเพิ่ม +1</li>
+                  <li>
+                    <strong className="text-slate-100">Strict MP & Gate:</strong> งบ MP = ค่า <code>MOV</code> (2.0 / 3.0 MP) ต้องมี MP พอจึงจะก้าวเข้าได้ · ข้าม <strong>Gate 1.0 MP</strong> คงที่
+                  </li>
+                  <li>
+                    <strong className="text-slate-100">ถนน (Road):</strong> <strong>0.5 MP</strong> (วิ่งตามถนนได้ไกล 2 เท่า) · <strong className="text-slate-100">ที่โล่ง (Open):</strong> <strong>1.0 MP</strong>
+                  </li>
+                  <li>
+                    <strong className="text-[#C8A253]">ซากปรักฯ (Ruins):</strong> <strong>1.0 MP</strong> · Cover ลดดาเมจโจมตีปกติ -1
+                  </li>
+                  <li>
+                    <strong className="text-emerald-400">ป่า (Forest):</strong> <strong>1.5 MP</strong> · <strong>Stealth</strong> ซ่อนตัวจากศัตรูนอกป่า & ลดดาเมจตีไกล -1
+                  </li>
+                  <li>
+                    <strong className="text-slate-100">ตึก (Building):</strong> ปีนขึ้น <strong>1.5 MP</strong> / ข้ามตึกติดกัน <strong>1.0 MP</strong> · High Ground <strong>+1 ATK</strong> & ตีไกล <strong>+1 Range</strong>
+                  </li>
+                  <li>
+                    <strong className="text-sky-400">แม่น้ำ (Water):</strong> <strong>2.0 MP</strong> · Exposed รับดาเมจเพิ่ม +1
+                  </li>
                 </ul>
               </div>
 
               <div className="rounded-[2px] border border-[#C8A253]/30 bg-[#111622] p-4">
                 <h3 className="text-sm font-bold text-[#E5C983]">
-                  3. สูตรต่อสู้ 1d6, Guard & ลำดับ Priority 1 → 4
+                  3. Skill Bonus Action, สูตร 1d6 & ลำดับ Priority 1 → 4
                 </h3>
                 <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-300">
+                  <li>
+                    <strong className="text-violet-300">Skill Bonus Action (CD 2 เทิร์น):</strong>{' '}
+                    ติ๊กเปิดใช้สกิลคู่กับ Move / Main Action ในเทิร์นเดียวกันได้ (ไม่กิน Action หลัก) หลังใช้ติด <strong>Cooldown 2 เทิร์น</strong> และลดลง -1 อัตโนมัติทุกจบเทิร์น
+                  </li>
                   <li>
                     <strong className="text-slate-100">โจมตีปกติ:</strong> <code>ATK + 1d6</code> → 1–2 (+0), 3–4 (+1), 5–6 (<strong className="text-[#E5C983]">+2 CRIT!</strong>) · <strong>Guard</strong> ลดดาเมจครึ่งหนึ่ง (ปัดลง)
                   </li>
                   <li>
-                    <strong className="text-slate-100">ลำดับเฉลยผล:</strong> P1 (เรย์จู/Guard/Buff/Tag-Out) → P2 (เดินพร้อมกัน + ZoC) → P3 (Combat/NP Anti-Whiff & PvE Counter) → P4 (Tile Effects & จบเทิร์น)
+                    <strong className="text-slate-100">ลำดับเฉลยผล:</strong> P1 (เรย์จู/Guard/สกิลบัฟ/Tag-Out) → P2 (เดินพร้อมกัน + ZoC) → P3 (สกิลเป้าหมาย/Combat/NP Anti-Whiff & PvE Counter) → P4 (Tile Effects, ลด CD -1 & จบเทิร์น)
                   </li>
                 </ul>
               </div>
 
               <div className="rounded-[2px] border border-[#C8A253]/30 bg-[#111622] p-4">
                 <h3 className="text-sm font-bold text-[#E5C983]">
-                  4. Zone of Control (ZoC) & Command Spells
+                  4. ZoC, Secret Deployment, ปิดนามแท้ & เรย์จู
                 </h3>
                 <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-300">
                   <li>
-                    <strong className="text-slate-100">ZoC:</strong> ยืนติดศัตรู 1 ช่อง การเดินหนีลด{' '}
-                    <strong>-1 MOV</strong> (ขั้นต่ำ 1 ช่อง) — <strong>Assassin ไม่ติดโทษ ZoC</strong>
+                    <strong className="text-slate-100">Zone of Control (ZoC):</strong> ยืนติดศัตรู 1 ช่อง การเดินหนีหักงบ{' '}
+                    <strong>-1.0 MP</strong> (ขั้นต่ำเหลือ 1.0 MP) — <strong>Assassin ไม่ติดโทษ ZoC</strong>
                   </li>
                   <li>
-                    <strong className="text-slate-100">เรย์จู 1 ขีด:</strong> วาร์ปกลับฐาน / ยกเลิก ZoC / ตีปกติซ้ำ 2 ครั้ง / +3 Mana
+                    <strong className="text-slate-100">Secret Deployment:</strong> หลัง Draft ครบ 6 ตน เข้าเฟส <code>DEPLOYMENT</code> แอบเลือก 3 ตัวจริงและจุดเกิดใน Base Zone แล้วกด Lock พร้อมกัน
                   </li>
                   <li>
-                    <strong className="text-slate-100">เรย์จู 2 ขีด:</strong> ฟื้นฟู HP เต็มหลอด / Emergency Re-Summon (ฝั่งละ 1 ครั้ง/เกม)
+                    <strong className="text-slate-100">โหมดปิดนามแท้ (True Name Concealment):</strong>{' '}
+                    เมื่อเปิดใช้งาน ฝั่งตรงข้ามจะเห็นเฉพาะคลาส (<code>[Class] ???</code>) จนกว่า Ruler จะกดเปิดเผยหรือถูกกำจัด
+                  </li>
+                  <li>
+                    <strong className="text-slate-100">เรย์จู 1 ขีด:</strong> วาร์ปกลับฐาน / ยกเลิก ZoC / ตีปกติซ้ำ 2 ครั้ง / +3 Mana ·{' '}
+                    <strong className="text-slate-100">2 ขีด:</strong> ฟื้น HP เต็ม / Emergency Re-Summon (ฝั่งละ 1 ครั้ง/เกม)
                   </li>
                 </ul>
               </div>

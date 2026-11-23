@@ -18,7 +18,7 @@ import { formatCoordLabel } from '../../utils/assetHelper';
 import { getTerrainAt } from '../../utils/gridMath';
 
 function diceResultToBonus(roll: number): number {
-  if (roll >= 6) return 2;
+  if (roll >= 5) return 2;
   if (roll >= 3) return 1;
   return 0;
 }
@@ -400,7 +400,7 @@ export function QuickCombatModal() {
                   <strong className="font-mono text-sm text-[#E5C983]">
                     {lastRollValue}
                   </strong>{' '}
-                  ({lastRollValue === 6 ? '+2 CRIT!' : `+${diceResultToBonus(lastRollValue)}`})
+                  ({lastRollValue >= 5 ? '+2 CRIT!' : `+${diceResultToBonus(lastRollValue)}`})
                 </span>
               )}
             </div>
