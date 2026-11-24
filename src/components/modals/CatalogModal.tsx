@@ -11,7 +11,12 @@ import {
 import { CLASSES, ITEMS, SERVANTS } from '../../data';
 import { useGameStore } from '../../store/useGameStore';
 import type { ItemTemplate, ServantClassId, ServantTemplate } from '../../types/game';
-import { getClassIconUrl, getInitials, resolveAssetUrl } from '../../utils/assetHelper';
+import {
+  getClassIconUrl,
+  getClassShortLabel,
+  getInitials,
+  resolveAssetUrl,
+} from '../../utils/assetHelper';
 import { isUnitIdentityHidden } from '../../utils/visibilityHelper';
 
 type CatalogTab = 'servants' | 'shop' | 'rules';
@@ -21,9 +26,10 @@ function ServantCard({
   draftStatus,
 }: {
   servant: ServantTemplate;
-  draftStatus: 'team_a' | 'team_b' | 'pool';
+  draftStatus: 'team_a' | 'team_b' | 'pool' | 'excluded';
 }) {
   const [imgErr, setImgErr] = useState(false);
+  const [classIconErr, setClassIconErr] = useState(false);
   const imgUrl = resolveAssetUrl(servant.image);
   const classIconUrl = getClassIconUrl(servant.servantClass, servant.subClass);
 
@@ -32,10 +38,24 @@ function ServantCard({
       ? { text: 'Team A', cls: 'bg-[#B91C1C] text-slate-100' }
       : draftStatus === 'team_b'
         ? { text: 'Team B', cls: 'bg-sky-700 text-slate-100' }
-        : { text: 'In Pool', cls: 'bg-[#090B10] text-slate-400 border border-slate-700' };
+        : draftStatus === 'excluded'
+          ? {
+              text: 'Excluded',
+              cls: 'border border-amber-700/70 bg-amber-950/60 text-amber-300',
+            }
+          : {
+              text: 'In Pool',
+              cls: 'bg-[#090B10] text-slate-400 border border-slate-700',
+            };
 
   return (
-    <div className="flex flex-col rounded-[2px] border border-[#C8A253]/30 bg-[#111622] p-3 transition hover:border-[#C8A253]/70">
+    <div
+      className={`flex flex-col rounded-[2px] border bg-[#111622] p-3 transition hover:border-[#C8A253]/70 ${
+        draftStatus === 'excluded'
+          ? 'border-slate-800/90 opacity-70'
+          : 'border-[#C8A253]/30'
+      }`}
+    >
       <div className="flex items-start gap-2.5">
         <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[2px] border border-[#C8A253]/40 bg-[#090B10]">
           {imgUrl && !imgErr ? (
@@ -66,18 +86,33 @@ function ServantCard({
             </span>
           </div>
 
-          <div className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
-            {classIconUrl && (
+          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-slate-400">
+            {classIconUrl && !classIconErr ? (
               <img
                 src={classIconUrl}
-                alt={servant.servantClass}
+                alt={servant.subClass ?? servant.servantClass}
+                onError={() => setClassIconErr(true)}
                 className="h-4 w-4 rounded-full border border-[#C8A253]/30 bg-[#090B10] object-contain p-0.5"
               />
+            ) : (
+              <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full border border-[#C8A253]/50 bg-[#090B10] px-1 font-display text-[7.5px] font-bold text-[#E5C983]">
+                {getClassShortLabel(servant.servantClass, servant.subClass)}
+              </span>
             )}
             <span>
               {servant.servantClass}
               {servant.subClass ? ` · ${servant.subClass}` : ''}
             </span>
+            {servant.variantType === 'summer' && (
+              <span className="rounded-[2px] border border-cyan-500/60 bg-cyan-950/60 px-1.5 py-px text-[9px] font-bold text-cyan-300">
+                Summer
+              </span>
+            )}
+            {servant.variantType === 'alter' && (
+              <span className="rounded-[2px] border border-fuchsia-500/60 bg-fuchsia-950/60 px-1.5 py-px text-[9px] font-bold text-fuchsia-300">
+                Alter
+              </span>
+            )}
           </div>
 
           <div className="mt-1.5 grid grid-cols-4 gap-1 rounded-[2px] bg-[#090B10] px-1.5 py-1 text-center text-[10px] font-bold text-slate-200">
@@ -191,6 +226,15 @@ export function CatalogModal() {
     }
     return map;
   }, [units, previewRole, roomState]);
+
+  const poolRemainingSet = useMemo(
+    () => new Set(roomState.draftPoolRemaining),
+    [roomState.draftPoolRemaining]
+  );
+
+  // Under True Name Concealment, Masters must NEVER see "Excluded" badges so they cannot deduce enemy Servants
+  const canShowExcludedBadge =
+    previewRole === 'ruler' || !roomState.trueNameConcealment;
 
   const filteredServants = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -340,13 +384,21 @@ export function CatalogModal() {
 
               {/* Servants Grid */}
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {filteredServants.map((s) => (
-                  <ServantCard
-                    key={s.id}
-                    servant={s}
-                    draftStatus={draftOwnerMap.get(s.id) ?? 'pool'}
-                  />
-                ))}
+                {filteredServants.map((s) => {
+                  const owner = draftOwnerMap.get(s.id);
+                  const draftStatus: 'team_a' | 'team_b' | 'pool' | 'excluded' =
+                    owner ??
+                    (canShowExcludedBadge && !poolRemainingSet.has(s.id)
+                      ? 'excluded'
+                      : 'pool');
+                  return (
+                    <ServantCard
+                      key={s.id}
+                      servant={s}
+                      draftStatus={draftStatus}
+                    />
+                  );
+                })}
               </div>
               {filteredServants.length === 0 && (
                 <div className="py-12 text-center text-sm font-bold text-slate-500">

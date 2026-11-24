@@ -38,6 +38,8 @@ export function RulerControlStrip() {
   const setSecretGrailTurn = useGameStore((s) => s.setSecretGrailTurn);
   const toggleFogOfWar = useGameStore((s) => s.toggleFogOfWar);
   const toggleTrueNameConcealment = useGameStore((s) => s.toggleTrueNameConcealment);
+  const toggleExcludeDuplicateSummer = useGameStore((s) => s.toggleExcludeDuplicateSummer);
+  const toggleExcludeDuplicateAlter = useGameStore((s) => s.toggleExcludeDuplicateAlter);
   const toggleGrailManifested = useGameStore((s) => s.toggleGrailManifested);
   const setFreeDragEnabled = useGameStore((s) => s.setFreeDragEnabled);
   const setShowMoveHelper = useGameStore((s) => s.setShowMoveHelper);
@@ -297,6 +299,32 @@ export function RulerControlStrip() {
         >
           <EyeOff className="h-3 w-3" />
           <span>ปิดนามแท้: {roomState.trueNameConcealment ? 'ON' : 'OFF'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={toggleExcludeDuplicateSummer}
+          title="ห้ามร่าง Summer ซ้ำร่างปกติ (ปรับ Pool อัตโนมัติ — Alter ยังอยู่)"
+          className={`rounded-[2px] border px-2 py-0.5 text-[10px] font-bold transition ${
+            roomState.excludeDuplicateSummer
+              ? 'border-cyan-500/80 bg-cyan-950/60 text-cyan-300'
+              : 'border-slate-700 bg-[#090B10] text-slate-500 hover:text-slate-300'
+          }`}
+        >
+          No Dupes: Summer
+        </button>
+
+        <button
+          type="button"
+          onClick={toggleExcludeDuplicateAlter}
+          title="ห้ามร่าง Alter ซ้ำร่างปกติ (ปรับ Pool อัตโนมัติ — Summer ยังอยู่)"
+          className={`rounded-[2px] border px-2 py-0.5 text-[10px] font-bold transition ${
+            roomState.excludeDuplicateAlter
+              ? 'border-fuchsia-500/80 bg-fuchsia-950/60 text-fuchsia-300'
+              : 'border-slate-700 bg-[#090B10] text-slate-500 hover:text-slate-300'
+          }`}
+        >
+          No Dupes: Alter
         </button>
 
         <button

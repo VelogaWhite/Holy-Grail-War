@@ -4,6 +4,7 @@ import { Eye, Sparkles } from 'lucide-react';
 import type { BoardUnit } from '../../types/game';
 import {
   getClassIconUrl,
+  getClassShortLabel,
   getFactionStyle,
   getInitials,
   resolveAssetUrl,
@@ -148,18 +149,24 @@ export function UnitToken({
         </span>
       </div>
 
-      {/* Top-Left: Small Class Icon Badge */}
-      {classIconUrl && !classIconError && (
+      {/* Top-Left: Small Class Icon Badge (with Grail Gold abbreviation fallback) */}
+      {unit.unitType === 'servant' && (
         <div
           title={unit.subClass ? `${unit.servantClass} (${unit.subClass})` : unit.servantClass}
-          className="absolute -top-1 -left-1 flex h-4 w-4 items-center justify-center rounded-full border border-[#C8A253]/70 bg-[#090B10] p-0.5"
+          className="absolute -top-1 -left-1 flex h-4 min-w-[16px] items-center justify-center rounded-full border border-[#C8A253]/70 bg-[#090B10] px-0.5"
         >
-          <img
-            src={classIconUrl}
-            alt={unit.servantClass ?? 'Class'}
-            onError={() => setClassIconError(true)}
-            className="h-full w-full object-contain"
-          />
+          {classIconUrl && !classIconError ? (
+            <img
+              src={classIconUrl}
+              alt={unit.subClass ?? unit.servantClass ?? 'Class'}
+              onError={() => setClassIconError(true)}
+              className="h-3 w-3 object-contain"
+            />
+          ) : (
+            <span className="font-display text-[6.5px] font-bold leading-none text-[#E5C983]">
+              {getClassShortLabel(unit.servantClass, unit.subClass)}
+            </span>
+          )}
         </div>
       )}
 

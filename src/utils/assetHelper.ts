@@ -7,6 +7,19 @@ const SUBCLASS_ICON_MAP: Record<string, string> = {
   alter_ego: '/assets/classes/alter_ego.webp',
   'moon cancer': '/assets/classes/moon_cancer.webp',
   moon_cancer: '/assets/classes/moon_cancer.webp',
+  pretender: '/assets/classes/pretender.webp',
+  foreigner: '/assets/classes/foreigner.webp',
+};
+
+const SUBCLASS_ABBR_MAP: Record<string, string> = {
+  ruler: 'RUL',
+  avenger: 'AVG',
+  'alter ego': 'AE',
+  alter_ego: 'AE',
+  'moon cancer': 'MC',
+  moon_cancer: 'MC',
+  pretender: 'PRT',
+  foreigner: 'FOR',
 };
 
 const CLASS_ICON_MAP: Record<ServantClassId, string> = {
@@ -41,6 +54,21 @@ export function getClassIconUrl(servantClass?: ServantClassId, subClass?: string
     return CLASS_ICON_MAP[servantClass];
   }
   return null;
+}
+
+export function getClassShortLabel(
+  servantClass?: ServantClassId,
+  subClass?: string
+): string {
+  if (subClass) {
+    const key = subClass.trim().toLowerCase();
+    if (SUBCLASS_ABBR_MAP[key]) return SUBCLASS_ABBR_MAP[key];
+    return subClass.slice(0, 3).toUpperCase();
+  }
+  if (servantClass) {
+    return servantClass.slice(0, 3).toUpperCase();
+  }
+  return 'EX';
 }
 
 export function getInitials(name: string): string {

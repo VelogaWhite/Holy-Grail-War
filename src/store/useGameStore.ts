@@ -101,6 +101,51 @@ export function isRoomGameStarted(room: RoomState): boolean {
   return room.gameStarted ?? true;
 }
 
+/**
+ * Returns Servant IDs that must be excluded from the draft pool when `pickedServantId` is assigned.
+ * Strict independent rules:
+ * - excludeSummer (true): excludes ONLY normal <-> summer within the same characterGroup (never alter)
+ * - excludeAlter (true): excludes ONLY normal <-> alter within the same characterGroup (never summer)
+ * - summer <-> alter NEVER exclude each other even when both switches are ON.
+ */
+export function getExcludedVariantIds(
+  pickedServantId: string,
+  excludeSummer: boolean,
+  excludeAlter: boolean
+): string[] {
+  const picked = SERVANTS_BY_ID[pickedServantId];
+  if (!picked || !picked.characterGroup) return [];
+
+  const pickedType = picked.variantType ?? 'normal';
+  const excluded: string[] = [];
+
+  for (const candidate of SERVANTS) {
+    if (candidate.id === picked.id) continue;
+    if (candidate.characterGroup !== picked.characterGroup) continue;
+
+    const candType = candidate.variantType ?? 'normal';
+
+    if (
+      excludeSummer &&
+      ((pickedType === 'normal' && candType === 'summer') ||
+        (pickedType === 'summer' && candType === 'normal'))
+    ) {
+      excluded.push(candidate.id);
+      continue;
+    }
+
+    if (
+      excludeAlter &&
+      ((pickedType === 'normal' && candType === 'alter') ||
+        (pickedType === 'alter' && candType === 'normal'))
+    ) {
+      excluded.push(candidate.id);
+    }
+  }
+
+  return excluded;
+}
+
 export type SessionMode = 'lobby' | 'online' | 'sandbox';
 
 function cloneRoomState(state: RoomState): RoomState {
@@ -225,7 +270,9 @@ function findOpenTileInZone(
 export function createDemoRoomState(
   teamAName = 'Team A (Mount Enzo)',
   teamBName = 'Team B (Shinto City)',
-  trueNameConcealment = false
+  trueNameConcealment = false,
+  excludeDuplicateSummer = true,
+  excludeDuplicateAlter = true
 ): RoomState {
   const teamAServants = [
     'artoria',
@@ -244,6 +291,15 @@ export function createDemoRoomState(
     'bb',
   ];
   const drafted = new Set([...teamAServants, ...teamBServants]);
+  for (const id of [...teamAServants, ...teamBServants]) {
+    for (const ex of getExcludedVariantIds(
+      id,
+      excludeDuplicateSummer,
+      excludeDuplicateAlter
+    )) {
+      drafted.add(ex);
+    }
+  }
 
   const unitsList: BoardUnit[] = [
     createServantUnit('unit_a_1', 'artoria', 'team_a', 'active', { zone: 'central', x: 3, y: 3 }, {
@@ -351,6 +407,8 @@ export function createDemoRoomState(
       hideUnitsInForest: true,
     },
     trueNameConcealment,
+    excludeDuplicateSummer,
+    excludeDuplicateAlter,
     activeMapEvent: {
       id: 'haste_wind',
       title: 'Haste Wind (สายลมเร่งความเร็ว)',
@@ -377,7 +435,9 @@ export function createDemoRoomState(
 export function createFreshDraftRoomState(
   teamAName = 'Team A (Mount Enzo)',
   teamBName = 'Team B (Shinto City)',
-  trueNameConcealment = false
+  trueNameConcealment = false,
+  excludeDuplicateSummer = true,
+  excludeDuplicateAlter = true
 ): RoomState {
   const unitsList: BoardUnit[] = [
     createMonsterUnit('mon_skel_a', 'skeleton', { zone: 'base_a', x: 6, y: 2 }),
@@ -439,6 +499,8 @@ export function createFreshDraftRoomState(
       hideUnitsInForest: true,
     },
     trueNameConcealment,
+    excludeDuplicateSummer,
+    excludeDuplicateAlter,
     activeMapEvent: null,
     wheelBroadcast: null,
     diceBroadcast: null,
@@ -601,6 +663,7 @@ interface GameStoreState {
   unreadChatCount: number;
   logsDrawerTab: 'logs' | 'chat';
   kickedNotice: string | null;
+  rulerVariantNotice: string | null;
 
   // Board / UI State
   activeZone: ZoneId;
@@ -693,9 +756,12 @@ interface GameStoreState {
   approveReinforcement: (masterKey: 'master_a' | 'master_b') => Promise<void>;
   dismissReinforcement: (masterKey: 'master_a' | 'master_b') => Promise<void>;
 
-  // Feature (B): True Name Concealment
+  // Feature (B): True Name Concealment & Variant Exclusion Toggles
   toggleTrueNameConcealment: () => void;
   toggleUnitTrueNameRevealed: (unitId: string) => void;
+  toggleExcludeDuplicateSummer: () => void;
+  toggleExcludeDuplicateAlter: () => void;
+  clearRulerVariantNotice: () => void;
 
   // Master Secret Command Queue & Radial Wheel Actions (Pure Local Client State)
   setDraftOrder: (
@@ -838,6 +904,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     unreadChatCount: 0,
     logsDrawerTab: 'logs',
     kickedNotice: null,
+    rulerVariantNotice: null,
 
     activeZone: 'central',
     selectedUnitId: 'unit_a_1',
@@ -2169,9 +2236,24 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       const tpl = SERVANTS_BY_ID[servantId];
       if (!tpl) return;
       const newId = `unit_${teamId === 'team_a' ? 'a' : 'b'}_${Date.now().toString(36).slice(-4)}`;
+      let secretRulerNotice: string | null = null;
+
       commitRoomMutation((draft) => {
+        const excludeSummer = Boolean(draft.excludeDuplicateSummer);
+        const excludeAlter = Boolean(draft.excludeDuplicateAlter);
+        const candidateExclusions = getExcludedVariantIds(
+          servantId,
+          excludeSummer,
+          excludeAlter
+        );
+        const prevPoolSet = new Set(draft.draftPoolRemaining);
+        const actuallyExcluded = candidateExclusions.filter((id) =>
+          prevPoolSet.has(id)
+        );
+        const removeSet = new Set<string>([servantId, ...actuallyExcluded]);
+
         draft.draftPoolRemaining = draft.draftPoolRemaining.filter(
-          (id) => id !== servantId
+          (id) => !removeSet.has(id)
         );
         draft.units[newId] = createServantUnit(
           newId,
@@ -2185,14 +2267,33 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           draft.wheelBroadcast.isSpinning = false;
           draft.wheelBroadcast.targetTeam = teamId;
         }
-        draft.logs = appendLog(
-          draft,
-          'ruler',
-          draft.trueNameConcealment
-            ? `Draft: ${draft.teams[teamId].name} อัญเชิญวีรชนคลาส ${tpl.servantClass} (ปิดนามแท้)`
-            : `Draft: ${tpl.name} (${tpl.servantClass}) เข้าสู่ทีม ${draft.teams[teamId].name}`
-        );
+
+        const excludedNames = actuallyExcluded
+          .map((id) => SERVANTS_BY_ID[id]?.name ?? id)
+          .join(', ');
+
+        if (draft.trueNameConcealment) {
+          // NEVER leak excluded variant names into public logs under True Name Concealment
+          draft.logs = appendLog(
+            draft,
+            'ruler',
+            `Draft: ${draft.teams[teamId].name} อัญเชิญวีรชนคลาส ${tpl.servantClass} (ปิดนามแท้)`
+          );
+          if (actuallyExcluded.length > 0) {
+            secretRulerNotice = `ตัดร่างซ้ำออกจาก Pool เงียบๆ (เห็นเฉพาะ Ruler): ${excludedNames}`;
+          }
+        } else {
+          draft.logs = appendLog(
+            draft,
+            'ruler',
+            actuallyExcluded.length > 0
+              ? `Draft: ${tpl.name} (${tpl.servantClass}) เข้าสู่ทีม ${draft.teams[teamId].name} — ตัดร่างซ้ำออกจาก Pool: ${excludedNames}`
+              : `Draft: ${tpl.name} (${tpl.servantClass}) เข้าสู่ทีม ${draft.teams[teamId].name}`
+          );
+        }
       });
+
+      set({ rulerVariantNotice: secretRulerNotice });
     },
 
     spawnStrayBossFromWheel: (servantId) => {
@@ -2511,7 +2612,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       }
     },
 
-    // --- Feature (B): True Name Concealment ---
+    // --- Feature (B): True Name Concealment & Variant Exclusion Toggles ---
     toggleTrueNameConcealment: () =>
       commitRoomMutation((draft) => {
         draft.trueNameConcealment = !draft.trueNameConcealment;
@@ -2521,6 +2622,208 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           `${draft.trueNameConcealment ? 'เปิด' : 'ปิด'} โหมดปิดนามแท้ (True Name Concealment)`
         );
       }),
+
+    clearRulerVariantNotice: () => set({ rulerVariantNotice: null }),
+
+    toggleExcludeDuplicateSummer: () => {
+      let secretNotice: string | null = null;
+      commitRoomMutation((draft) => {
+        const prevSummer = Boolean(draft.excludeDuplicateSummer);
+        const prevAlter = Boolean(draft.excludeDuplicateAlter);
+        const nextSummer = !prevSummer;
+        draft.excludeDuplicateSummer = nextSummer;
+
+        const assignedIds = Object.values(draft.units)
+          .filter(
+            (u) =>
+              u.unitType === 'servant' &&
+              (u.owner === 'team_a' || u.owner === 'team_b')
+          )
+          .map((u) => u.templateId);
+
+        const allUsedServantIds = new Set(
+          Object.values(draft.units)
+            .filter((u) => u.unitType === 'servant')
+            .map((u) => u.templateId)
+        );
+
+        const prevExcluded = new Set<string>();
+        const nextExcluded = new Set<string>();
+        for (const id of assignedIds) {
+          for (const ex of getExcludedVariantIds(id, prevSummer, prevAlter)) {
+            prevExcluded.add(ex);
+          }
+          for (const ex of getExcludedVariantIds(id, nextSummer, prevAlter)) {
+            nextExcluded.add(ex);
+          }
+        }
+
+        if (nextSummer) {
+          const removed = draft.draftPoolRemaining.filter((id) =>
+            nextExcluded.has(id)
+          );
+          draft.draftPoolRemaining = draft.draftPoolRemaining.filter(
+            (id) => !nextExcluded.has(id)
+          );
+          if (draft.trueNameConcealment) {
+            draft.logs = appendLog(
+              draft,
+              'ruler',
+              'เปิดกฎ: ห้ามร่าง Summer ซ้ำปกติ (ปรับ Pool อัตโนมัติ)'
+            );
+            if (removed.length > 0) {
+              secretNotice = `ตัดร่าง Summer/ปกติ ซ้ำออก ${removed.length} ตน: ${removed
+                .map((id) => SERVANTS_BY_ID[id]?.name ?? id)
+                .join(', ')}`;
+            }
+          } else {
+            draft.logs = appendLog(
+              draft,
+              'ruler',
+              removed.length > 0
+                ? `เปิดกฎ: ห้ามร่าง Summer ซ้ำปกติ — ตัดออกจาก Pool: ${removed
+                    .map((id) => SERVANTS_BY_ID[id]?.name ?? id)
+                    .join(', ')}`
+                : 'เปิดกฎ: ห้ามร่าง Summer ซ้ำปกติ'
+            );
+          }
+        } else {
+          const poolSet = new Set(draft.draftPoolRemaining);
+          const toRestore: string[] = [];
+          for (const id of prevExcluded) {
+            if (!nextExcluded.has(id) && !allUsedServantIds.has(id) && !poolSet.has(id)) {
+              toRestore.push(id);
+            }
+          }
+          if (toRestore.length > 0) {
+            draft.draftPoolRemaining = [...draft.draftPoolRemaining, ...toRestore];
+          }
+          if (draft.trueNameConcealment) {
+            draft.logs = appendLog(
+              draft,
+              'ruler',
+              'ปิดกฎ: ห้ามร่าง Summer ซ้ำปกติ (ปรับ Pool อัตโนมัติ)'
+            );
+            if (toRestore.length > 0) {
+              secretNotice = `คืนร่าง Summer/ปกติ กลับเข้า Pool ${toRestore.length} ตน: ${toRestore
+                .map((id) => SERVANTS_BY_ID[id]?.name ?? id)
+                .join(', ')}`;
+            }
+          } else {
+            draft.logs = appendLog(
+              draft,
+              'ruler',
+              toRestore.length > 0
+                ? `ปิดกฎ: ห้ามร่าง Summer ซ้ำปกติ — คืนกลับเข้า Pool: ${toRestore
+                    .map((id) => SERVANTS_BY_ID[id]?.name ?? id)
+                    .join(', ')}`
+                : 'ปิดกฎ: ห้ามร่าง Summer ซ้ำปกติ'
+            );
+          }
+        }
+      });
+      set({ rulerVariantNotice: secretNotice });
+    },
+
+    toggleExcludeDuplicateAlter: () => {
+      let secretNotice: string | null = null;
+      commitRoomMutation((draft) => {
+        const prevSummer = Boolean(draft.excludeDuplicateSummer);
+        const prevAlter = Boolean(draft.excludeDuplicateAlter);
+        const nextAlter = !prevAlter;
+        draft.excludeDuplicateAlter = nextAlter;
+
+        const assignedIds = Object.values(draft.units)
+          .filter(
+            (u) =>
+              u.unitType === 'servant' &&
+              (u.owner === 'team_a' || u.owner === 'team_b')
+          )
+          .map((u) => u.templateId);
+
+        const allUsedServantIds = new Set(
+          Object.values(draft.units)
+            .filter((u) => u.unitType === 'servant')
+            .map((u) => u.templateId)
+        );
+
+        const prevExcluded = new Set<string>();
+        const nextExcluded = new Set<string>();
+        for (const id of assignedIds) {
+          for (const ex of getExcludedVariantIds(id, prevSummer, prevAlter)) {
+            prevExcluded.add(ex);
+          }
+          for (const ex of getExcludedVariantIds(id, prevSummer, nextAlter)) {
+            nextExcluded.add(ex);
+          }
+        }
+
+        if (nextAlter) {
+          const removed = draft.draftPoolRemaining.filter((id) =>
+            nextExcluded.has(id)
+          );
+          draft.draftPoolRemaining = draft.draftPoolRemaining.filter(
+            (id) => !nextExcluded.has(id)
+          );
+          if (draft.trueNameConcealment) {
+            draft.logs = appendLog(
+              draft,
+              'ruler',
+              'เปิดกฎ: ห้ามร่าง Alter ซ้ำปกติ (ปรับ Pool อัตโนมัติ)'
+            );
+            if (removed.length > 0) {
+              secretNotice = `ตัดร่าง Alter/ปกติ ซ้ำออก ${removed.length} ตน: ${removed
+                .map((id) => SERVANTS_BY_ID[id]?.name ?? id)
+                .join(', ')}`;
+            }
+          } else {
+            draft.logs = appendLog(
+              draft,
+              'ruler',
+              removed.length > 0
+                ? `เปิดกฎ: ห้ามร่าง Alter ซ้ำปกติ — ตัดออกจาก Pool: ${removed
+                    .map((id) => SERVANTS_BY_ID[id]?.name ?? id)
+                    .join(', ')}`
+                : 'เปิดกฎ: ห้ามร่าง Alter ซ้ำปกติ'
+            );
+          }
+        } else {
+          const poolSet = new Set(draft.draftPoolRemaining);
+          const toRestore: string[] = [];
+          for (const id of prevExcluded) {
+            if (!nextExcluded.has(id) && !allUsedServantIds.has(id) && !poolSet.has(id)) {
+              toRestore.push(id);
+            }
+          }
+          if (toRestore.length > 0) {
+            draft.draftPoolRemaining = [...draft.draftPoolRemaining, ...toRestore];
+          }
+          if (draft.trueNameConcealment) {
+            draft.logs = appendLog(
+              draft,
+              'ruler',
+              'ปิดกฎ: ห้ามร่าง Alter ซ้ำปกติ (ปรับ Pool อัตโนมัติ)'
+            );
+            if (toRestore.length > 0) {
+              secretNotice = `คืนร่าง Alter/ปกติ กลับเข้า Pool ${toRestore.length} ตน: ${toRestore
+                .map((id) => SERVANTS_BY_ID[id]?.name ?? id)
+                .join(', ')}`;
+            }
+          } else {
+            draft.logs = appendLog(
+              draft,
+              'ruler',
+              toRestore.length > 0
+                ? `ปิดกฎ: ห้ามร่าง Alter ซ้ำปกติ — คืนกลับเข้า Pool: ${toRestore
+                    .map((id) => SERVANTS_BY_ID[id]?.name ?? id)
+                    .join(', ')}`
+                : 'ปิดกฎ: ห้ามร่าง Alter ซ้ำปกติ'
+            );
+          }
+        }
+      });
+      set({ rulerVariantNotice: secretNotice });
+    },
 
     toggleUnitTrueNameRevealed: (unitId) =>
       commitRoomMutation((draft) => {

@@ -50,6 +50,8 @@ export async function createOnlineRoom(params: {
   rulerName?: string;
   rulerPin?: string;
   secretGrailTurn: 10 | 11 | 12;
+  excludeDuplicateSummer?: boolean;
+  excludeDuplicateAlter?: boolean;
 }): Promise<{ roomId: string; roomState: RoomDocWithPin }> {
   const roomId = generateRoomCode();
   const roomRef = doc(db, 'rooms', roomId);
@@ -67,6 +69,14 @@ export async function createOnlineRoom(params: {
     roomId,
     createdAt: now,
     gameStarted: false,
+    excludeDuplicateSummer:
+      params.excludeDuplicateSummer ??
+      params.initialState.excludeDuplicateSummer ??
+      true,
+    excludeDuplicateAlter:
+      params.excludeDuplicateAlter ??
+      params.initialState.excludeDuplicateAlter ??
+      true,
     seats: {
       rulerUid: params.rulerUid,
       masterAUid: null,

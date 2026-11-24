@@ -44,6 +44,8 @@ export function LobbyView() {
   const [teamBName, setTeamBName] = useState('Team B (Shinto City)');
   const [rulerPin, setRulerPin] = useState('');
   const [trueNameConcealment, setTrueNameConcealment] = useState(false);
+  const [excludeDuplicateSummer, setExcludeDuplicateSummer] = useState(true);
+  const [excludeDuplicateAlter, setExcludeDuplicateAlter] = useState(true);
   const [startWithDemo, setStartWithDemo] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -116,8 +118,20 @@ export function LobbyView() {
     try {
       const cleanRulerName = rulerName.trim() || 'Ruler';
       const initialState = startWithDemo
-        ? createDemoRoomState(teamAName, teamBName, trueNameConcealment)
-        : createFreshDraftRoomState(teamAName, teamBName, trueNameConcealment);
+        ? createDemoRoomState(
+            teamAName,
+            teamBName,
+            trueNameConcealment,
+            excludeDuplicateSummer,
+            excludeDuplicateAlter
+          )
+        : createFreshDraftRoomState(
+            teamAName,
+            teamBName,
+            trueNameConcealment,
+            excludeDuplicateSummer,
+            excludeDuplicateAlter
+          );
       const secretTurn = randomSecretGrailTurn();
 
       const { roomId, roomState } = await createOnlineRoom({
@@ -126,6 +140,8 @@ export function LobbyView() {
         rulerName: cleanRulerName,
         rulerPin: rulerPin.trim() || undefined,
         secretGrailTurn: secretTurn,
+        excludeDuplicateSummer,
+        excludeDuplicateAlter,
       });
 
       enterOnlineRoom(roomId, 'ruler', roomState, cleanRulerName);
@@ -316,6 +332,36 @@ export function LobbyView() {
                     className="h-3.5 w-3.5 accent-[#C8A253]"
                   />
                   <span>โหมดปิดนามแท้ (True Name Concealment — ศัตรูเห็นเฉพาะคลาส)</span>
+                </label>
+
+                <label className="flex cursor-pointer items-start gap-2 text-xs text-cyan-300">
+                  <input
+                    type="checkbox"
+                    checked={excludeDuplicateSummer}
+                    onChange={(e) => setExcludeDuplicateSummer(e.target.checked)}
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-cyan-400"
+                  />
+                  <span>
+                    ห้ามร่าง Summer ซ้ำปกติ{' '}
+                    <span className="text-[10.5px] text-slate-400">
+                      (ได้ Summer → ร่างปกติหาย, Alter ยังอยู่)
+                    </span>
+                  </span>
+                </label>
+
+                <label className="flex cursor-pointer items-start gap-2 text-xs text-fuchsia-300">
+                  <input
+                    type="checkbox"
+                    checked={excludeDuplicateAlter}
+                    onChange={(e) => setExcludeDuplicateAlter(e.target.checked)}
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-fuchsia-400"
+                  />
+                  <span>
+                    ห้ามร่าง Alter ซ้ำปกติ{' '}
+                    <span className="text-[10.5px] text-slate-400">
+                      (ได้ Alter → ร่างปกติหาย, Summer ยังอยู่)
+                    </span>
+                  </span>
                 </label>
 
                 <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-300">

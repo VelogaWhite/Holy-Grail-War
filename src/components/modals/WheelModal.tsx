@@ -14,7 +14,7 @@ import {
   VolumeX,
   X,
 } from 'lucide-react';
-import { EVENTS, SERVANTS_BY_ID } from '../../data';
+import { EVENTS, SERVANTS, SERVANTS_BY_ID } from '../../data';
 import { useGameStore } from '../../store/useGameStore';
 import type {
   GameEventTemplate,
@@ -24,6 +24,7 @@ import type {
 } from '../../types/game';
 import {
   getClassIconUrl,
+  getClassShortLabel,
   getInitials,
   resolveAssetUrl,
 } from '../../utils/assetHelper';
@@ -218,6 +219,7 @@ function ServantTapeCard({
   masked?: boolean;
 }) {
   const [imgErr, setImgErr] = useState(false);
+  const [classIconErr, setClassIconErr] = useState(false);
   const imgUrl = resolveAssetUrl(servant.image);
   const classIconUrl = getClassIconUrl(servant.servantClass, servant.subClass);
   const clsStyle = getClassBarStyle(servant.servantClass);
@@ -235,15 +237,18 @@ function ServantTapeCard({
       <div className="relative h-[108px] w-full overflow-hidden bg-[#090B10]">
         {masked ? (
           <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-b from-[#172033] to-[#090B10]">
-            {classIconUrl ? (
+            {classIconUrl && !classIconErr ? (
               <img
                 src={classIconUrl}
                 alt={servant.servantClass}
+                onError={() => setClassIconErr(true)}
                 className="h-12 w-12 object-contain opacity-95"
                 draggable={false}
               />
             ) : (
-              <span className="font-display text-xl font-bold text-[#C8A253]">???</span>
+              <span className="flex h-12 w-12 items-center justify-center rounded-full border border-[#C8A253]/70 bg-[#111622] font-display text-sm font-bold text-[#E5C983]">
+                {getClassShortLabel(servant.servantClass, servant.subClass)}
+              </span>
             )}
           </div>
         ) : imgUrl && !imgErr ? (
@@ -262,13 +267,20 @@ function ServantTapeCard({
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-[#111622] to-transparent" />
 
         {/* Class Icon Top-Left (when unmasked) */}
-        {!masked && classIconUrl && (
-          <div className="absolute top-1.5 left-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-[#C8A253]/60 bg-[#090B10]/90 p-0.5">
-            <img
-              src={classIconUrl}
-              alt={servant.servantClass}
-              className="h-full w-full object-contain"
-            />
+        {!masked && (
+          <div className="absolute top-1.5 left-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full border border-[#C8A253]/60 bg-[#090B10]/90 px-0.5">
+            {classIconUrl && !classIconErr ? (
+              <img
+                src={classIconUrl}
+                alt={servant.subClass ?? servant.servantClass}
+                onError={() => setClassIconErr(true)}
+                className="h-4 w-4 object-contain"
+              />
+            ) : (
+              <span className="font-display text-[7px] font-bold text-[#E5C983]">
+                {getClassShortLabel(servant.servantClass, servant.subClass)}
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -358,6 +370,8 @@ export function WheelModal() {
   const setWheelOpen = useGameStore((s) => s.setWheelOpen);
   const previewRole = useGameStore((s) => s.previewRole);
   const roomState = useGameStore((s) => s.roomState);
+  const rulerVariantNotice = useGameStore((s) => s.rulerVariantNotice);
+  const clearRulerVariantNotice = useGameStore((s) => s.clearRulerVariantNotice);
   const spinWheel = useGameStore((s) => s.spinWheel);
   const assignDraftedServant = useGameStore((s) => s.assignDraftedServant);
   const spawnStrayBossFromWheel = useGameStore((s) => s.spawnStrayBossFromWheel);
@@ -373,6 +387,8 @@ export function WheelModal() {
   const [selectedMode, setSelectedMode] = useState<WheelMode>('servant_draft');
   const [draftTarget, setDraftTarget] = useState<'team_a' | 'team_b' | 'stray'>('team_a');
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [spotlightIconErrId, setSpotlightIconErrId] = useState<string | null>(null);
+  const [spotlightImgErrId, setSpotlightImgErrId] = useState<string | null>(null);
   const [animating, setAnimating] = useState(false);
   const [translateX, setTranslateX] = useState(0);
   const [useTransition, setUseTransition] = useState(false);
@@ -687,11 +703,57 @@ export function WheelModal() {
                 }`}
               >
                 {t.label}
-                {t.id === 'servant_draft' ? ` (${roomState.draftPoolRemaining.length})` : ''}
+                {t.id === 'servant_draft'
+                  ? ` (${roomState.draftPoolRemaining.length}/${SERVANTS.length})`
+                  : ''}
               </button>
             );
           })}
         </div>
+
+        {/* Servant Draft Pool & Variant Exclusion Status Bar */}
+        {selectedMode === 'servant_draft' && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 bg-[#0D121D] px-5 py-1.5 text-[10.5px]">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold text-slate-400">
+                คงเหลือใน Pool:{' '}
+                <strong className="font-mono text-[#E5C983]">
+                  {roomState.draftPoolRemaining.length} / {SERVANTS.length}
+                </strong>
+              </span>
+              <span
+                className={`rounded-[2px] border px-1.5 py-px font-bold ${
+                  roomState.excludeDuplicateSummer
+                    ? 'border-cyan-500/60 bg-cyan-950/50 text-cyan-300'
+                    : 'border-slate-700 bg-[#090B10] text-slate-500'
+                }`}
+              >
+                No Dupes Summer: {roomState.excludeDuplicateSummer ? 'ON' : 'OFF'}
+              </span>
+              <span
+                className={`rounded-[2px] border px-1.5 py-px font-bold ${
+                  roomState.excludeDuplicateAlter
+                    ? 'border-fuchsia-500/60 bg-fuchsia-950/50 text-fuchsia-300'
+                    : 'border-slate-700 bg-[#090B10] text-slate-500'
+                }`}
+              >
+                No Dupes Alter: {roomState.excludeDuplicateAlter ? 'ON' : 'OFF'}
+              </span>
+            </div>
+            {isRuler && rulerVariantNotice && (
+              <div className="flex items-center gap-1.5 rounded-[2px] border border-amber-500/50 bg-amber-950/40 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
+                <span>🔒 {rulerVariantNotice}</span>
+                <button
+                  type="button"
+                  onClick={clearRulerVariantNotice}
+                  className="text-amber-400 hover:text-white"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* CS:GO Horizontal Roulette Tape Viewport */}
         <div className="p-5">
@@ -773,16 +835,26 @@ export function WheelModal() {
                   isMaskedDraftForViewer ? (
                     <div className="flex flex-col items-center py-2 text-center">
                       <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[#C8A253] bg-[#111622] p-2">
-                        <img
-                          src={
-                            getClassIconUrl(
+                        {spotlightIconErrId !== draftedServantTpl.id ? (
+                          <img
+                            src={
+                              getClassIconUrl(
+                                draftedServantTpl.servantClass,
+                                draftedServantTpl.subClass
+                              ) ?? ''
+                            }
+                            alt={draftedServantTpl.subClass ?? draftedServantTpl.servantClass}
+                            onError={() => setSpotlightIconErrId(draftedServantTpl.id)}
+                            className="h-full w-full object-contain"
+                          />
+                        ) : (
+                          <span className="font-display text-sm font-bold text-[#E5C983]">
+                            {getClassShortLabel(
                               draftedServantTpl.servantClass,
                               draftedServantTpl.subClass
-                            ) ?? ''
-                          }
-                          alt={draftedServantTpl.servantClass}
-                          className="h-full w-full object-contain"
-                        />
+                            )}
+                          </span>
+                        )}
                       </div>
                       <h3 className="mt-2 font-display text-base font-bold tracking-wider text-[#E5C983]">
                         {broadcast?.targetTeam === 'team_a' ? 'Team A' : 'Team B'}{' '}
@@ -794,11 +866,18 @@ export function WheelModal() {
                     </div>
                   ) : (
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                    <img
-                      src={resolveAssetUrl(draftedServantTpl.image) ?? ''}
-                      alt={draftedServantTpl.name}
-                      className="h-20 w-20 shrink-0 rounded-[2px] border-2 border-[#E5C983] object-cover object-top shadow-[0_0_14px_rgba(200,162,83,0.45)]"
-                    />
+                    {spotlightImgErrId !== draftedServantTpl.id ? (
+                      <img
+                        src={resolveAssetUrl(draftedServantTpl.image) ?? ''}
+                        alt={draftedServantTpl.name}
+                        onError={() => setSpotlightImgErrId(draftedServantTpl.id)}
+                        className="h-20 w-20 shrink-0 rounded-[2px] border-2 border-[#E5C983] object-cover object-top shadow-[0_0_14px_rgba(200,162,83,0.45)]"
+                      />
+                    ) : (
+                      <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[2px] border-2 border-[#E5C983] bg-slate-800 font-display text-lg font-bold text-[#E5C983] shadow-[0_0_14px_rgba(200,162,83,0.45)]">
+                        {getInitials(draftedServantTpl.name)}
+                      </div>
+                    )}
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="font-display text-lg font-bold tracking-wider text-[#E5C983]">
@@ -810,6 +889,16 @@ export function WheelModal() {
                             ? ` · ${draftedServantTpl.subClass}`
                             : ''}
                         </span>
+                        {draftedServantTpl.variantType === 'summer' && (
+                          <span className="rounded-[2px] border border-cyan-500/60 bg-cyan-950/60 px-1.5 py-0.5 text-[9.5px] font-bold text-cyan-300">
+                            Summer
+                          </span>
+                        )}
+                        {draftedServantTpl.variantType === 'alter' && (
+                          <span className="rounded-[2px] border border-fuchsia-500/60 bg-fuchsia-950/60 px-1.5 py-0.5 text-[9.5px] font-bold text-fuchsia-300">
+                            Alter
+                          </span>
+                        )}
                         <span className="font-mono text-xs font-bold text-slate-300">
                           HP {draftedServantTpl.hp} · ATK {draftedServantTpl.atk} · MOV{' '}
                           {draftedServantTpl.mov} · RNG {draftedServantTpl.range}

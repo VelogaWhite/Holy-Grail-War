@@ -206,6 +206,8 @@ export interface RoomState {
   tileOverrides: Record<string, TileOverride>;
   fogConfig: FogConfig;
   trueNameConcealment: boolean;
+  excludeDuplicateSummer?: boolean;
+  excludeDuplicateAlter?: boolean;
   activeMapEvent: { id: string; title: string; description: string } | null;
   wheelBroadcast: WheelBroadcast | null;
   diceBroadcast: DiceBroadcast | null;
@@ -229,11 +231,15 @@ export interface ClassDefinition {
   traitNote: string;
 }
 
+export type ServantVariantType = 'normal' | 'summer' | 'alter';
+
 export interface ServantTemplate {
   id: string;
   name: string;
   servantClass: ServantClassId;
   subClass?: string;
+  characterGroup?: string;
+  variantType?: ServantVariantType;
   hp: number;
   atk: number;
   mov: number;
