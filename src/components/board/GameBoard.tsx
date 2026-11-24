@@ -9,13 +9,14 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { AlertTriangle, Crosshair, Footprints, Skull } from 'lucide-react';
-import { MAP_DATA, MONSTERS_BY_ID } from '../../data';
+import { MAP_DATA, MONSTERS_BY_ID, SERVANTS_BY_ID } from '../../data';
 import { useGameStore } from '../../store/useGameStore';
 import type { BoardUnit, Coordinates, SpecialTile, TeamId } from '../../types/game';
 import { getTileKey } from '../../utils/assetHelper';
 import {
   computeAttackRangeTiles,
   computeMovementAnalysis,
+  computeNpRangeTiles,
   formatMpCost,
 } from '../../utils/gridMath';
 import { isUnitIdentityHidden } from '../../utils/visibilityHelper';
@@ -194,14 +195,24 @@ export function GameBoard() {
     : undefined;
   const pickingActionType = pickingOrder?.actionType ?? 'move';
   const isMoveConstrainedAction = pickingActionType === 'move';
-  const isCombatPickingAction =
-    Boolean(pickingUnit) &&
-    (pickingActionType === 'attack' || pickingActionType === 'np');
+  const isAttackPickingAction = Boolean(pickingUnit && pickingActionType === 'attack');
+  const isNpPickingAction = Boolean(pickingUnit && pickingActionType === 'np');
+  const isCombatPickingAction = isAttackPickingAction || isNpPickingAction;
   const isOverrideUnlocked = Boolean(pickingOrder?.overrideMoveRange);
   const isStrictMovePick = Boolean(
     pickingUnit &&
       pickingUnit.unitType === 'servant' &&
       isMoveConstrainedAction &&
+      !isOverrideUnlocked
+  );
+  const isStrictAttackPick = Boolean(
+    isAttackPickingAction &&
+      pickingUnit?.unitType === 'servant' &&
+      !isOverrideUnlocked
+  );
+  const isStrictNpPick = Boolean(
+    isNpPickingAction &&
+      pickingUnit?.unitType === 'servant' &&
       !isOverrideUnlocked
   );
   const hasteBonus = roomState.activeMapEvent?.id === 'haste_wind' ? 1 : 0;
@@ -218,7 +229,7 @@ export function GameBoard() {
     if (!analysisTargetUnit || analysisTargetUnit.unitType !== 'servant') {
       return null;
     }
-    // When Master is picking an Attack/NP target, focus cleanly on Attack Range Overlay from current tile
+    // When Master is picking an Attack/NP target, focus cleanly on Attack/NP Range Overlay from current tile
     if (isCombatPickingAction) {
       return null;
     }
@@ -256,6 +267,29 @@ export function GameBoard() {
     if (!isRuler && myTeam && analysisTargetUnit.owner !== myTeam) return null;
     return computeAttackRangeTiles(analysisTargetUnit);
   }, [pickingUnit, showMoveHelper, analysisTargetUnit, isRuler, myTeam]);
+
+  const npRangeAnalysis = useMemo(() => {
+    if (!analysisTargetUnit || analysisTargetUnit.unitType !== 'servant') {
+      return null;
+    }
+    if (!isNpPickingAction) {
+      return null;
+    }
+    if (!isRuler && myTeam && analysisTargetUnit.owner !== myTeam) return null;
+    const tpl = SERVANTS_BY_ID[analysisTargetUnit.templateId];
+    return computeNpRangeTiles(analysisTargetUnit, tpl?.npDesc);
+  }, [isNpPickingAction, analysisTargetUnit, isRuler, myTeam]);
+
+  const activeCombatRangeTiles = isNpPickingAction
+    ? npRangeAnalysis?.tiles ?? null
+    : attackRangeAnalysis?.tiles ?? null;
+  const combatRangeMode: 'attack' | 'np' | 'passive' | null = isAttackPickingAction
+    ? 'attack'
+    : isNpPickingAction
+      ? 'np'
+      : attackRangeAnalysis
+        ? 'passive'
+        : null;
 
   // Hover Path Preview coordinates inside activeZone
   const hoverPathPoints = useMemo(() => {
@@ -309,6 +343,10 @@ export function GameBoard() {
 
   const handleTileClick = (coords: Coordinates, unitOnTile?: BoardUnit) => {
     if (!isRuler && pickingOrderForUnitId) {
+      if (pickingActionType === 'guard') {
+        setPickingOrderForUnitId(null);
+        return;
+      }
       const key = getTileKey(coords.zone, coords.x, coords.y);
       const reachable = movementAnalysis?.reachable[key];
       if (isStrictMovePick && !reachable) {
@@ -316,6 +354,20 @@ export function GameBoard() {
           unitId: pickingOrderForUnitId,
           message:
             'อยู่นอกระยะเดิน (MP) — เลือกได้เฉพาะช่องสีเขียว/ส้ม หรือติ๊ก "ปลดล็อกระยะ" หากใช้สกิล/บัฟ/วาร์ป',
+        });
+        return;
+      }
+      if (isStrictAttackPick && !activeCombatRangeTiles?.has(key)) {
+        setPickWarning({
+          unitId: pickingOrderForUnitId,
+          message: `อยู่นอกระยะโจมตี (Range ${attackRangeAnalysis?.effectiveRange ?? 1}) — เลือกช่องสีแดง หรือติ๊ก "ปลดล็อกระยะ"`,
+        });
+        return;
+      }
+      if (isStrictNpPick && !activeCombatRangeTiles?.has(key)) {
+        setPickWarning({
+          unitId: pickingOrderForUnitId,
+          message: `อยู่นอกระยะ NP (${npRangeAnalysis?.rangeLabel ?? ''}) — เลือกช่องสีทอง หรือติ๊ก "ปลดล็อกระยะ"`,
         });
         return;
       }
@@ -338,11 +390,12 @@ export function GameBoard() {
         unit.status === 'active';
       const canPlanNow =
         roomState.phase === 'planning' && !roomState.teams[myTeam].readyLocked;
+      const clickedUnitAction = draftOrders[unit.id]?.actionType ?? 'move';
 
-      // Board-First Command Selection: clicking own active Servant in Planning immediately opens Smart Target Picker
+      // Board-First Command Selection: clicking own active Servant in Planning immediately opens Smart Target Picker (NEVER for Guard)
       if (!pickingOrderForUnitId) {
         selectUnit(unit.id);
-        if (isOwnActiveServant && canPlanNow) {
+        if (isOwnActiveServant && canPlanNow && clickedUnitAction !== 'guard') {
           setPickWarning(null);
           setPickingOrderForUnitId(unit.id);
         }
@@ -360,16 +413,37 @@ export function GameBoard() {
       if (isOwnActiveServant && isStrictMovePick && canPlanNow) {
         setPickWarning(null);
         selectUnit(unit.id);
-        setPickingOrderForUnitId(unit.id);
+        setPickingOrderForUnitId(
+          clickedUnitAction === 'guard' ? null : unit.id
+        );
         return;
       }
 
       if (unit.position) {
+        const key = getTileKey(
+          unit.position.zone,
+          unit.position.x,
+          unit.position.y
+        );
         if (isStrictMovePick) {
           setPickWarning({
             unitId: pickingOrderForUnitId,
             message:
               'ช่องนี้มีตัวละครยืนอยู่แล้ว — เลือกช่องว่างในระยะเดินสีเขียว/ส้ม หรือติ๊ก "ปลดล็อกระยะ"',
+          });
+          return;
+        }
+        if (isStrictAttackPick && !activeCombatRangeTiles?.has(key)) {
+          setPickWarning({
+            unitId: pickingOrderForUnitId,
+            message: `เป้าหมายอยู่นอกระยะโจมตี (Range ${attackRangeAnalysis?.effectiveRange ?? 1}) — เลือกยูนิตในกรอบสีแดง หรือติ๊ก "ปลดล็อกระยะ"`,
+          });
+          return;
+        }
+        if (isStrictNpPick && !activeCombatRangeTiles?.has(key)) {
+          setPickWarning({
+            unitId: pickingOrderForUnitId,
+            message: `เป้าหมายอยู่นอกระยะ NP (${npRangeAnalysis?.rangeLabel ?? ''}) — เลือกยูนิตในกรอบสีทอง หรือติ๊ก "ปลดล็อกระยะ"`,
           });
           return;
         }
@@ -439,10 +513,15 @@ export function GameBoard() {
                     </span>
                   )}
                 </>
-              ) : isCombatPickingAction ? (
+              ) : isAttackPickingAction ? (
                 <span>
-                  ⚔️ Attack ก่อน Move: เลือกเป้าหมายในระยะ {attackRangeAnalysis?.effectiveRange ?? 1} ช่อง
-                  {attackRangeAnalysis?.highGroundBonus ? ' (+1 High Ground)' : ''} จากตำแหน่งปัจจุบันของ{' '}
+                  ⚔️ Attack ก่อน Move: เลือกเป้าหมายในช่องสีแดง (ระยะ {attackRangeAnalysis?.effectiveRange ?? 1} ช่อง
+                  {attackRangeAnalysis?.highGroundBonus ? ' +1 High Ground' : ''}) สำหรับ{' '}
+                  {roomState.units[pickingOrderForUnitId]?.name}
+                </span>
+              ) : isNpPickingAction ? (
+                <span>
+                  🔥 Noble Phantasm: เลือกเป้าหมายในช่องสีทอง (ระยะ {npRangeAnalysis?.rangeLabel ?? '1 ช่อง'}) สำหรับ{' '}
                   {roomState.units[pickingOrderForUnitId]?.name}
                 </span>
               ) : isOverrideUnlocked ? (
@@ -563,8 +642,18 @@ export function GameBoard() {
                       lockedTile.y === y
                   );
                   const reachableInfo = movementAnalysis?.reachable[tileKey];
-                  const isInAttackRange = Boolean(attackRangeAnalysis?.tiles.has(tileKey));
-                  const isBlockedPick = isStrictMovePick && !reachableInfo;
+                  const isInAttackRange = Boolean(activeCombatRangeTiles?.has(tileKey));
+                  const isCasterTile = Boolean(
+                    pickingUnit?.position &&
+                      pickingUnit.position.zone === activeZone &&
+                      pickingUnit.position.x === x &&
+                      pickingUnit.position.y === y
+                  );
+                  const isBlockedPick =
+                    (isStrictMovePick && !reachableInfo) ||
+                    ((isStrictAttackPick || isStrictNpPick) &&
+                      !isInAttackRange &&
+                      !isCasterTile);
                   const hiddenIdentity = unit
                     ? isUnitIdentityHidden(unit, previewRole, roomState)
                     : false;
@@ -589,6 +678,7 @@ export function GameBoard() {
                       deploymentPreview={deploymentPreview}
                       reachableInfo={reachableInfo}
                       isInAttackRange={isInAttackRange}
+                      combatRangeMode={combatRangeMode}
                       isBlockedPick={isBlockedPick}
                       isSpawnMode={Boolean(
                         (isRuler && pendingSpawnMonsterId) ||

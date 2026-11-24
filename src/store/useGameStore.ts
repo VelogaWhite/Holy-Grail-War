@@ -1258,10 +1258,21 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           stance: 'defensive',
           note: '',
         };
+        const merged: CommandOrder = { ...existing, ...patch, unitId };
+        const isGuard = merged.actionType === 'guard';
+        if (isGuard) {
+          merged.targetPosition = undefined;
+          merged.targetUnitId = undefined;
+          merged.estimatedMoveCost = undefined;
+          merged.overrideMoveRange = false;
+        }
         return {
+          ...(isGuard && state.pickingOrderForUnitId === unitId
+            ? { pickingOrderForUnitId: null }
+            : {}),
           draftOrders: {
             ...state.draftOrders,
-            [unitId]: { ...existing, ...patch, unitId },
+            [unitId]: merged,
           },
         };
       }),
@@ -1343,6 +1354,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           stance: 'defensive',
           note: '',
         };
+        if (existing.actionType === 'guard') {
+          return { pickingOrderForUnitId: null };
+        }
         return {
           pickingOrderForUnitId: null,
           draftOrders: {

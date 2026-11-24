@@ -49,6 +49,7 @@ interface GridTileProps {
   deploymentPreview?: { name: string; team: 'team_a' | 'team_b' } | null;
   reachableInfo?: ReachableTileInfo;
   isInAttackRange?: boolean;
+  combatRangeMode?: 'attack' | 'np' | 'passive' | null;
   isBlockedPick?: boolean;
   isSpawnMode: boolean;
   onSelectUnit: (unitId: string) => void;
@@ -90,6 +91,7 @@ export function GridTile({
   deploymentPreview = null,
   reachableInfo,
   isInAttackRange = false,
+  combatRangeMode = null,
   isBlockedPick = false,
   isSpawnMode,
   onSelectUnit,
@@ -248,13 +250,44 @@ export function GridTile({
           : ''
       }`}
     >
-      {/* Out-of-range Dimmer during Strict Move Pick */}
+      {/* Out-of-range Dimmer during Strict Move / Attack / NP Pick */}
       {isBlockedPick && (
-        <div className="pointer-events-none absolute inset-0 z-[5] bg-[#090B10]/45" />
+        <div className="pointer-events-none absolute inset-0 z-[14] bg-[#090B10]/55" />
       )}
-      {/* Attack Range Visual Helper Overlay (subtle crimson frame) */}
-      {isInAttackRange && (
-        <div className="pointer-events-none absolute inset-0 z-[4] rounded-[2px] border border-red-500/55 bg-red-500/10" />
+
+      {/* Attack / NP Range Visual Helper Overlay */}
+      {isInAttackRange && combatRangeMode === 'attack' && (
+        <div className="pointer-events-none absolute inset-0.5 z-[15] rounded-[2px] border-2 border-rose-500 bg-rose-500/24 shadow-[inset_0_0_12px_rgba(244,63,94,0.45)]">
+          {!unit && (
+            <span className="absolute top-0.5 left-0.5 rounded-[2px] bg-rose-950/95 px-1 py-px font-mono text-[7.5px] font-extrabold leading-none text-rose-200">
+              ATK
+            </span>
+          )}
+          {unit && (
+            <span className="absolute top-0.5 right-0.5 rounded-[2px] border border-rose-300/80 bg-rose-600 px-1 py-px font-mono text-[7.5px] font-extrabold leading-none text-white shadow">
+              TARGET
+            </span>
+          )}
+        </div>
+      )}
+
+      {isInAttackRange && combatRangeMode === 'np' && (
+        <div className="pointer-events-none absolute inset-0.5 z-[15] rounded-[2px] border-2 border-amber-400 bg-amber-500/24 shadow-[inset_0_0_12px_rgba(245,158,11,0.48)]">
+          {!unit && (
+            <span className="absolute top-0.5 left-0.5 rounded-[2px] bg-amber-950/95 px-1 py-px font-mono text-[7.5px] font-extrabold leading-none text-amber-200">
+              NP
+            </span>
+          )}
+          {unit && (
+            <span className="absolute top-0.5 right-0.5 rounded-[2px] border border-amber-200/80 bg-amber-500 px-1 py-px font-mono text-[7.5px] font-extrabold leading-none text-[#090B10] shadow">
+              NP HIT
+            </span>
+          )}
+        </div>
+      )}
+
+      {isInAttackRange && combatRangeMode === 'passive' && (
+        <div className="pointer-events-none absolute inset-0 z-[4] rounded-[2px] border border-red-500/45 bg-red-500/10" />
       )}
 
       {/* Movement & ZoC Visual Helper Overlay (non-blocking) */}

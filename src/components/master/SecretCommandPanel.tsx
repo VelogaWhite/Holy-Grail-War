@@ -169,8 +169,8 @@ export function SecretCommandPanel() {
             note: '',
           };
           const currentStance: StanceType = order.stance ?? 'defensive';
-          const isGuardEvade =
-            order.actionType === 'guard' && currentStance === 'evade';
+          const isGuardAction = order.actionType === 'guard';
+          const isGuardEvade = isGuardAction && currentStance === 'evade';
           const isMoveEvade =
             order.actionType === 'move' && currentStance === 'evade';
           const isCombatAction =
@@ -353,8 +353,8 @@ export function SecretCommandPanel() {
                   ))}
                 </select>
 
-                {/* Pick Tile / Unit Button (hidden when Guard + Evade since retreat is reactive) */}
-                {!isGuardEvade && (
+                {/* Pick Tile / Unit Button (hidden whenever Guard is selected — Guard never targets a tile) */}
+                {!isGuardAction && (
                   <button
                     type="button"
                     disabled={isLocked}
@@ -385,9 +385,27 @@ export function SecretCommandPanel() {
                 </div>
               )}
 
-              {isGuardEvade && (
-                <div className="mt-1.5 rounded-[2px] border border-emerald-500/60 bg-emerald-950/45 px-2 py-1 text-[10px] font-semibold text-emerald-200">
-                  💨 <strong>Guard + Evade:</strong> ลดดาเมจ 50% และถอยหลัง 1 ช่องนับจากทิศศัตรูเมื่อถูกโจมตี (ไม่ต้องเลือกช่องปลายทางล่วงหน้า)
+              {isGuardAction && (
+                <div
+                  className={`mt-1.5 rounded-[2px] border px-2 py-1 text-[10px] font-semibold ${
+                    isGuardEvade
+                      ? 'border-emerald-500/60 bg-emerald-950/45 text-emerald-200'
+                      : 'border-sky-500/50 bg-sky-950/35 text-sky-200'
+                  }`}
+                >
+                  {isGuardEvade ? (
+                    <>
+                      💨 <strong>Guard + Evade:</strong> ลดดาเมจ 50% และถอยหลัง 1 ช่องนับจากทิศศัตรูเมื่อถูกโจมตี (ไม่ต้องเลือกช่องปลายทาง)
+                    </>
+                  ) : currentStance === 'defensive' ? (
+                    <>
+                      🛡️ <strong>Guard + Defensive:</strong> ลดดาเมจรวม 60% (ปัดลง) · ตั้งรับอยู่กับที่ (ไม่ต้องเลือกช่อง)
+                    </>
+                  ) : (
+                    <>
+                      ⚔️ <strong>Guard + Attack:</strong> ลดดาเมจ 50% + สวนกลับ 50% ATK (ใน Range) · ตั้งรับอยู่กับที่ (ไม่ต้องเลือกช่อง)
+                    </>
+                  )}
                 </div>
               )}
 
@@ -498,28 +516,30 @@ export function SecretCommandPanel() {
                 </div>
               )}
 
-              {/* Unlock Range Override Checkbox */}
-              <label
-                className={`mt-1.5 flex items-center gap-1.5 text-[10px] ${
-                  isLocked
-                    ? 'cursor-not-allowed text-slate-600'
-                    : order.overrideMoveRange
-                      ? 'cursor-pointer font-semibold text-amber-300'
-                      : 'cursor-pointer text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  disabled={isLocked}
-                  checked={Boolean(order.overrideMoveRange)}
-                  onChange={(e) =>
-                    setDraftOrder(unit.id, { overrideMoveRange: e.target.checked })
-                  }
-                  className="h-3 w-3 accent-amber-500"
-                />
-                <Unlock className="h-2.5 w-2.5 shrink-0" />
-                <span>ปลดล็อกระยะ (สกิล/บัฟ/วาร์ป)</span>
-              </label>
+              {/* Unlock Range Override Checkbox (hidden for Guard) */}
+              {!isGuardAction && (
+                <label
+                  className={`mt-1.5 flex items-center gap-1.5 text-[10px] ${
+                    isLocked
+                      ? 'cursor-not-allowed text-slate-600'
+                      : order.overrideMoveRange
+                        ? 'cursor-pointer font-semibold text-amber-300'
+                        : 'cursor-pointer text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    disabled={isLocked}
+                    checked={Boolean(order.overrideMoveRange)}
+                    onChange={(e) =>
+                      setDraftOrder(unit.id, { overrideMoveRange: e.target.checked })
+                    }
+                    className="h-3 w-3 accent-amber-500"
+                  />
+                  <Unlock className="h-2.5 w-2.5 shrink-0" />
+                  <span>ปลดล็อกระยะ (สกิล/บัฟ/วาร์ป)</span>
+                </label>
+              )}
 
               {/* Selected Target Readout */}
               {order.targetPosition && (

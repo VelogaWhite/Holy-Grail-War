@@ -85,6 +85,105 @@ export function computeAttackRangeTiles(unit: BoardUnit): AttackRangeAnalysis {
   return { tiles, baseRange, effectiveRange, highGroundBonus };
 }
 
+export interface NpRangeAnalysis {
+  tiles: Set<string>;
+  effectiveRange: number;
+  rangeLabel: string;
+  isLine: boolean;
+  isZoneWide: boolean;
+}
+
+/**
+ * Computes Noble Phantasm targetable tiles within the Servant's current zone by reading npDesc:
+ * - "เส้นตรง...ระยะ N ช่อง" -> orthogonal straight lines up to N tiles in 4 directions
+ * - "ระยะ [X–]N ช่อง" -> Manhattan distance 1..N
+ * - "ในโซนเดียวกัน" / "ทั้งโซน" (when no shorter range is stated) -> entire active zone
+ * - Fallback -> Servant's effective attack range (including High Ground +1)
+ */
+export function computeNpRangeTiles(
+  unit: BoardUnit,
+  npDesc?: string
+): NpRangeAnalysis {
+  const tiles = new Set<string>();
+  const fallback = computeAttackRangeTiles(unit);
+
+  if (unit.status !== 'active' || !unit.position) {
+    return {
+      tiles,
+      effectiveRange: fallback.effectiveRange,
+      rangeLabel: `${fallback.effectiveRange} ช่อง`,
+      isLine: false,
+      isZoneWide: false,
+    };
+  }
+
+  const { zone, x: ux, y: uy } = unit.position;
+  const desc = npDesc ?? '';
+  const isLine = desc.includes('เส้นตรง');
+  const rangeMatch = desc.match(/ระยะ\s*(?:\d+\s*[–-]\s*)?(\d+)\s*ช่อง/);
+  const parsedRange = rangeMatch ? Number(rangeMatch[1]) : null;
+  const mentionsZone =
+    desc.includes('ในโซนเดียวกัน') || desc.includes('ทั้งโซน');
+
+  // Zone-wide support / global zone NP (no explicit tile range)
+  if (parsedRange === null && mentionsZone) {
+    for (let y = 0; y < MAP_DATA.rows; y++) {
+      for (let x = 0; x < MAP_DATA.cols; x++) {
+        tiles.add(getTileKey(zone, x, y));
+      }
+    }
+    return {
+      tiles,
+      effectiveRange: 99,
+      rangeLabel: 'ทั้งโซน',
+      isLine: false,
+      isZoneWide: true,
+    };
+  }
+
+  const effectiveRange =
+    parsedRange !== null && parsedRange > 0
+      ? parsedRange
+      : fallback.effectiveRange;
+
+  if (isLine) {
+    for (const [dx, dy] of ORTHO_DIRS) {
+      for (let step = 1; step <= effectiveRange; step++) {
+        const nx = ux + dx * step;
+        const ny = uy + dy * step;
+        if (nx < 0 || nx >= MAP_DATA.cols || ny < 0 || ny >= MAP_DATA.rows) {
+          break;
+        }
+        tiles.add(getTileKey(zone, nx, ny));
+      }
+    }
+    return {
+      tiles,
+      effectiveRange,
+      rangeLabel: `เส้นตรง ${effectiveRange} ช่อง`,
+      isLine: true,
+      isZoneWide: false,
+    };
+  }
+
+  for (let y = 0; y < MAP_DATA.rows; y++) {
+    for (let x = 0; x < MAP_DATA.cols; x++) {
+      const dist = Math.abs(x - ux) + Math.abs(y - uy);
+      if (dist >= 1 && dist <= effectiveRange) {
+        tiles.add(getTileKey(zone, x, y));
+      }
+    }
+  }
+
+  return {
+    tiles,
+    effectiveRange,
+    rangeLabel: `${effectiveRange} ช่อง`,
+    isLine: false,
+    isZoneWide: false,
+  };
+}
+
 function getMoveStepCost(fromTerrain: TerrainId, toTerrain: TerrainId): number {
   const toDef = TERRAINS_BY_ID[toTerrain];
   if (!toDef) return 1.0;
